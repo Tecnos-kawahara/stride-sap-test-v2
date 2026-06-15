@@ -1,0 +1,30 @@
+# SAP Extension Pack v2 — ui_specifications_template.yaml
+# 参照仕様: 05_テンプレート設計.md §B-6
+# SAP 画面（Dynpro / Selection Screen / ALV）の UI 仕様
+
+version: "1.0.0"
+screens:
+  - id: "SCR-001"
+    name: ""
+    type: ""                          # dynpro | selection_screen | alv | webdynpro
+    dynpro_number: ""
+    description: ""
+    fields:
+      - name: ""
+        technical_name: ""            # SAP 技術名（例: P_BUKRS）
+        type: ""                      # parameter | select_option | output | input_output
+        data_element: ""
+        required: false
+        default_value: ""
+        validation_ref: ""            # CHK-XX 参照
+        help:
+          search_help: ""
+          f1_help: ""
+    events:
+      - event: ""                     # AT SELECTION-SCREEN | PAI | PBO 等
+        action: ""
+        description: ""
+    layout:
+      title_bar: ""
+      status: ""                      # GUI ステータス名
+      toolbar_functions: []

@@ -1,0 +1,60 @@
+# =============================================================================
+# Observability Dependencies
+# Add to your pyproject.toml [project.dependencies] or [tool.poetry.dependencies]
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# OpenTelemetry (Distributed Tracing)
+# -----------------------------------------------------------------------------
+
+# Core
+# opentelemetry-api = "^1.21.0"
+# opentelemetry-sdk = "^1.21.0"
+
+# Exporters
+# opentelemetry-exporter-otlp = "^1.21.0"
+
+# Instrumentation
+# opentelemetry-instrumentation-fastapi = "^0.42b0"
+# opentelemetry-instrumentation-sqlalchemy = "^0.42b0"
+# opentelemetry-instrumentation-httpx = "^0.42b0"
+# opentelemetry-instrumentation-redis = "^0.42b0"
+# opentelemetry-instrumentation-logging = "^0.42b0"
+
+# -----------------------------------------------------------------------------
+# Prometheus (Metrics)
+# -----------------------------------------------------------------------------
+
+# prometheus-client = "^0.19.0"
+
+# -----------------------------------------------------------------------------
+# pip install example
+# -----------------------------------------------------------------------------
+
+# pip install \
+#   opentelemetry-api \
+#   opentelemetry-sdk \
+#   opentelemetry-exporter-otlp \
+#   opentelemetry-instrumentation-fastapi \
+#   opentelemetry-instrumentation-sqlalchemy \
+#   opentelemetry-instrumentation-httpx \
+#   opentelemetry-instrumentation-redis \
+#   opentelemetry-instrumentation-logging \
+#   prometheus-client
+
+# -----------------------------------------------------------------------------
+# pyproject.toml example
+# -----------------------------------------------------------------------------
+
+# [project.optional-dependencies]
+# observability = [
+#     "opentelemetry-api>=1.21.0",
+#     "opentelemetry-sdk>=1.21.0",
+#     "opentelemetry-exporter-otlp>=1.21.0",
+#     "opentelemetry-instrumentation-fastapi>=0.42b0",
+#     "opentelemetry-instrumentation-sqlalchemy>=0.42b0",
+#     "opentelemetry-instrumentation-httpx>=0.42b0",
+#     "opentelemetry-instrumentation-redis>=0.42b0",
+#     "opentelemetry-instrumentation-logging>=0.42b0",
+#     "prometheus-client>=0.19.0",
+# ]

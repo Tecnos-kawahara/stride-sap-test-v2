@@ -1,0 +1,32 @@
+# SAP Extension Pack v2 — database_schema_template.yaml (SAP版)
+# 参照仕様: 05_テンプレート設計.md §B-6
+# SAP データベーステーブルのスキーマ
+
+version: "1.0.0"
+tables:
+  custom_tables:
+    - name: ""                        # テーブル名（Z/Y プレフィックス）
+      description: ""
+      delivery_class: ""              # A | C | L | G | E | S | W
+      table_type: ""                  # transparent | cluster | pool
+      enhancement_category: ""        # character | character_numeric | any
+      fields:
+        - name: ""
+          data_element: ""
+          is_key: false
+          not_null: false
+          description: ""
+      indexes:
+        - name: ""
+          unique: false
+          fields: []
+      foreign_keys:
+        - field: ""
+          check_table: ""
+          check_field: ""
+  referenced_tables:
+    - name: ""                        # SAP 標準テーブル名
+      usage: ""                       # R | W | RW
+      key_fields: []
+      relevant_fields: []
+      description: ""

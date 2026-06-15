@@ -1,0 +1,101 @@
+# =============================================================================
+# ConfigMap
+# Non-sensitive configuration
+# =============================================================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ${APP_NAME}-config
+  namespace: ${NAMESPACE}
+  labels:
+    app: ${APP_NAME}
+data:
+  # Application settings
+  APP_ENV: "${ENVIRONMENT}"
+  APP_DEBUG: "false"
+  APP_LOG_LEVEL: "INFO"
+
+  # Server settings
+  APP_HOST: "0.0.0.0"
+  APP_PORT: "8000"
+  APP_WORKERS: "4"
+
+  # Database settings (non-sensitive)
+  DB_POOL_SIZE: "10"
+  DB_MAX_OVERFLOW: "20"
+  DB_POOL_TIMEOUT: "30"
+
+  # Redis settings (non-sensitive)
+  REDIS_DB: "0"
+  REDIS_MAX_CONNECTIONS: "10"
+
+  # CORS settings
+  CORS_ORIGINS: "${ALLOWED_ORIGINS}"
+  CORS_ALLOW_CREDENTIALS: "true"
+
+  # OpenTelemetry settings
+  OTEL_ENABLED: "true"
+  OTEL_SERVICE_NAME: "${APP_NAME}"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability:4317"
+  OTEL_TRACES_SAMPLER: "parentbased_traceidratio"
+  OTEL_TRACES_SAMPLER_ARG: "0.1"
+
+---
+# =============================================================================
+# Secret
+# Sensitive configuration (use External Secrets or Sealed Secrets in production)
+# =============================================================================
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ${APP_NAME}-secrets
+  namespace: ${NAMESPACE}
+  labels:
+    app: ${APP_NAME}
+type: Opaque
+stringData:
+  # Database connection string
+  # Format: postgresql+asyncpg://user:password@host:port/dbname
+  database-url: "${DATABASE_URL}"
+
+  # Application secret key (JWT signing, etc.)
+  secret-key: "${SECRET_KEY}"
+
+  # Redis connection string
+  # Format: redis://:password@host:port/db
+  redis-url: "${REDIS_URL}"
+
+---
+# =============================================================================
+# External Secrets (for AWS Secrets Manager / HashiCorp Vault)
+# Requires External Secrets Operator
+# =============================================================================
+
+# apiVersion: external-secrets.io/v1beta1
+# kind: ExternalSecret
+# metadata:
+#   name: ${APP_NAME}-external-secrets
+#   namespace: ${NAMESPACE}
+# spec:
+#   refreshInterval: 1h
+#   secretStoreRef:
+#     kind: ClusterSecretStore
+#     name: aws-secrets-manager
+#   target:
+#     name: ${APP_NAME}-secrets
+#     creationPolicy: Owner
+#   data:
+#     - secretKey: database-url
+#       remoteRef:
+#         key: ${ENVIRONMENT}/${APP_NAME}/database
+#         property: url
+#     - secretKey: secret-key
+#       remoteRef:
+#         key: ${ENVIRONMENT}/${APP_NAME}/app
+#         property: secret-key
+#     - secretKey: redis-url
+#       remoteRef:
+#         key: ${ENVIRONMENT}/${APP_NAME}/redis
+#         property: url

@@ -1,0 +1,250 @@
+# OpenAPI 3.1 Template - {{FEATURE_NAME}}
+# {{TEMPLATE_VERSION}}: API contract skeleton
+
+openapi: 3.1.0
+
+info:
+  title: "{{FEATURE_NAME}} API"
+  version: "1.0.0"
+  description: |
+    API specification for {{FEATURE_NAME}}.
+
+    **Spec Reference**: specs/{{FEATURE_NAME}}/spec.md
+    **Plan Reference**: specs/{{FEATURE_NAME}}/plan.md
+  contact:
+    name: API Team
+    email: api-support@example.com
+
+servers:
+  - url: http://localhost:8000
+    description: Development server
+  - url: https://api.staging.example.com
+    description: Staging server
+  - url: https://api.example.com
+    description: Production server
+
+tags:
+  - name: {{FEATURE_NAME}}
+    description: "{{FEATURE_NAME}} operations"
+
+paths:
+  /api/{{FEATURE_NAME}}:
+    get:
+      operationId: list{{FEATURE_NAME}}
+      summary: "List {{FEATURE_NAME}} items"
+      description: |
+        Returns a list of items.
+
+        **Covers**: CT-API-01
+        **AC**: AC-US-FEAT{{FEATURE_ID}}-001-01
+      tags:
+        - {{FEATURE_NAME}}
+      parameters:
+        - name: status
+          in: query
+          description: Filter by status
+          schema:
+            type: string
+            enum: [draft, active, completed]
+        - name: limit
+          in: query
+          description: Maximum number of items to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          description: Number of items to skip
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/{{FEATURE_NAME}}Item'
+                  total:
+                    type: integer
+                    description: Total count of items
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      operationId: create{{FEATURE_NAME}}
+      summary: "Create a new {{FEATURE_NAME}} item"
+      description: |
+        Creates a new item.
+
+        **Covers**: CT-API-02
+        **AC**: AC-US-FEAT{{FEATURE_ID}}-001-02
+      tags:
+        - {{FEATURE_NAME}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/{{FEATURE_NAME}}CreateRequest'
+      responses:
+        '201':
+          description: Item created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/{{FEATURE_NAME}}Item'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/{{FEATURE_NAME}}/{id}:
+    get:
+      operationId: get{{FEATURE_NAME}}ById
+      summary: "Get {{FEATURE_NAME}} item by ID"
+      tags:
+        - {{FEATURE_NAME}}
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Item ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/{{FEATURE_NAME}}Item'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  schemas:
+    {{FEATURE_NAME}}Item:
+      type: object
+      required:
+        - id
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          description: Unique identifier
+          example: "ITEM-20260105-001"
+        status:
+          type: string
+          enum: [draft, active, completed]
+          description: Current status
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    {{FEATURE_NAME}}CreateRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Item name
+        description:
+          type: string
+          maxLength: 1000
+          description: Optional description
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          additionalProperties: true
+          description: Additional error details
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: BAD_REQUEST
+            message: Invalid request parameters
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: NOT_FOUND
+            message: Resource not found
+
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: VALIDATION_ERROR
+            message: Request validation failed
+            details:
+              field: name
+              error: Field is required
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: INTERNAL_ERROR
+            message: An unexpected error occurred
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token authentication
+
+# Uncomment to require authentication for all endpoints
+# security:
+#   - bearerAuth: []

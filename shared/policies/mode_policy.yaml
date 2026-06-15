@@ -1,0 +1,135 @@
+# Mode Policy - Tecnos-STRIDE v3.0
+# Version: 1.0.0
+# Purpose: Organization-level mode enforcement for all features (not just ERP addons)
+# Source: Elevated from memory/erp_addon_mode_policy.yaml to shared policy level
+
+version: "1.0.0"
+effective_date: "2026-02-07"
+
+principle:
+  - "mode is decided per Work Item (per change), not per feature."
+  - "autopilot always requires post-run walkthrough review and CI pass."
+  - "ops review is required post-run for ERP addons (transport/rollback/hypercare)."
+  - "critical tier features require minimum confirm mode."
+
+modes:
+  autopilot:
+    description: "低リスク変更向け。Pre-runチェック不要、Post-runで品質を担保"
+    checkpoints:
+      pre_run: []
+      post_run: ["walkthrough_review", "ci_pass", "ops_review"]
+  confirm:
+    description: "中リスク変更向け。計画レビューを経てから実行"
+    checkpoints:
+      pre_run: ["plan_review"]
+      post_run: ["walkthrough_review", "ci_pass", "ops_review"]
+  validate:
+    description: "高リスク変更向け。設計差分・計画レビューの二重チェック"
+    checkpoints:
+      pre_run: ["design_diff_review", "plan_review"]
+      post_run: ["walkthrough_review", "ci_pass", "ops_review"]
+
+# Coverage Tier × Mode minimum requirement
+tier_mode_minimum:
+  critical: "confirm"      # critical tier は最低 confirm（autopilot 禁止）
+  standard: "autopilot"    # standard は全モード許可
+  experimental: "autopilot" # experimental は全モード許可
+
+# Risk Flag → Recommended Mode mapping
+risk_flag_mapping:
+  # High risk → validate
+  validate:
+    - "authz"
+    - "sod"
+    - "audit_log"
+    - "pii"
+    - "accounting_calc"
+    - "inventory_valuation"
+    - "db_schema"
+    - "data_migration"
+    - "update_integration"
+    - "cross_module"
+
+  # Medium risk → confirm
+  confirm:
+    - "new_api"
+    - "contract_change"
+    - "performance_sensitive"
+
+  # Low risk → autopilot
+  autopilot:
+    - "ui_only"
+    - "message_only"
+    - "test_only"
+    - "logging_only"
+
+# Override rules
+overrides:
+  require_reason_when_override: true
+  override_approval_required: true
+  override_approver: "TECH_LEAD"  # minimum; ARCH_BOARD for critical tier
+
+# Escalation: when mode_override weakens the recommended mode
+escalation:
+  - condition: "override weakens mode AND coverage_tier == 'critical'"
+    escalate_to: "ARCH_BOARD"
+    mandatory: true
+  - condition: "override weakens mode AND risk_flags contains 'authz' or 'sod'"
+    escalate_to: "SECURITY_OFFICER"
+    mandatory: true
+
+# Autonomy Bias - Shifts risk_flag→mode thresholds based on project preference
+# Stored in project's state.yaml, applied at WI readiness check time
+# CONSTRAINT: Bias NEVER weakens below tier_mode_minimum
+autonomy_bias:
+  autonomous:
+    description: "AIをより信頼、チェックポイント削減"
+    mode_shift:
+      # When risk_flag mapping recommends this mode, shift to:
+      autopilot: autopilot  # no change
+      confirm: autopilot    # relaxed
+      validate: confirm     # relaxed
+  balanced:
+    description: "標準動作（デフォルト）"
+    mode_shift: null  # no shift, use risk_flag mapping as-is
+  controlled:
+    description: "より多くの人間監視"
+    mode_shift:
+      autopilot: confirm    # tightened
+      confirm: validate     # tightened
+      validate: validate    # no change
+
+# Execution Authority Declaration (v4.6.0)
+# Reference: Cook et al. (2026) "Talk Freely, Execute Strictly" arXiv:2603.06394
+# Purpose: AI agent の権限スコープを明示宣言し、監査・ガバナンスを支援する
+#
+# conversational: AI が自由に実行できる行為（承認不要）
+# gated: スキーマ検証（stride-lint PASS）を条件に実行可能な行為
+# prohibited: AI に実行権限がない行為（人間専用）
+execution_authority:
+  conversational:
+    description: "AIが承認なしに自由に実行できる行為"
+    actions:
+      - "仕様の解釈・質問・明確化"
+      - "候補アクションの提案"
+      - "stride-lint APPROVAL_PENDING以外のエラー自動修正"
+      - "Evidence Pack の生成・更新"
+      - "テスト実行・結果収集"
+      - "ドキュメントのビュー再生成（#2〜#6セクション）"
+  gated:
+    description: "スキーマ検証を通過した場合のみ実行可能な行為"
+    gate_mechanism: "stride-lint + phase_gate.py"
+    actions:
+      - "Phase内の成果物ファイル作成・編集（phase_gate.py ALLOWED時のみ）"
+      - "次Phase成果物の着手（前Phase Gate承認後のみ）"
+      - "Work Item の実装開始（wi_readiness_checker.py READY時のみ）"
+      - "PR作成（pr_readiness_checker.py PR_READY時のみ）"
+  prohibited:
+    description: "AIに実行権限がない行為（人間専用）"
+    actions:
+      - "APPROVAL.md / WI-*.approval.md の編集"
+      - "承認済み成果物の無断変更（再承認手続きなし）"
+      - "Phase Gateのスキップ"
+      - "coverage_tier の事後変更（basic_design承認後）"
+      - "ERP本体ランタイムデータへの直接操作（DDIC スキーマ定義は人間承認付きで MUST ASK に分類）"
+      - "autonomy_bias の override（TECH_LEAD以上の承認なし）"

@@ -1,0 +1,48 @@
+# =============================================================================
+# Kustomization Base
+# Base configuration for all environments
+# =============================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Namespace for all resources
+namespace: web-edi
+
+# Resources to include
+resources:
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - hpa.yaml
+  - configmap.yaml
+
+# Common labels applied to all resources
+commonLabels:
+  app.kubernetes.io/name: web-edi
+  app.kubernetes.io/component: backend
+  app.kubernetes.io/managed-by: kustomize
+
+# Common annotations
+commonAnnotations:
+  app.kubernetes.io/part-of: web-edi-system
+
+# Image configuration (can be overridden in overlays)
+images:
+  - name: web-edi
+    newName: your-registry/web-edi
+    newTag: latest
+
+# ConfigMap generator
+configMapGenerator:
+  - name: web-edi-config
+    behavior: create
+    envs:
+      - config.env
+
+# Secret generator (for development only - use External Secrets in production)
+# secretGenerator:
+#   - name: web-edi-secrets
+#     type: Opaque
+#     envs:
+#       - secrets.env

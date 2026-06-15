@@ -1,0 +1,126 @@
+# tag_branch_rules.yaml — タグベースの分岐パターン定義
+# sap_path_enumerator.py が process_definitions[].body のステップタグから
+# 分岐パスを展開する際に使用する。
+#
+# 各ルール:
+#   tag: ステップに付与されるタグ名（正規表現対応）
+#   branches: 展開される分岐パターン
+#     - type: 分岐タイプ (normal/abnormal/error)
+#       label: 分岐ラベル（パス名に使用）
+#       description: 分岐の説明
+
+schema_version: "1.0"
+
+rules:
+  # 存在チェック（マスタ/トランザクション）
+  - tag: "EXIST"
+    branches:
+      - type: normal
+        label: "exist_ok"
+        description: "データが存在する"
+      - type: abnormal
+        label: "exist_ng"
+        description: "データが存在しない"
+
+  # BAPI/RFC 呼び出し
+  - tag: "BAPI"
+    branches:
+      - type: normal
+        label: "check_ok"
+        description: "BAPI CHECK 成功"
+      - type: normal
+        label: "post_success"
+        description: "BAPI POST 成功（COMMIT WORK）"
+      - type: abnormal
+        label: "post_fail"
+        description: "BAPI POST 失敗（ROLLBACK WORK）"
+
+  # バリデーション（入力チェック）
+  - tag: "VALIDATE"
+    branches:
+      - type: normal
+        label: "valid"
+        description: "バリデーション成功"
+      - type: abnormal
+        label: "invalid"
+        description: "バリデーションエラー"
+
+  # 権限チェック
+  - tag: "AUTH"
+    branches:
+      - type: normal
+        label: "authorized"
+        description: "権限あり"
+      - type: abnormal
+        label: "unauthorized"
+        description: "権限なし"
+
+  # DB_READ（SELECT）
+  - tag: "DB_READ"
+    branches:
+      - type: normal
+        label: "data_found"
+        description: "データ取得成功（1件以上）"
+      - type: abnormal
+        label: "no_data"
+        description: "該当データなし（0件）"
+
+  # DB_WRITE（INSERT/UPDATE/DELETE）
+  - tag: "DB_WRITE"
+    branches:
+      - type: normal
+        label: "write_ok"
+        description: "DB更新成功"
+      - type: abnormal
+        label: "write_fail"
+        description: "DB更新失敗"
+
+  # ファイル出力
+  - tag: "FILE_OUTPUT"
+    branches:
+      - type: normal
+        label: "file_ok"
+        description: "ファイル出力成功"
+      - type: abnormal
+        label: "file_fail"
+        description: "ファイル出力失敗"
+
+  # アプリケーションログ出力
+  - tag: "APPLOG"
+    branches:
+      - type: normal
+        label: "log_ok"
+        description: "ログ出力成功"
+
+  # IDoc 送信
+  - tag: "IDOC"
+    branches:
+      - type: normal
+        label: "idoc_ok"
+        description: "IDoc 送信成功"
+      - type: abnormal
+        label: "idoc_fail"
+        description: "IDoc 送信失敗"
+
+  # メール送信
+  - tag: "MAIL"
+    branches:
+      - type: normal
+        label: "mail_ok"
+        description: "メール送信成功"
+      - type: abnormal
+        label: "mail_fail"
+        description: "メール送信失敗"
+
+  # DB_READ 複数テーブルの部分取得（IMP-035）
+  - tag: "DB_READ_MULTI"
+    branches:
+      - type: normal
+        label: "all_found"
+        description: "全テーブルからデータ取得成功"
+      - type: normal
+        label: "partial_found"
+        description: "一部テーブルのみデータあり（部分取得）"
+      - type: abnormal
+        label: "none_found"
+        description: "全テーブル 0 件"

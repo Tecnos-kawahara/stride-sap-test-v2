@@ -1,0 +1,345 @@
+"""
+Pytest Fixtures Template - SDD Compliant
+Version: 5.3.3-tecnos-stride
+
+Usage:
+  1. Copy to specs/<feature>/tests/conftest.py
+  2. Replace XXX_FEATURE with actual feature name
+  3. Adjust imports based on your application structure
+  4. Enable/disable sections based on needs (auth, database, etc.)
+
+Fixture Scopes:
+  - function: New instance per test (default, isolated)
+  - class: Shared within test class
+  - module: Shared within test file
+  - session: Shared across all tests (use sparingly)
+"""
+
+import uuid
+from typing import Generator
+
+import pytest
+from starlette.testclient import TestClient
+
+# === Application Imports (adjust based on your structure) ===
+# from src.main import app
+# from src.domain.database import get_db, engine, Base
+# from src.domain.models import User, Company
+
+
+# =============================================================================
+# Database Fixtures (enable if using database)
+# =============================================================================
+
+# @pytest.fixture(scope="session")
+# def setup_database():
+#     """Create all tables once per session."""
+#     Base.metadata.create_all(bind=engine)
+#     yield
+#     Base.metadata.drop_all(bind=engine)
+
+
+# @pytest.fixture(scope="function")
+# def db_session(setup_database):
+#     """Provide a transactional scope for each test."""
+#     from sqlalchemy.orm import Session
+#     connection = engine.connect()
+#     transaction = connection.begin()
+#     session = Session(bind=connection)
+#
+#     yield session
+#
+#     session.close()
+#     transaction.rollback()
+#     connection.close()
+
+
+# =============================================================================
+# HTTP Client Fixture
+# =============================================================================
+
+@pytest.fixture(scope="function")
+def client() -> Generator[TestClient, None, None]:
+    """
+    Provide a TestClient for API testing.
+
+    Usage:
+        def test_example(client):
+            response = client.get("/api/v1/health")
+            assert response.status_code == 200
+    """
+    from src.main import app  # Import here to avoid circular imports
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+
+# =============================================================================
+# Authentication Fixtures
+# =============================================================================
+
+@pytest.fixture(scope="function")
+def buyer_user(client, db_session) -> dict:
+    """
+    Create a buyer user for testing.
+
+    Returns:
+        dict: User data with id, username, company info
+    """
+    # Create company first
+    from src.domain.models import Company, User
+    from src.auth.password import hash_password
+
+    company = Company(
+        id=uuid.uuid4(),
+        name="Test Buyer Company",
+        company_type="buyer",
+    )
+    db_session.add(company)
+
+    user = User(
+        id=uuid.uuid4(),
+        username="buyer_user",
+        password_hash=hash_password("buyer_password"),
+        role="buyer",
+        company_id=company.id,
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    return {
+        "id": str(user.id),
+        "username": user.username,
+        "password": "buyer_password",
+        "role": user.role,
+        "company_id": str(company.id),
+        "company_name": company.name,
+    }
+
+
+@pytest.fixture(scope="function")
+def supplier_user(client, db_session) -> dict:
+    """
+    Create a supplier user for testing.
+
+    Returns:
+        dict: User data with id, username, company info
+    """
+    from src.domain.models import Company, User
+    from src.auth.password import hash_password
+
+    company = Company(
+        id=uuid.uuid4(),
+        name="Test Supplier Company",
+        company_type="supplier",
+    )
+    db_session.add(company)
+
+    user = User(
+        id=uuid.uuid4(),
+        username="supplier_user",
+        password_hash=hash_password("supplier_password"),
+        role="supplier",
+        company_id=company.id,
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    return {
+        "id": str(user.id),
+        "username": user.username,
+        "password": "supplier_password",
+        "role": user.role,
+        "company_id": str(company.id),
+        "company_name": company.name,
+    }
+
+
+@pytest.fixture(scope="function")
+def admin_user(client, db_session) -> dict:
+    """
+    Create an admin user for testing.
+    """
+    from src.domain.models import Company, User
+    from src.auth.password import hash_password
+
+    company = Company(
+        id=uuid.uuid4(),
+        name="Admin Company",
+        company_type="admin",
+    )
+    db_session.add(company)
+
+    user = User(
+        id=uuid.uuid4(),
+        username="admin_user",
+        password_hash=hash_password("admin_password"),
+        role="admin",
+        company_id=company.id,
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    return {
+        "id": str(user.id),
+        "username": user.username,
+        "password": "admin_password",
+        "role": user.role,
+        "company_id": str(company.id),
+    }
+
+
+# =============================================================================
+# Session Fixtures (Logged-in State)
+# =============================================================================
+
+@pytest.fixture(scope="function")
+def buyer_session(client, buyer_user) -> dict:
+    """
+    Login as buyer and return session info.
+
+    Usage:
+        def test_buyer_action(client, buyer_session):
+            # client is now authenticated as buyer
+            response = client.get("/api/v1/orders")
+            assert response.status_code == 200
+    """
+    response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "username": buyer_user["username"],
+            "password": buyer_user["password"],
+        },
+    )
+    assert response.status_code == 200, f"Login failed: {response.text}"
+    return buyer_user
+
+
+@pytest.fixture(scope="function")
+def supplier_session(client, supplier_user) -> dict:
+    """Login as supplier and return session info."""
+    response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "username": supplier_user["username"],
+            "password": supplier_user["password"],
+        },
+    )
+    assert response.status_code == 200, f"Login failed: {response.text}"
+    return supplier_user
+
+
+@pytest.fixture(scope="function")
+def admin_session(client, admin_user) -> dict:
+    """Login as admin and return session info."""
+    response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "username": admin_user["username"],
+            "password": admin_user["password"],
+        },
+    )
+    assert response.status_code == 200, f"Login failed: {response.text}"
+    return admin_user
+
+
+# =============================================================================
+# Test Data Fixtures
+# =============================================================================
+
+@pytest.fixture(scope="function")
+def supplier_company(supplier_user, db_session):
+    """
+    Get the supplier's company for order creation.
+
+    Usage:
+        def test_create_order(client, buyer_session, supplier_company):
+            response = client.post("/api/v1/orders", json={
+                "supplier_id": str(supplier_company.id),
+                ...
+            })
+    """
+    from src.domain.models import Company
+
+    company = db_session.query(Company).filter(
+        Company.id == uuid.UUID(supplier_user["company_id"])
+    ).first()
+    return company
+
+
+@pytest.fixture(scope="function")
+def sample_order_data(supplier_company) -> dict:
+    """
+    Sample order data for testing.
+
+    Usage:
+        def test_create_order(client, buyer_session, sample_order_data):
+            response = client.post(
+                "/api/v1/orders",
+                json=sample_order_data,
+                headers={"Idempotency-Key": str(uuid.uuid4())},
+            )
+    """
+    from datetime import date, timedelta
+
+    return {
+        "supplier_id": str(supplier_company.id),
+        "items": [
+            {
+                "product_code": "PROD-001",
+                "product_name": "Test Product",
+                "quantity": 10,
+                "unit": "pcs",
+                "unit_price": 100.00,
+            }
+        ],
+        "delivery_date": str(date.today() + timedelta(days=7)),
+        "notes": "Test order",
+    }
+
+
+# =============================================================================
+# Utility Fixtures
+# =============================================================================
+
+@pytest.fixture(scope="function")
+def idempotency_key() -> str:
+    """Generate a unique idempotency key for each test."""
+    return str(uuid.uuid4())
+
+
+@pytest.fixture(scope="function")
+def correlation_id() -> str:
+    """Generate a unique correlation ID for tracing."""
+    return f"test-{uuid.uuid4()}"
+
+
+# =============================================================================
+# Marker-based Fixtures (for selective test runs)
+# =============================================================================
+
+def pytest_configure(config):
+    """Register custom markers."""
+    config.addinivalue_line("markers", "unit: Unit tests (fast, isolated)")
+    config.addinivalue_line("markers", "integration: Integration tests")
+    config.addinivalue_line("markers", "contract: Contract tests (API schema)")
+    config.addinivalue_line("markers", "e2e: End-to-end tests (Playwright)")
+    config.addinivalue_line("markers", "slow: Tests that take > 1 second")
+
+
+# =============================================================================
+# Test Isolation Helpers
+# =============================================================================
+
+@pytest.fixture(autouse=True)
+def reset_rate_limits():
+    """Reset rate limiters between tests if applicable."""
+    yield
+    # Add rate limiter reset logic here if needed
+
+
+@pytest.fixture(autouse=True)
+def clear_caches():
+    """Clear application caches between tests."""
+    yield
+    # Add cache clearing logic here if needed

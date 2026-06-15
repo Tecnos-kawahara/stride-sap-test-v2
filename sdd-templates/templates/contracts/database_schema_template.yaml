@@ -1,0 +1,234 @@
+# Database Schema Template (SDD Spec-as-Code)
+# Template ID: TPL-DB-TECNOS-001
+# Version: {{TEMPLATE_VERSION}}
+#
+# Note: データベースを使わない場合は、このファイルは作成不要（任意）。
+#
+# Purpose: データベース構造を機械可読な形式で定義し、
+#          basic_design.md / spec.md / plan.md との整合性を保証する。
+#
+# Usage:
+#   1. COPY_DB_SCHEMA コマンドでコピー（必要な場合のみ）
+#   2. プレースホルダーを実際の値に置換
+#   3. stride-lint で検証
+
+database_schema:
+  # メタ情報
+  meta:
+    schema_id: "DB-FEAT-XXX"
+    feature_id: "FEAT-XXX"
+    version: "1.0.0"
+    status: "draft"  # draft | in_review | approved | released | deprecated
+    dialect: "postgresql"  # postgresql | mysql | oracle | sqlserver | sqlite
+    created_at: "YYYY-MM-DD"
+    updated_at: "YYYY-MM-DD"
+    owners:
+      - { name: "<DBA / Tech Lead>", role: "Database Owner" }
+
+  # SDD トレーサビリティ
+  traceability:
+    basic_design_ref: "specs/XXX_feature_name/basic_design.md"
+    spec_ref: "specs/XXX_feature_name/spec.md"
+    plan_ref: "specs/XXX_feature_name/plan.md"
+    related_contracts:
+      - "CT-API-01"  # このスキーマを使用するAPI契約
+    related_use_cases:
+      - "US-FEATXXX-001"
+    related_acceptance_criteria:
+      - "AC-US-FEATXXX-001-01"
+
+  # データ分類・監査ポリシー（Tecnos Org Constraints準拠）
+  data_governance:
+    data_classification: "Internal"  # Public | Internal | Confidential | Regulated
+    contains_pii: false
+    audit_log_required: true
+    retention_policy: "7 years"  # 会計データの場合
+    encryption:
+      at_rest: true
+      in_transit: true
+      columns: []  # 特定カラムの暗号化が必要な場合
+
+  # テーブル定義
+  tables:
+    - name: "XXX_table_name"
+      description: "テーブルの説明"
+      schema: "public"  # スキーマ名
+
+      # トレーサビリティ（どのエンティティに対応するか）
+      domain_object: ""  # 例: "Order", "Customer", "PurchaseOrder"
+      sor: ""  # System of Record: このテーブルがマスタとなるシステム
+
+      columns:
+        - name: "id"
+          type: "uuid"
+          nullable: false
+          primary_key: true
+          default: "gen_random_uuid()"
+          description: "主キー（UUID）"
+
+        - name: "XXX_column"
+          type: "varchar(255)"
+          nullable: false
+          unique: false
+          default: null
+          description: "カラムの説明"
+          # 外部キーの場合
+          foreign_key: null
+          #   table: "other_table"
+          #   column: "id"
+          #   on_delete: "RESTRICT"  # CASCADE | SET NULL | RESTRICT | NO ACTION
+          #   on_update: "CASCADE"
+
+        - name: "status"
+          type: "varchar(20)"
+          nullable: false
+          default: "'pending'"
+          description: "ステータス"
+          check: "status IN ('pending', 'confirmed', 'completed', 'cancelled')"
+
+        - name: "created_at"
+          type: "timestamp with time zone"
+          nullable: false
+          default: "CURRENT_TIMESTAMP"
+          description: "作成日時"
+
+        - name: "updated_at"
+          type: "timestamp with time zone"
+          nullable: false
+          default: "CURRENT_TIMESTAMP"
+          description: "更新日時"
+
+        - name: "created_by"
+          type: "varchar(100)"
+          nullable: true
+          description: "作成者（監査用）"
+
+        - name: "updated_by"
+          type: "varchar(100)"
+          nullable: true
+          description: "更新者（監査用）"
+
+      # インデックス
+      indexes:
+        - name: "idx_XXX_table_status"
+          columns: ["status"]
+          unique: false
+          where: null  # 部分インデックスの条件
+
+        - name: "idx_XXX_table_created_at"
+          columns: ["created_at"]
+          unique: false
+
+      # 複合制約
+      constraints:
+        - type: "unique"
+          name: "uq_XXX_table_composite"
+          columns: ["column1", "column2"]
+
+        - type: "check"
+          name: "chk_XXX_table_validation"
+          expression: "column1 > 0"
+
+      # トリガー（監査ログ等）
+      triggers:
+        - name: "trg_XXX_table_updated_at"
+          timing: "BEFORE"  # BEFORE | AFTER | INSTEAD OF
+          event: "UPDATE"   # INSERT | UPDATE | DELETE
+          for_each: "ROW"   # ROW | STATEMENT
+          function: "update_updated_at_column()"
+          description: "updated_at を自動更新"
+
+  # ビュー定義
+  views:
+    - name: "v_XXX_summary"
+      description: "サマリービュー"
+      materialized: false
+      definition: |
+        SELECT
+          t.id,
+          t.status,
+          t.created_at
+        FROM XXX_table_name t
+        WHERE t.status != 'cancelled'
+
+  # リレーションシップ（ER図の関連）
+  relationships:
+    - name: "rel_XXX_to_YYY"
+      from_table: "XXX_table_name"
+      from_column: "foreign_key_column"
+      to_table: "YYY_table_name"
+      to_column: "id"
+      type: "many-to-one"  # one-to-one | one-to-many | many-to-one | many-to-many
+      on_delete: "RESTRICT"
+      on_update: "CASCADE"
+      description: "XXX から YYY への参照"
+
+  # 列挙型（PostgreSQLのENUM等）
+  enums:
+    - name: "XXX_status_enum"
+      values:
+        - { value: "pending", description: "保留中" }
+        - { value: "confirmed", description: "確認済み" }
+        - { value: "completed", description: "完了" }
+        - { value: "cancelled", description: "キャンセル" }
+
+  # シーケンス（採番）
+  sequences:
+    - name: "XXX_order_number_seq"
+      start: 1
+      increment: 1
+      min_value: 1
+      max_value: 9999999999
+      cycle: false
+      description: "受注番号採番用シーケンス"
+
+  # 関数/ストアドプロシージャ
+  functions:
+    - name: "update_updated_at_column"
+      language: "plpgsql"
+      returns: "trigger"
+      description: "updated_at カラムを自動更新するトリガー関数"
+      definition: |
+        BEGIN
+          NEW.updated_at = CURRENT_TIMESTAMP;
+          RETURN NEW;
+        END;
+
+  # マイグレーション情報
+  migrations:
+    strategy: "versioned"  # versioned | state-based
+    tool: ""  # alembic | flyway | liquibase | prisma | drizzle | atlas | custom
+    baseline_version: "001"
+    scripts_path: "specs/XXX_feature_name/migrations/"
+
+  # テストデータ（開発/テスト環境用）
+  seed_data:
+    enabled: true
+    scripts_path: "specs/XXX_feature_name/tests/fixtures/"
+    environments:
+      - "development"
+      - "test"
+
+# Gate Check（stride-lint用）
+database_schema_gate_check:
+  counts:
+    tables: 0
+    views: 0
+    relationships: 0
+    indexes: 0
+  rules:
+    min_tables: 1
+    all_tables_have_pk: true
+    all_fk_have_index: true
+    audit_columns_required: true  # created_at, updated_at 必須
+    # v4.8.0: AI-ready 品質ゲート（stride-lint はここの値で判定する — 正本）
+    all_tables_have_description: true     # テーブルに description 必須
+    all_columns_have_description: true    # カラムに description 必須
+    description_coverage_min: 0.95        # 説明網羅率の最低値（0.0〜1.0）
+    migration_forward_only: true          # 適用済み migration の書き換え禁止（CI検証、lint外）
+
+  tables_defined: false
+  relationships_documented: false
+  data_governance_defined: false
+  traceability_linked: false
+  ready_for_migration: false

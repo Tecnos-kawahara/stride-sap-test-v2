@@ -1,0 +1,125 @@
+# scenarios.yaml - E2E検証シナリオ定義 (Sample Feature)
+#
+# ⚠️ 重要: このファイルはタスク完了検証のチェックリストとして使用する
+#
+# 使い方:
+#   1. 各シナリオは spec.md の AC にマッピングされる
+#   2. タスク完了前に、該当シナリオの全 expected を検証する
+#   3. 「動いた」ではなく「expected を全て満たしているか」を確認する
+#
+# AI Agent向け指示:
+#   - タスク完了報告前に必ずこのファイルを読む
+#   - expected の各項目を一つずつ検証する
+#   - 部分的な動作確認ではなく、全項目の検証を行う
+
+test_scenarios:
+  version: "1.2.5-tecnos"
+  feature_id: "FEAT-SAMPLEFEATURE"
+
+  # シナリオ使用ガイド
+  usage_guide:
+    purpose: "タスク完了検証のチェックリストとして使用"
+    when_to_use: "タスク完了報告の前に必ず確認"
+    how_to_verify: "各 expected 項目を一つずつ検証し、全て満たしていることを確認"
+
+  scenarios:
+    # ─────────────────────────────────────────────────────
+    # シナリオ1: Web-EDI受注受付の正常系
+    # ─────────────────────────────────────────────────────
+    - id: "SCN-001"
+      name: "Web-EDI受注受付の正常系"
+      description: "発注CSVアップロードからERP登録までの基本フロー"
+      priority: "critical"
+
+      # このシナリオがカバーするAC
+      covers_acs:
+        - "AC-US-FEATSAMPLEFEATURE-001-01"
+        - "AC-US-FEATSAMPLEFEATURE-001-02"
+
+      preconditions:
+        - "取引先コードが有効"
+        - "商品マスタが有効"
+
+      steps:
+        - step: 1
+          action: "発注CSV(10行)をアップロード"
+        - step: 2
+          action: "発注送信を実行"
+
+      expected:
+        - id: "EXP-001-01"
+          description: "受注番号が画面に表示される"
+          verification_method: "UI確認"
+        - id: "EXP-001-02"
+          description: "ERPに受注が登録される"
+          verification_method: "API確認 / DB確認"
+
+      # 完了検証チェックリスト（AI用）
+      # ※ チェック項目は covers_acs のACに記載された要素に基づいて記載する
+      completion_checklist:
+        - "全 expected が満たされているか"
+        - "covers_acs の全ACに記載された要素を満たしているか"
+        # 以下はACの内容に応じて追加（例）:
+        # - "ACに多言語対応がある場合: 多言語で確認したか"
+        # - "ACに監査ログがある場合: who/when/what/before/after が記録されているか"
+
+    # ─────────────────────────────────────────────────────
+    # シナリオ2: エラー系
+    # ─────────────────────────────────────────────────────
+    - id: "SCN-002"
+      name: "バリデーションエラー"
+      description: "不正なCSVデータによるエラーケースの検証"
+      priority: "high"
+
+      covers_acs:
+        - "AC-US-FEATSAMPLEFEATURE-001-03"
+
+      preconditions:
+        - "不正な形式のCSVファイルを用意"
+
+      steps:
+        - step: 1
+          action: "不正なCSVをアップロード"
+
+      expected:
+        - id: "EXP-002-01"
+          description: "適切なエラーメッセージが表示される"
+          verification_method: "UI確認"
+        - id: "EXP-002-02"
+          description: "エラーが監査ログに記録される"
+          verification_method: "ログ確認"
+
+      completion_checklist:
+        - "エラーメッセージが仕様通りか"
+        - "エラー後の状態が正しいか（データ整合性）"
+
+  # ─────────────────────────────────────────────────────
+  # AI向け検証指示
+  # ─────────────────────────────────────────────────────
+  verification_instructions:
+    before_completion:
+      - "covers_acs に含まれる全ACを spec.md で再読する"
+      - "各 expected を一つずつ検証する"
+      - "completion_checklist の全項目を確認する"
+      - "部分的な実装ではないことを確認する"
+
+    anti_patterns:
+      - "「正常系が動いた」だけで完了と報告する"
+      - "expected の一部だけ確認して完了と報告する"
+      - "エラー系を確認せずに完了と報告する"
+      - "covers_acs を確認せずに完了と報告する"
+
+    report_format: |
+      ## シナリオ検証結果: SCN-XXX
+
+      ### カバーするAC
+      - AC-XXX-001: ✅ 全要素確認済み
+        - (ACに記載された要素を列挙)
+
+      ### Expected検証
+      - EXP-XXX-01: ✅ (検証方法: UI確認)
+      - EXP-XXX-02: ✅ (検証方法: ログ確認)
+
+      ### Completion Checklist
+      - [x] 全 expected が満たされているか
+      - [x] covers_acs の全ACに記載された要素を満たしているか

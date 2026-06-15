@@ -1,0 +1,115 @@
+# =============================================================================
+# SDD Template - Python Testing Configuration Snippet
+# Version: 5.3.3-tecnos-stride
+#
+# Usage:
+#   1. Merge this into your existing pyproject.toml
+#   2. Replace XXX_feature_name with actual feature name
+#   3. Adjust paths as needed
+# =============================================================================
+
+# --- Project Optional Dependencies ---
+# Add to [project.optional-dependencies] section:
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "httpx>=0.26.0",
+    "schemathesis>=3.25.0",        # OpenAPI contract testing
+    "playwright>=1.41.0",          # E2E testing
+    "pytest-playwright>=0.4.0",
+    "ruff>=0.1.0",                 # Linting
+    "mypy>=1.8.0",                 # Type checking
+]
+
+# --- pytest Configuration ---
+
+[tool.pytest.ini_options]
+# SDD-compliant test path (NOT root /tests/)
+testpaths = ["specs/XXX_feature_name/tests"]
+
+# Filter warnings
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+# Test markers (for selective test runs)
+markers = [
+    "unit: Unit tests (fast, isolated)",
+    "integration: Integration tests (may require external services)",
+    "contract: Contract tests (API schema validation)",
+    "e2e: End-to-end tests (Playwright, browser-based)",
+    "slow: Tests that take more than 1 second",
+]
+
+# Default options
+# NOTE: "-p no:asyncio" disables pytest-asyncio plugin to avoid conflicts
+#       with TestClient (which uses synchronous API).
+#       If you need async tests, remove this and use `asyncio_mode = "auto"`
+#       but ensure your TestClient usage is compatible.
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+    "-p", "no:asyncio",
+]
+
+# --- Coverage Configuration ---
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/generated/*",
+    # HTML rendering routes are covered by E2E tests
+    "src/api/routers/web.py",
+    "src/templates/*",
+]
+
+[tool.coverage.report]
+# Layer-3 code coverage targets
+fail_under = 80
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]
+
+[tool.coverage.html]
+directory = "specs/XXX_feature_name/tests/reports/coverage"
+
+[tool.coverage.xml]
+output = "specs/XXX_feature_name/tests/reports/coverage.xml"
+
+# --- Type Checking ---
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+exclude = [
+    "tests/",
+    "specs/.*/tests/",
+]
+
+# --- Linting ---
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM", "S"]
+ignore = ["E501"]  # Line length handled separately
+
+[tool.ruff.lint.per-file-ignores]
+"specs/*/tests/**/*.py" = ["S101"]  # Allow assert in tests

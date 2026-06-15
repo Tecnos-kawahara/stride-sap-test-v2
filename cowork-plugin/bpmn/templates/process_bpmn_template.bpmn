@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+    xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+    xmlns:modeler="http://camunda.org/schema/modeler/1.0"
+    id="Definitions_1"
+    targetNamespace="http://tecnos.co.jp/sdd/XXX_feature_name"
+    exporter="Camunda Modeler" exporterVersion="5.20.0"
+    modeler:executionPlatform="Camunda Cloud"
+    modeler:executionPlatformVersion="8.8.0">
+
+  <bpmn:collaboration id="Collaboration_BPMN-PROC-XXX">
+    <bpmn:participant id="Participant_BPMN-PROC-XXX" name="{{プロセス名}}" processRef="BPMN-PROC-XXX" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="BPMN-PROC-XXX" name="{{プロセス名}}" isExecutable="true">
+    <bpmn:documentation>{{プロセス概要}}
+開始条件: {{開始条件}}
+完了条件: {{完了条件}}
+正本参照: basic_design.md bpmn_descriptions.process</bpmn:documentation>
+
+    <bpmn:startEvent id="BPMN-EVT-001" name="{{開始イベント名}}">
+      <bpmn:outgoing>BPMN-FLOW-001</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:userTask id="BPMN-TASK-001" name="{{ユーザータスク名}}">
+      <bpmn:documentation>目的: {{業務目的}}
+入力: {{主入力}}
+出力: {{主出力}}
+関連AC: traceability_rows 参照
+関連Contract: traceability_rows 参照</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-001</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-002</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+        <zeebe:formDefinition formId="{{form-id}}" />
+        <zeebe:assignmentDefinition assignee="{{assignee-expression}}" />
+      </bpmn:extensionElements>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="BPMN-TASK-002" name="{{サービスタスク名}}">
+      <bpmn:documentation>目的: {{業務目的}}
+入力: {{主入力}}
+出力: {{主出力}}
+関連AC: traceability_rows 参照
+関連Contract: traceability_rows 参照</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-002</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-003</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="{{job-type}}" retries="3" />
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="BPMN-GW-001" name="{{分岐条件名}}" default="BPMN-FLOW-005">
+      <bpmn:documentation>判定: {{分岐の業務意味}}
+デフォルト: BPMN-FLOW-005 ({{デフォルトの業務意味}})</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-003</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-004</bpmn:outgoing>
+      <bpmn:outgoing>BPMN-FLOW-005</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:endEvent id="BPMN-EVT-002" name="{{終了イベント名（条件A）}}">
+      <bpmn:incoming>BPMN-FLOW-004</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="BPMN-EVT-003" name="{{終了イベント名（デフォルト）}}">
+      <bpmn:incoming>BPMN-FLOW-005</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="BPMN-FLOW-001" sourceRef="BPMN-EVT-001" targetRef="BPMN-TASK-001" />
+    <bpmn:sequenceFlow id="BPMN-FLOW-002" sourceRef="BPMN-TASK-001" targetRef="BPMN-TASK-002" />
+    <bpmn:sequenceFlow id="BPMN-FLOW-003" sourceRef="BPMN-TASK-002" targetRef="BPMN-GW-001" />
+
+    <bpmn:sequenceFlow id="BPMN-FLOW-004" name="{{条件A}}" sourceRef="BPMN-GW-001" targetRef="BPMN-EVT-002">
+      <bpmn:documentation>{{条件の業務説明}}</bpmn:documentation>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">={{条件式}}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:sequenceFlow id="BPMN-FLOW-005" sourceRef="BPMN-GW-001" targetRef="BPMN-EVT-003" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_BPMN-PROC-XXX">
+
+      <bpmndi:BPMNShape id="Participant_di" bpmnElement="Participant_BPMN-PROC-XXX" isHorizontal="false">
+        <dc:Bounds x="80" y="80" width="300" height="780" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_EVT_001" bpmnElement="BPMN-EVT-001">
+        <dc:Bounds x="212" y="140" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TASK_001" bpmnElement="BPMN-TASK-001">
+        <dc:Bounds x="175" y="230" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TASK_002" bpmnElement="BPMN-TASK-002">
+        <dc:Bounds x="175" y="370" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_001" bpmnElement="BPMN-GW-001" isMarkerVisible="true">
+        <dc:Bounds x="205" y="510" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EVT_002" bpmnElement="BPMN-EVT-002">
+        <dc:Bounds x="130" y="640" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EVT_003" bpmnElement="BPMN-EVT-003">
+        <dc:Bounds x="290" y="640" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="Edge_FLOW_001" bpmnElement="BPMN-FLOW-001">
+        <di:waypoint x="230" y="176" />
+        <di:waypoint x="230" y="230" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_FLOW_002" bpmnElement="BPMN-FLOW-002">
+        <di:waypoint x="230" y="310" />
+        <di:waypoint x="230" y="370" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_FLOW_003" bpmnElement="BPMN-FLOW-003">
+        <di:waypoint x="230" y="450" />
+        <di:waypoint x="230" y="510" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_FLOW_004" bpmnElement="BPMN-FLOW-004">
+        <di:waypoint x="205" y="535" />
+        <di:waypoint x="148" y="535" />
+        <di:waypoint x="148" y="640" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_FLOW_005" bpmnElement="BPMN-FLOW-005">
+        <di:waypoint x="255" y="535" />
+        <di:waypoint x="308" y="535" />
+        <di:waypoint x="308" y="640" />
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

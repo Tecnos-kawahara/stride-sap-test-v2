@@ -1,0 +1,81 @@
+# Upstream Policy — Tecnos-STRIDE Upstream Extension (Phase A)
+#
+# v5.4 までの STRIDE が薄かった『上流 (Why / Stakeholder / Value / Context)』を
+# Phase 1 Design 着手前のステップとして体系化する基盤 policy。
+# 適用度は Profile (enterprise-erp / saas-integration / prototype) で切替。
+#
+# Phase A scope: schema / template / amendment patch / test のみ。
+# ツール実装 (stride upstream init / validate, evaluator --discovery) は Phase B 以降。
+
+version: "0.1.0-phase-a"
+effective_date: "2026-04-29"
+status: "draft"
+
+# Profile による Discovery 適用度
+# - enterprise-erp: BACCM 6軸完全性ゲートを Phase 1 着手前に必須化
+# - saas-integration: Discovery + Context Modelling 必須、Elicitation は推奨
+# - prototype: Discovery のみ lite で実施 (Stakeholder + Value Canvas 最低限)
+profile_applicability:
+  enterprise-erp:
+    discovery: required
+    elicit: required
+    context_modelling: required
+  saas-integration:
+    discovery: required
+    elicit: recommended
+    context_modelling: required
+  prototype:
+    discovery: lite
+    elicit: optional
+    context_modelling: optional
+
+# Phase 0 / 0.3 / 0.5 の成果物群
+# artifact: 実 YAML ファイル名 (Phase B で stride upstream init が生成)
+# template: sdd-templates/templates/upstream/ 配下のテンプレート名
+phases:
+  phase_0_discovery:
+    artifacts:
+      - { artifact: business_need.yaml,       template: business_need_template.yaml }
+      - { artifact: value_canvas.yaml,        template: value_canvas_template.yaml }
+      - { artifact: stakeholder_map.yaml,     template: stakeholder_map_template.yaml }
+      - { artifact: context_map.yaml,         template: context_map_template.yaml }
+      - { artifact: risk_register.yaml,       template: risk_register_template.yaml }
+      - { artifact: change_strategy.yaml,     template: change_strategy_template.yaml }
+      - { artifact: goal_tree.yaml,           template: goal_tree_template.yaml }
+    babok_knowledge_areas: ["KA6"]   # Strategy Analysis
+    gate_id: "Gate 0"
+
+  phase_0_3_elicit:
+    artifacts:
+      - { artifact: elicitation_plan.yaml,    template: elicitation_plan_template.yaml }
+      - { artifact: elicitation_results.yaml, template: elicitation_results_template.yaml }
+    babok_knowledge_areas: ["KA4"]   # Elicitation and Collaboration
+    gate_id: "Gate 0.3"
+
+  phase_0_5_context_modelling:
+    artifacts:
+      - { artifact: actor_system.yaml,                template: actor_system_template.yaml }
+      - { artifact: business_usecase.yaml,            template: business_usecase_template.yaml }
+      - { artifact: information_state.yaml,           template: information_state_template.yaml }
+      - { artifact: condition_variation.yaml,         template: condition_variation_template.yaml }
+      - { artifact: usecase_complex.yaml,             template: usecase_complex_template.yaml }
+      - { artifact: requirements_architecture.yaml,   template: requirements_architecture_template.yaml }
+    babok_knowledge_areas: ["KA7"]   # Requirements Analysis and Design Definition
+    gate_id: "Gate 0.5"
+
+# 関連 policy 参照
+iteration_policy_ref: "shared/policies/upstream_iteration_policy.yaml"
+baccm_completeness_ref: "shared/policies/baccm_completeness.yaml"
+
+# Phase A の制約 (Phase B で解除予定)
+phase_a_constraints:
+  tools_implemented: false
+  cli_subcommands_added: false
+  evaluator_phase_extended: false
+  stride_lint_codes_added: false
+  notes: "Phase A は schema / template / policy / amendment patch のみ。ツール実装は Phase B (stride upstream init / validate / evaluator --discovery)。"
+
+attributions:
+  - { source: "BABOK v3 (IIBA)",                   role: "framework backbone (KA4 / KA6 / KA7)", license: "fair-use, names and section refs only" }
+  - { source: "Layered Requirements Modeling ((concept reference, no proprietary brand))",      role: "structural integrity (4-layer)",       license: "fair-use, layer/diagram names only" }
+  - { source: "value-driven discovery (philosophical foundation)",      role: "philosophical inspiration",            license: "fair-use, model names only" }

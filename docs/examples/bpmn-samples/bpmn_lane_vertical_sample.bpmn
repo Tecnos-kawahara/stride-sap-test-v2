@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+    xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+    xmlns:modeler="http://camunda.org/schema/modeler/1.0"
+    id="Definitions_LaneVertical"
+    targetNamespace="http://tecnos.co.jp/sdd/bpmn/lane-vertical-sample"
+    exporter="Camunda Modeler"
+    exporterVersion="5.20.0"
+    modeler:executionPlatform="Camunda Cloud"
+    modeler:executionPlatformVersion="8.8.0">
+
+  <bpmn:process id="BPMN-PROC-LANE-VERTICAL" name="部門別スイムレーン縦レイアウトサンプル" isExecutable="true">
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_Sales" name="営業部門">
+        <bpmn:flowNodeRef>BPMN-EVT-001</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-001</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Approval" name="承認部門">
+        <bpmn:flowNodeRef>BPMN-TASK-003</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_ERP" name="基幹システム">
+        <bpmn:flowNodeRef>BPMN-TASK-002</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-004</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-EVT-002</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="BPMN-EVT-001" name="申請開始">
+      <bpmn:outgoing>BPMN-FLOW-001</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:userTask id="BPMN-TASK-001" name="申請内容入力">
+      <bpmn:incoming>BPMN-FLOW-001</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-002</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+        <zeebe:formDefinition formId="request-entry-form" />
+        <zeebe:assignmentDefinition assignee="=salesRepEmail" />
+      </bpmn:extensionElements>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="BPMN-TASK-002" name="申請データ検証">
+      <bpmn:incoming>BPMN-FLOW-002</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-003</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="validate-request" retries="3" />
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="BPMN-TASK-003" name="部長承認">
+      <bpmn:incoming>BPMN-FLOW-003</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-004</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+        <zeebe:formDefinition formId="manager-approval-form" />
+        <zeebe:assignmentDefinition assignee="=managerEmail" />
+        <zeebe:taskSchedule dueDate="=now() + duration(&quot;PT4H&quot;)" />
+      </bpmn:extensionElements>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="BPMN-TASK-004" name="ERP登録">
+      <bpmn:incoming>BPMN-FLOW-004</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-005</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="register-to-erp" retries="3" />
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="BPMN-EVT-002" name="登録完了">
+      <bpmn:incoming>BPMN-FLOW-005</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="BPMN-FLOW-001" sourceRef="BPMN-EVT-001" targetRef="BPMN-TASK-001" />
+    <bpmn:sequenceFlow id="BPMN-FLOW-002" sourceRef="BPMN-TASK-001" targetRef="BPMN-TASK-002" />
+    <bpmn:sequenceFlow id="BPMN-FLOW-003" sourceRef="BPMN-TASK-002" targetRef="BPMN-TASK-003" />
+    <bpmn:sequenceFlow id="BPMN-FLOW-004" sourceRef="BPMN-TASK-003" targetRef="BPMN-TASK-004" />
+    <bpmn:sequenceFlow id="BPMN-FLOW-005" sourceRef="BPMN-TASK-004" targetRef="BPMN-EVT-002" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="BPMN-PROC-LANE-VERTICAL">
+      <bpmndi:BPMNShape id="Shape_Lane_Sales" bpmnElement="Lane_Sales" isHorizontal="false">
+        <dc:Bounds x="80" y="80" width="220" height="980" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Lane_Approval" bpmnElement="Lane_Approval" isHorizontal="false">
+        <dc:Bounds x="300" y="80" width="220" height="980" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Lane_ERP" bpmnElement="Lane_ERP" isHorizontal="false">
+        <dc:Bounds x="520" y="80" width="260" height="980" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_EVT_001" bpmnElement="BPMN-EVT-001">
+        <dc:Bounds x="172" y="120" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_TASK_001" bpmnElement="BPMN-TASK-001">
+        <dc:Bounds x="140" y="200" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_TASK_002" bpmnElement="BPMN-TASK-002">
+        <dc:Bounds x="600" y="360" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_TASK_003" bpmnElement="BPMN-TASK-003">
+        <dc:Bounds x="360" y="520" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_TASK_004" bpmnElement="BPMN-TASK-004">
+        <dc:Bounds x="600" y="680" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_EVT_002" bpmnElement="BPMN-EVT-002">
+        <dc:Bounds x="632" y="860" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="Edge_FLOW_001" bpmnElement="BPMN-FLOW-001">
+        <di:waypoint x="190" y="156" />
+        <di:waypoint x="190" y="200" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_FLOW_002" bpmnElement="BPMN-FLOW-002">
+        <di:waypoint x="190" y="280" />
+        <di:waypoint x="190" y="340" />
+        <di:waypoint x="650" y="340" />
+        <di:waypoint x="650" y="360" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_FLOW_003" bpmnElement="BPMN-FLOW-003">
+        <di:waypoint x="650" y="440" />
+        <di:waypoint x="650" y="500" />
+        <di:waypoint x="410" y="500" />
+        <di:waypoint x="410" y="520" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_FLOW_004" bpmnElement="BPMN-FLOW-004">
+        <di:waypoint x="410" y="600" />
+        <di:waypoint x="410" y="660" />
+        <di:waypoint x="650" y="660" />
+        <di:waypoint x="650" y="680" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_FLOW_005" bpmnElement="BPMN-FLOW-005">
+        <di:waypoint x="650" y="760" />
+        <di:waypoint x="650" y="860" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

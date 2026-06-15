@@ -1,0 +1,47 @@
+---
+# Template: business_usecase.yaml
+# Phase: phase_0_5_context_modelling
+# BABOK Source: KA7 Requirements Analysis and Design Definition / Technique 10.47 Use Cases and Scenarios
+# Layered Requirements Modeling Source: ビジネスユースケース図 (Business Use Case Diagram)
+# Inspired by: n/a
+# Rule-0: 正本は YAML フロントマター + 下記 YAML ブロック
+---
+
+artifact: "business_usecase.yaml"
+template_id: "TPL-UP-BUC-001"
+feature_id: "FEAT-XXX"
+upstream_artifact_id: "BUC-XXX"
+title: "Business Use Case - <Feature Name>"
+version: "{{TEMPLATE_VERSION}}"
+status: "draft"
+phase: "phase_0_5_context_modelling"
+profile_applicability: ["enterprise-erp", "saas-integration", "prototype"]
+owners: []
+reviewers: []
+links:
+  upstream_policy_ref: "shared/policies/upstream_policy.yaml"
+  baccm_completeness_ref: "shared/policies/baccm_completeness.yaml"
+  iteration_policy_ref: "shared/policies/upstream_iteration_policy.yaml"
+  constitution_ref: "memory/constitution.md"
+  amendment_ref: "memory/constitution_amendments/XVI_layered_requirement_architecture.md"
+created_at: "YYYY-MM-DD"
+updated_at: "YYYY-MM-DD"
+
+# Business Use Case 本体 (Layered Requirements Modeling Business layer)
+usecases: []
+# 例:
+# - id: "BUC-001"
+#   name: "受注登録"
+#   actor_ids: ["ACT-001"]
+#   trigger: "顧客から受注 PO を受領"
+#   outcome: "ERP 受注番号採番 + 確認メール送信"
+#   pre_conditions: []
+#   main_flow: []
+#   alternate_flows: []
+#   post_conditions: []
+#   linked_information_ids: []     # information_state.yaml への参照
+#   linked_condition_ids: []       # condition_variation.yaml への参照
+
+attributions:
+  - { source: "BABOK v3 (IIBA)", role: "framework backbone (KA7 / Technique 10.47)", license: "fair-use, names and section refs only" }
+  - { source: "Layered Requirements Modeling ((concept reference, no proprietary brand))", role: "business use case diagram concept", license: "fair-use, diagram name only" }

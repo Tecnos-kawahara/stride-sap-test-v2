@@ -1,0 +1,95 @@
+# =============================================================================
+# SDD Template - Rust Testing Configuration Snippet
+# Version: 5.3.3-tecnos-stride
+#
+# Usage:
+#   1. Merge this into your existing Cargo.toml
+#   2. Replace xxx_feature_name with actual feature name
+#   3. Adjust paths as needed
+# =============================================================================
+
+# --- Dev Dependencies ---
+# Add to [dev-dependencies] section:
+
+[dev-dependencies]
+# Testing framework
+tokio-test = "0.4"
+mockall = "0.12"          # Mocking framework
+proptest = "1.4"          # Property-based testing
+criterion = "0.5"         # Benchmarking
+
+# Async testing
+tokio = { version = "1.35", features = ["full", "test-util"] }
+
+# HTTP client for integration tests
+reqwest = { version = "0.11", features = ["json"] }
+
+# Assertion helpers
+pretty_assertions = "1.4"
+
+# --- Test Configuration ---
+
+[[test]]
+name = "unit_tests"
+path = "specs/xxx_feature_name/tests/unit/mod.rs"
+
+[[test]]
+name = "integration_tests"
+path = "specs/xxx_feature_name/tests/integration/mod.rs"
+
+# --- Benchmark Configuration ---
+
+[[bench]]
+name = "benchmarks"
+harness = false
+path = "specs/xxx_feature_name/tests/benches/main.rs"
+
+# --- Profile: Test ---
+
+[profile.test]
+opt-level = 0
+debug = true
+
+# --- Profile: Coverage (cargo-tarpaulin) ---
+
+[profile.coverage]
+inherits = "test"
+debug = true
+
+# =============================================================================
+# Coverage Commands (cargo-tarpaulin)
+# =============================================================================
+#
+# Install:
+#   cargo install cargo-tarpaulin
+#
+# Run with coverage:
+#   cargo tarpaulin --out Html --output-dir specs/xxx_feature_name/tests/reports/coverage
+#
+# CI command:
+#   cargo tarpaulin --out Xml --output-dir coverage --fail-under 80
+#
+# Options:
+#   --exclude-files "*/generated/*"  # Exclude generated code
+#   --ignore-tests                   # Don't count test code in coverage
+#   --timeout 120                    # Timeout for test execution
+#
+# =============================================================================
+
+# =============================================================================
+# Test Directory Structure (SDD-compliant)
+# =============================================================================
+#
+# specs/xxx_feature_name/tests/
+# ├── unit/
+# │   ├── mod.rs
+# │   └── *.rs
+# ├── integration/
+# │   ├── mod.rs
+# │   └── *.rs
+# ├── benches/
+# │   └── main.rs
+# └── reports/
+#     └── coverage/
+#
+# =============================================================================

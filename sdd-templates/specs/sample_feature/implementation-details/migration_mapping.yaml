@@ -1,0 +1,17 @@
+migration_mapping:
+  version: "1.0"
+  source_system: "Web-EDI"
+  target_system: "ERP"
+  rules:
+    - field: "PartnerCode"
+      source: "PARTNER_CODE"
+      transform: "trim"
+      validation: "not_null"
+    - field: "OrderDate"
+      source: "ORDER_DATE"
+      transform: "date(YYYY-MM-DD)"
+      validation: "date"
+    - field: "ItemCode"
+      source: "ITEM_CODE"
+      transform: "trim"
+      validation: "not_null"

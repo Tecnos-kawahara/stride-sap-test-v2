@@ -1,0 +1,44 @@
+---
+# Template: information_state.yaml
+# Phase: phase_0_5_context_modelling
+# BABOK Source: KA7 Requirements Analysis and Design Definition / Technique 10.11 Concept Modelling / Technique 10.44 State Modelling
+# Layered Requirements Modeling Source: 情報モデル / 状態モデル (Information Model / State Model)
+# Inspired by: n/a
+# Rule-0: 正本は YAML フロントマター + 下記 YAML ブロック
+---
+
+artifact: "information_state.yaml"
+template_id: "TPL-UP-INS-001"
+feature_id: "FEAT-XXX"
+upstream_artifact_id: "INS-XXX"
+title: "Information & State Model - <Feature Name>"
+version: "{{TEMPLATE_VERSION}}"
+status: "draft"
+phase: "phase_0_5_context_modelling"
+profile_applicability: ["enterprise-erp", "saas-integration", "prototype"]
+owners: []
+reviewers: []
+links:
+  upstream_policy_ref: "shared/policies/upstream_policy.yaml"
+  baccm_completeness_ref: "shared/policies/baccm_completeness.yaml"
+  iteration_policy_ref: "shared/policies/upstream_iteration_policy.yaml"
+  constitution_ref: "memory/constitution.md"
+  amendment_ref: "memory/constitution_amendments/XVI_layered_requirement_architecture.md"
+created_at: "YYYY-MM-DD"
+updated_at: "YYYY-MM-DD"
+
+# Information / State 本体 (Layered Requirements Modeling 情報モデル + 状態モデル)
+information_items: []
+# 例:
+# - id: "INF-001"
+#   name: "受注"
+#   description: "顧客から受領した発注情報"
+#   states: ["登録待ち", "登録済み", "出荷済み", "請求済み", "完了"]
+#   transitions:
+#     - { from: "登録待ち", to: "登録済み", trigger: "ERP 受注登録 API 成功" }
+#   master_or_transaction: "transaction"     # master | transaction
+#   sor_system: ""                            # System of Record (system_id 参照)
+
+attributions:
+  - { source: "BABOK v3 (IIBA)", role: "framework backbone (KA7 / Technique 10.11 / 10.44)", license: "fair-use, names and section refs only" }
+  - { source: "Layered Requirements Modeling ((concept reference, no proprietary brand))", role: "information / state model concept", license: "fair-use, diagram names only" }

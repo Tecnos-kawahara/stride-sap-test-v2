@@ -1,0 +1,103 @@
+# tool_evidence_registry.yaml — ステップ→ツール対応表（v2）
+# sap_tool_evidence_validator.py がこのファイルを参照し、
+# specs/<feature>/.tool_evidence/ 内の必須エビデンスファイルの有無をチェックする。
+#
+# 01_プロセス・ツール・定義先マップ.md に準拠。
+# v2: Phase 4 の WI 16-step フロー + Stage 2-3 に統合。旧版 Stage 1 は廃止。
+
+schema_version: "2.0"
+
+phases:
+  phase_1_5:
+    name: "Phase 1.5: SAP コンテキスト取得"
+    check_condition: "gate_1_and_2_approved"
+    steps:
+      - step_id: "1.5-A1"
+        tool: "search.js"
+        description: "SAP オブジェクト検索"
+        optional: false
+      - step_id: "1.5-A2"
+        tool: "read.js"
+        description: "SAP ソース参照"
+        optional: true  # 参照不要の場合スキップ
+      - step_id: "1.5-A3"
+        tool: "pull.js"
+        description: "SAP ソース取得（gated authority: 人間承認必須）"
+        optional: true  # 新規作成の場合スキップ
+      - step_id: "1.5-B2"
+        tool: "sap_context_metadata.py"
+        description: "テーブルメタデータ記録（--tables）"
+        optional: false
+
+  phase_4_step_6:
+    name: "Phase 4 Step 6: SAP 実装"
+    check_condition: "gate_5_approved"
+    steps:
+      - step_id: "6-1"
+        tool: "create_object.js"
+        description: "SAP オブジェクト作成"
+        optional: true  # modify の場合スキップ
+      - step_id: "6-2"
+        tool: "pull.js"
+        description: "既存ソース取得（modify 時）"
+        optional: true  # create の場合スキップ
+      # ABAP 品質チェック（Step 6 内で実行。順序固定）
+      - step_id: "6-3"
+        tool: "clean_abap.js"
+        description: "ABAP 自動クリーンアップ（順序 1/4）"
+        optional: false
+      - step_id: "6-4"
+        tool: "sap_common_class_lint.py"
+        description: "共通クラス使用準拠チェック（順序 2/4）"
+        optional: false
+      - step_id: "6-5"
+        tool: "sap_quality_score.py"
+        description: "品質スコアチェック ≥85 点（順序 3/4）"
+        optional: false
+
+  phase_4_step_6_sap:
+    name: "Phase 4 Step 6-SAP: SAP 固有追加"
+    check_condition: "step_6_complete"
+    steps:
+      - step_id: "6-SAP-1"
+        tool: "activate.js"
+        description: "SAP アクティベーション"
+        optional: false
+      - step_id: "6-SAP-2"
+        tool: "run_tests.js"
+        description: "ABAP Unit テスト実行"
+        optional: false
+      - step_id: "6-SAP-3"
+        tool: "data_preview.js"
+        description: "テストデータ確認"
+        optional: true  # データ参照がない場合スキップ
+      - step_id: "6-SAP-4"
+        tool: "gui_test.js"
+        description: "SAP GUI テスト実行"
+        optional: true  # 画面なしプログラムの場合スキップ
+
+  stage_2:
+    name: "Stage 2: 受入テスト"
+    check_condition: "all_wi_complete"
+    steps:
+      - step_id: "S2-A1"
+        tool: "sap_branch_analyzer.py"
+        description: "spec-coverage + impl-coverage 分析"
+        optional: false
+      - step_id: "S2-B1"
+        tool: "evidence_capture.js"
+        description: "シナリオ実行 + スクリーンショット"
+        optional: false
+
+  stage_3:
+    name: "Stage 3: エビデンス取得"
+    check_condition: "stage_2_complete"
+    steps:
+      - step_id: "S3-A1"
+        tool: "evidence_capture.js"
+        description: "フルエビデンス取得"
+        optional: false
+      - step_id: "S3-A3"
+        tool: "evidence_merge_report.js"
+        description: "統合レポート生成"
+        optional: false

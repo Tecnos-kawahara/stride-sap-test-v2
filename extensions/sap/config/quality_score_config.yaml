@@ -1,0 +1,149 @@
+# 品質スコアリング設定（減点方式: 100点満点）
+# sap_quality_score.py が参照する設定ファイル
+
+quality_score:
+  # 合格基準点（この点数以上でPASS）
+  pass_threshold: 85
+
+  # カテゴリ別の最大減点
+  max_deductions:
+    error_handling: 30
+    naming_convention: 20
+    template_compliance: 15
+    maintainability: 15
+    runtime_efficiency: 20
+
+  # --- カテゴリ1: エラーハンドリング漏れ ---
+  error_handling:
+    select_without_subrc: 5         # SELECT後SY-SUBRCチェックなし（/件）
+    common_class_without_check: 5   # 共通クラス呼出し後BAPIRET2チェックなし（/件）
+    external_call_without_try: 3    # TRY-CATCHなし外部呼出し（/件）
+    no_message_statement: 10        # MESSAGE文が1つもない
+
+  # --- カテゴリ2: 命名規約違反 ---
+  naming_convention:
+    compliance_thresholds:           # 遵守率に応じた減点
+      - { min_ratio: 0.9, deduction: 0 }
+      - { min_ratio: 0.7, deduction: 10 }
+      - { min_ratio: 0.5, deduction: 20 }
+      - { min_ratio: 0.0, deduction: 25 }
+    inline_declaration: 3            # DATA( インライン宣言（/件）
+    call_method_usage: 5            # CALL METHOD 使用（/件）
+
+  # --- カテゴリ3: テンプレート準拠（v2 新版テンプレート対応）---
+  template_compliance:
+    arbitrary_message: 10            # MESSAGE '任意テキスト'（/件）
+    unused_declared_class: 10        # spec宣言済み共通クラス未使用
+    # v2: 新版テンプレート（basic_design overlay + scenarios_template.yaml）に準拠していること
+    # catalogs.messages の type は error/warning/info/success（E/W/I/S/A は旧仕様）
+    # test_matrix は columns + test_cases（cases[] は旧仕様）
+    # database は data_references 構造（referenced_tables は旧仕様）
+
+  # --- カテゴリ4: 実行効率（ルール S7 対応）---
+  runtime_efficiency:
+    select_star: 5                   # SELECT * 使用（/件）— DB→AS間の不要カラム転送
+    move_corresponding: 3            # MOVE-CORRESPONDING 使用（/件）— 実行時フィールドマッチング
+    broad_catch_cx_root: 5           # CATCH cx_root 使用（/件）— 想定外例外の握りつぶし
+    steps_per_form_exceeded: 5       # 1 FORM 内に複数 @STEP が存在（/件）— メモリスコープ肥大化
+
+  # --- カテゴリ5: 保守性 ---
+  maintainability:
+    comment_ratio:
+      - { min_ratio: 0.10, deduction: 0 }   # 10%以上: 減点なし
+      - { min_ratio: 0.05, deduction: 5 }   # 5-10%: -5点
+      - { min_ratio: 0.00, deduction: 10 }  # 5%未満: -10点
+    long_method_threshold: 100       # この行数超のメソッドを検出
+    long_method_deduction: 5         # 過長メソッド（/件）
+
+  # ============================================================
+  # SAP 固有品質ルール QR-01〜QR-14（03_lint §4-5 定義）
+  # sap_quality_score.py が ABAP ソースに対してパターンマッチで検出する
+  # 各ルールは上記5カテゴリのいずれかに帰属し、合計減点はカテゴリ上限で頭打ちになる
+  # ============================================================
+  sap_specific_rules:
+    # --- code_structure カテゴリ ---
+    - id: "QR-01"
+      category: "code_structure"
+      deduction: -5
+      pattern: "^\\s*TABLES[\\s:]"
+      description: "TABLES文使用禁止"
+
+    - id: "QR-05"
+      category: "code_structure"
+      deduction: -3
+      pattern: "INTO TABLE gt_\\w+\\.\\s+gt_\\w+ = gt_\\w+\\.\\s+CLEAR gt_"
+      description: "即時CLEARされる中間テーブルコピー"
+
+    - id: "QR-07"
+      category: "code_structure"
+      deduction: -3
+      pattern: "ヘッダコメント *&.*Report 内のプログラム名が REPORT 文と不一致"
+      description: "コメント内に別プログラム名"
+
+    - id: "QR-08"
+      category: "code_structure"
+      deduction: -2
+      pattern: "\\n{3,}"
+      description: "連続空白行(3行以上)"
+
+    - id: "QR-09"
+      category: "code_structure"
+      deduction: -10
+      pattern: "テストクラス定義数<=2 かつ メソッド定義数>=10"
+      description: "ABAPUnit圧縮クラス検出"
+
+    - id: "QR-10"
+      category: "code_structure"
+      deduction: -5
+      pattern: "AT SELECTION-SCREEN/START-OF-SELECTION 内の lcl_\\w+=>"
+      description: "イベントブロック内lcl_直接呼出"
+
+    # --- error_handling カテゴリ ---
+    - id: "QR-02"
+      category: "error_handling"
+      deduction: -8
+      pattern: "WHERE type = 'E' に OR type = 'A' なし"
+      description: "BAPI RETURN判定でtype='A'漏れ"
+
+    - id: "QR-03"
+      category: "error_handling"
+      deduction: -8
+      pattern: "BAPI呼出後の ROLLBACK/lv_has_error ブロック内に LOOP AT.*return なし"
+      description: "BAPIエラー後の全件記録LOOPなし"
+
+    - id: "QR-04"
+      category: "error_handling"
+      deduction: -10
+      pattern: "job_result 呼出前方に save_log 呼出なし"
+      description: "save_log→job_result順序違反"
+
+    - id: "QR-12"
+      category: "error_handling"
+      deduction: -8
+      pattern: "ABAP MESSAGE [eswiax]\\d{3} の type と spec.md message_mapping[].type の不一致"
+      description: "spec message_mapping type不一致"
+
+    - id: "QR-13"
+      category: "error_handling"
+      deduction: -5
+      pattern: "MESSAGE s\\d{3} 直後に PERFORM finish なし"
+      description: "0件シナリオのステバー上書き"
+
+    - id: "QR-14"
+      category: "error_handling"
+      deduction: -5
+      pattern: "DISPLAY LIKE 'E' 付き MESSAGE の type が sbar.MessageType と不一致"
+      description: "DISPLAY LIKE句の type 誤認"
+
+    # --- naming カテゴリ ---
+    - id: "QR-06"
+      category: "naming"
+      deduction: -3
+      pattern: "MESSAGE.*WITH '(TSV|CSV|EXCEL|FIX)'"
+      description: "MESSAGE文中ハードコードフォーマット"
+
+    - id: "QR-11"
+      category: "naming"
+      deduction: -3
+      pattern: "BAPI構造体フィールドへの代入元が TYPE p で BAPICURR 系でない"
+      description: "BAPIフィールドに非標準型使用"

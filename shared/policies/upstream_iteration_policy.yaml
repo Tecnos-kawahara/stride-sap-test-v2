@@ -1,0 +1,40 @@
+# Upstream Iteration Policy — Tecnos-STRIDE Upstream Extension (Phase A)
+#
+# Layered Requirements Modeling の段階的精緻化 (網羅 → 構造化 → 詳細化) の思想を踏襲し、
+# Discovery / Elicitation / Context Modelling の各 Phase を 3 反復で完了させる
+# 標準パターンを宣言する。
+#
+# Phase A: policy 定義のみ。stride upstream iterate コマンドは Phase B。
+
+version: "0.1.0-phase-a"
+status: "draft"
+
+# 3-iteration pattern
+iteration_pattern:
+  iterations:
+    - id: 1
+      name: "bootstrap"
+      objective: "網羅性優先・精度無視 — 漏れより重複を許容して情報を広く出す"
+      typical_techniques: ["brainstorming", "mind_mapping", "stakeholder_list_map_or_personas"]
+    - id: 2
+      name: "structure"
+      objective: "依存関係で組立て・整合性付与 — 各要素の関連と境界を明示化"
+      typical_techniques: ["functional_decomposition", "process_modelling", "scope_modelling"]
+    - id: 3
+      name: "refinement"
+      objective: "条件・バリエーション・状態で詳細化 — テスタブルな粒度まで落とす"
+      typical_techniques: ["business_rules_analysis", "decision_modelling", "state_modelling"]
+
+  approval_after_iteration: 3
+  loop_bound:
+    max_iterations: 3
+    rationale: "Opus 4.7 literal-follow / SDD_MANIFESTO loop bound (max 5) と整合し、より厳格に 3 で確定。3 反復で発散・構造化・詳細化が一巡する経験則"
+
+# Profile ごとの最小反復数 (Phase B 以降の運用ガイド)
+profile_minimum_iterations:
+  enterprise-erp: 3
+  saas-integration: 2
+  prototype: 1
+
+attributions:
+  - { source: "Layered Requirements Modeling ((concept reference, no proprietary brand))", role: "phase iteration concept (network → relationship → detail)", license: "fair-use, structural concept only" }

@@ -1,0 +1,211 @@
+# Cross-References Template - Enterprise SDD Extension
+# Version: 1.0.0
+# Purpose: Track cross-feature references for traceability
+# Location: specs/<feature>/cross_refs.yaml
+
+cross_refs:
+  meta:
+    feature_id: "FEAT-XXX"
+    version: "1.0.0"
+    created_at: "YYYY-MM-DD"
+    updated_at: "YYYY-MM-DD"
+    auto_validated: false
+    last_validation: null
+
+  # Feature情報
+  feature_info:
+    team_id: "TEAM-A"
+    epic_id: "EPIC-XXX"  # optional
+    coverage_tier: "standard"
+
+  # 外部依存契約（このFeatureが使用する他Featureの契約）
+  external_dependencies:
+    - dependency_id: "XREF-001"
+      contract_ref: "specs/FEAT-YYY/contracts/openapi.yaml"
+      contract_id: "CT-API-01"
+      local_alias: "feature-y-api"
+      owner_team: "TEAM-B"
+      owner_feature: "FEAT-YYY"
+      version_constraint: "^1.0.0"
+      criticality: "high"  # high | medium | low
+      usage_locations:
+        - file: "spec.md"
+          section: "use_cases[0].main_flow[2]"
+          line: 145
+          description: "Call Feature Y API to get data"
+        - file: "plan.md"
+          section: "contracts.apis_events[0]"
+          line: 89
+          description: "External API dependency"
+      spec_refs:
+        - "AC-US-FEATXXX-001-02"
+        - "AC-US-FEATXXX-002-01"
+      integration_tests:
+        - "TS-INT-01"
+        - "TS-INT-03"
+      mock_available: true
+      mock_location: "tests/mocks/feature_y_api_mock.yaml"
+      last_verified: "YYYY-MM-DD"
+
+    - dependency_id: "XREF-002"
+      contract_ref: "shared/contracts/api/auth_service.yaml"
+      contract_id: "SC-API-AUTH"
+      local_alias: "auth-service"
+      owner_team: "PLATFORM"
+      owner_feature: null
+      version_constraint: ">=2.0.0 <3.0.0"
+      criticality: "high"
+      usage_locations:
+        - file: "spec.md"
+          section: "use_cases[*].preconditions"
+          description: "Authentication required for all use cases"
+      spec_refs:
+        - "AC-US-FEATXXX-001-01"
+      integration_tests:
+        - "TS-INT-02"
+      mock_available: true
+      mock_location: "tests/mocks/auth_service_mock.yaml"
+      last_verified: "YYYY-MM-DD"
+
+  # 公開契約（このFeatureが提供する契約とその利用者）
+  exposed_contracts:
+    - contract_id: "CT-API-01"
+      name: "{{Contract Name}}"
+      type: "api"  # api | event | file | schema
+      path: "contracts/openapi.yaml"
+      version: "1.0.0"
+      stability: "stable"  # experimental | beta | stable | deprecated
+      consumers_file: "contracts/CONSUMERS.yaml"
+      registered_consumers:
+        - team_id: "TEAM-C"
+          features: ["FEAT-ZZZ"]
+          registered_at: "YYYY-MM-DD"
+          version_used: "1.0.0"
+        - team_id: "TEAM-D"
+          features: ["FEAT-WWW"]
+          registered_at: "YYYY-MM-DD"
+          version_used: "1.0.0"
+      change_notification_required: true
+      breaking_change_policy: "ccp_required"
+
+    - contract_id: "CT-EVT-01"
+      name: "{{Event Contract Name}}"
+      type: "event"
+      path: "contracts/events.yaml"
+      version: "1.0.0"
+      stability: "beta"
+      consumers_file: "contracts/CONSUMERS.yaml"
+      registered_consumers: []
+      change_notification_required: true
+      breaking_change_policy: "notification_required"
+
+  # Epic内クロスリファレンス
+  epic_cross_refs:
+    epic_id: "EPIC-XXX"
+    related_features:
+      - feature_id: "FEAT-YYY"
+        relationship: "depends_on"  # depends_on | depended_by | sibling
+        cross_team: true            # true if owner_team differs (triggers escalation)
+        via_contract: "CT-API-01"
+        description: "This feature depends on FEAT-YYY for data retrieval"
+      - feature_id: "FEAT-ZZZ"
+        relationship: "depended_by"
+        cross_team: false           # same-team dependency
+        via_contract: "CT-API-01"
+        description: "FEAT-ZZZ consumes our API"
+    shared_contracts:
+      - contract_ref: "shared/contracts/api/order_service.yaml"
+        role: "consumer"  # owner | consumer
+        owner_feature: "FEAT-YYY"
+
+  # クロスチームテスト
+  cross_team_tests:
+    - test_id: "TS-CROSS-001"
+      name: "{{Cross-team test name}}"
+      type: "integration"
+      participating_features:
+        - "FEAT-XXX"
+        - "FEAT-YYY"
+      owner_team: "TEAM-A"
+      our_role: "provider"  # provider | consumer | both
+      schedule: "nightly"
+      environment: "staging"
+      prerequisites:
+        - "FEAT-XXX deployed to staging"
+        - "FEAT-YYY deployed to staging"
+      test_scenarios:
+        - scenario_id: "SC-001"
+          name: "Happy path data retrieval"
+          covers_refs:
+            - "AC-US-FEATXXX-001-02"
+            - "AC-US-FEATYYY-001-03"
+        - scenario_id: "SC-002"
+          name: "Error handling: service unavailable"
+          covers_refs:
+            - "AC-US-FEATXXX-001-04"
+
+  # トレーサビリティマトリクス
+  traceability:
+    # 外部依存 → 自Feature AC のマッピング
+    dependency_to_ac:
+      - dependency_ref: "XREF-001"
+        covered_acs:
+          - "AC-US-FEATXXX-001-02"
+          - "AC-US-FEATXXX-002-01"
+      - dependency_ref: "XREF-002"
+        covered_acs:
+          - "AC-US-FEATXXX-001-01"
+
+    # 公開契約 → 消費者のマッピング
+    contract_to_consumers:
+      - contract_id: "CT-API-01"
+        consumer_features:
+          - "FEAT-ZZZ"
+          - "FEAT-WWW"
+
+  # 変更通知設定
+  notification_settings:
+    on_dependency_change:
+      notify: true
+      channels:
+        - type: "file"
+          path: "enterprise/notifications/pending_notifications.yaml"
+        - type: "team_lead"
+          email: "{{team-lead@example.com}}"
+    on_consumer_registration:
+      notify: true
+      channels:
+        - type: "team_lead"
+          email: "{{team-lead@example.com}}"
+
+  # 検証ルール
+  validation:
+    rules:
+      - rule_id: "XREF-VAL-001"
+        name: "Contract reference exists"
+        check: "all contract_refs point to existing files"
+        severity: "error"
+      - rule_id: "XREF-VAL-002"
+        name: "Version constraint valid"
+        check: "all version_constraints are valid semver"
+        severity: "error"
+      - rule_id: "XREF-VAL-003"
+        name: "Spec refs exist"
+        check: "all spec_refs exist in spec.md"
+        severity: "error"
+      - rule_id: "XREF-VAL-004"
+        name: "Integration tests defined"
+        check: "all external dependencies have integration_tests"
+        severity: "warning"
+      - rule_id: "XREF-VAL-005"
+        name: "Mock available"
+        check: "high criticality dependencies have mock_available"
+        severity: "warning"
+
+  # 変更ログ
+  change_log:
+    - date: "YYYY-MM-DD"
+      version: "1.0.0"
+      author: "{{Author}}"
+      changes:
+        - "Initial cross-references definition"

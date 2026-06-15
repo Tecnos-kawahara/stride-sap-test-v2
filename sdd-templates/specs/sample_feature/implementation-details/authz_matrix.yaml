@@ -1,0 +1,12 @@
+authz_matrix:
+  version: "1.0"
+  roles:
+    - role: "trading_partner_user"
+      permissions:
+        - "web_edi.order.read"
+        - "web_edi.order.submit"
+    - role: "order_ops"
+      permissions:
+        - "web_edi.order.read"
+        - "web_edi.order.submit"
+        - "web_edi.order.manage"

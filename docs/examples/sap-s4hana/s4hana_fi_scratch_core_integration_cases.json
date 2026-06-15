@@ -1,0 +1,352 @@
+{
+  "suite": "S/4HANA FI x Scratch Core Integration",
+  "suite_id": "SUITE-S4FI-INT-001",
+  "test_type": "integration",
+  "runner": "playwright",
+  "source_bpmn": "docs/s4hana_fi_scratch_core_integration_epic_flow.bpmn",
+  "source_scenarios": "docs/s4hana_fi_scratch_core_integration_test_scenarios.md",
+  "report_template": "docs/s4hana_fi_scratch_core_integration_report_template.html",
+  "notes": [
+    "This is a sample cases.json for testreport-style reporting and Playwright evidence linking.",
+    "Replace URLs, payload paths, and acceptance criteria IDs with project-specific values before operational use."
+  ],
+  "cases": [
+    {
+      "id": "TS-INT-FI-001",
+      "name": "売上請求イベントの会計起票成功",
+      "case_type": "normal",
+      "priority": "critical",
+      "status": "planned",
+      "tags": ["integration", "playwright", "s4hana-fi", "scratch-core", "posting", "critical-path"],
+      "bpmn_refs": [
+        "Task_Core_RecordTransaction",
+        "Task_Core_SendMasterDelta",
+        "Task_Core_SendAccountingEvent",
+        "Task_FI_ReceiveMasterDelta",
+        "Task_FI_ValidateMasterMapping",
+        "Task_FI_ReceiveAccountingEvent",
+        "Task_FI_PostAccountingDocument",
+        "Task_FI_SendPostingResult",
+        "Task_Core_ReceivePostingResult",
+        "Task_Core_UpdateBusinessStatus",
+        "MsgFlow_CoreToFI_MasterDelta",
+        "MsgFlow_CoreToFI_AccountingEvent",
+        "MsgFlow_FIToCore_PostingResult"
+      ],
+      "preconditions": [
+        "Customer BP, AR account, tax code, and payment terms exist in S/4HANA FI.",
+        "Scratch core billing event EVT-AR-0001 is prepared."
+      ],
+      "expected_results": [
+        "Exactly one FI journal entry is posted.",
+        "Core business status becomes POSTED.",
+        "Posting result contains journal_entry_id, fiscal_year, and success status."
+      ],
+      "evidence_targets": [
+        { "kind": "screenshot", "path": "testreport/TS-INT-FI-001/core-send.png", "label": "Core event send complete" },
+        { "kind": "screenshot", "path": "testreport/TS-INT-FI-001/fi-posted.png", "label": "FI posted document screen" },
+        { "kind": "screenshot", "path": "testreport/TS-INT-FI-001/core-posted.png", "label": "Core status updated to POSTED" },
+        { "kind": "json", "path": "testreport/TS-INT-FI-001/request-accounting-event.json", "label": "Accounting event request payload" },
+        { "kind": "json", "path": "testreport/TS-INT-FI-001/response-posting-result.json", "label": "Posting result response payload" },
+        { "kind": "trace", "path": "tests/reports/e2e/test-results/TS-INT-FI-001/trace.zip", "label": "Playwright trace" }
+      ]
+    },
+    {
+      "id": "TS-INT-FI-002",
+      "name": "入金明細による売掛消込成功",
+      "case_type": "normal",
+      "priority": "high",
+      "status": "planned",
+      "tags": ["integration", "playwright", "fi-clearing", "ar", "bank-statement"],
+      "bpmn_refs": [
+        "Task_Bank_ExecuteSettlement",
+        "Task_Bank_SendBankStatement",
+        "Task_FI_ReceiveBankStatement",
+        "Task_FI_ClearOpenItems",
+        "Task_FI_SendClearingResult",
+        "Task_FI_SendCloseReport",
+        "Task_Core_ReceiveClearingResult",
+        "Task_Core_UpdateARAPStatus",
+        "Task_Accounting_ReceiveCloseReport",
+        "Task_Accounting_ReconcileException",
+        "MsgFlow_BankToFI_BankStatement",
+        "MsgFlow_FIToCore_ClearingResult",
+        "MsgFlow_FIToAccounting_CloseReport"
+      ],
+      "preconditions": [
+        "TS-INT-FI-001 posting exists and remains unpaid.",
+        "Bank service can return a matching settlement statement."
+      ],
+      "expected_results": [
+        "Invoice is fully cleared in FI.",
+        "Core AR status becomes CLEARED.",
+        "Monthly close report contains no unresolved exception for this transaction."
+      ],
+      "evidence_targets": [
+        { "kind": "screenshot", "path": "testreport/TS-INT-FI-002/bank-statement-received.png", "label": "Bank statement received" },
+        { "kind": "screenshot", "path": "testreport/TS-INT-FI-002/fi-cleared.png", "label": "FI clearing screen" },
+        { "kind": "screenshot", "path": "testreport/TS-INT-FI-002/accounting-close-report.png", "label": "Accounting close report screen" },
+        { "kind": "json", "path": "testreport/TS-INT-FI-002/response-clearing-result.json", "label": "Clearing result payload" },
+        { "kind": "trace", "path": "tests/reports/e2e/test-results/TS-INT-FI-002/trace.zip", "label": "Playwright trace" }
+      ]
+    },
+    {
+      "id": "TS-INT-FI-003",
+      "name": "支払実行明細による買掛決済成功",
+      "case_type": "normal",
+      "priority": "high",
+      "status": "planned",
+      "tags": ["integration", "playwright", "ap", "settlement", "bank-statement"],
+      "bpmn_refs": [
+        "Task_Bank_ExecuteSettlement",
+        "Task_Bank_SendBankStatement",
+        "Task_FI_ReceiveBankStatement",
+        "Task_FI_ClearOpenItems",
+        "Task_FI_SendClearingResult",
+        "Task_Core_ReceiveClearingResult",
+        "Task_Core_UpdateARAPStatus",
+        "MsgFlow_BankToFI_BankStatement",
+        "MsgFlow_FIToCore_ClearingResult"
+      ],
+      "preconditions": [
+        "AP document based on payment request is already posted.",
+        "Bank service provides payment completion statement."
+      ],
+      "expected_results": [
+        "AP open item is cleared.",
+        "Core payment request status becomes PAID.",
+        "No duplicate settlement is produced."
+      ],
+      "evidence_targets": [
+        { "kind": "screenshot", "path": "testreport/TS-INT-FI-003/payment-statement.png", "label": "Payment statement screen" },
+        { "kind": "screenshot", "path": "testreport/TS-INT-FI-003/fi-ap-cleared.png", "label": "FI AP clearing screen" },
+        { "kind": "screenshot", "path": "testreport/TS-INT-FI-003/core-paid.png", "label": "Core paid status screen" },
+        { "kind": "trace", "path": "tests/reports/e2e/test-results/TS-INT-FI-003/trace.zip", "label": "Playwright trace" }
+      ]
+    },
+    {
+      "id": "TS-INT-FI-004",
+      "name": "会計イベントがマスタ差分到着前に送られる",
+      "case_type": "warning-path",
+      "priority": "high",
+      "status": "planned",
+      "tags": ["integration", "playwright", "ordering", "pending-master", "resilience"],
+      "bpmn_refs": [
+        "Task_Core_SendAccountingEvent",
+        "Task_FI_ReceiveAccountingEvent",
+        "Task_FI_ValidateMasterMapping",
+        "Task_FI_SendPostingResult",
+        "Task_Core_ReceivePostingResult",
+        "Task_Core_UpdateBusinessStatus",
+        "MsgFlow_CoreToFI_AccountingEvent",
+        "MsgFlow_FIToCore_PostingResult"
+      ],
+      "preconditions": [
+        "Target master delta has not been sent yet."
+      ],
+      "expected_results": [
+        "No FI posting occurs.",
+        "Posting result returns PENDING_MASTER or equivalent status.",
+        "Core business status becomes WAITING_ACCOUNTING_MASTER."
+      ],
+      "evidence_targets": [
+        { "kind": "screenshot", "path": "testreport/TS-INT-FI-004/pending-master.png", "label": "Pending master state screen" },
+        { "kind": "json", "path": "testreport/TS-INT-FI-004/response-posting-result.json", "label": "Pending posting result payload" },
+        { "kind": "trace", "path": "tests/reports/e2e/test-results/TS-INT-FI-004/trace.zip", "label": "Playwright trace" }
+      ]
+    },
+    {
+      "id": "TS-INT-FI-005",
+      "name": "勘定/取引先マッピング不備で起票差戻し",
+      "case_type": "error",
+      "priority": "critical",
+      "status": "planned",
+      "tags": ["integration", "playwright", "mapping-error", "exception", "blocking"],
+      "bpmn_refs": [
+        "Task_Core_SendMasterDelta",
+        "Task_FI_ReceiveMasterDelta",
+        "Task_FI_ValidateMasterMapping",
+        "Task_FI_SendPostingResult",
+        "Task_Core_ReceivePostingResult",
+        "Task_Core_UpdateBusinessStatus",
+        "MsgFlow_CoreToFI_MasterDelta",
+        "MsgFlow_FIToCore_PostingResult"
+      ],
+      "preconditions": [
+        "Required BP, account, or tax mapping is missing in FI.",
+        "Master delta and event are sent for a transaction that requires the missing mapping."
+      ],
+      "expected_results": [
+        "FI posting is rejected.",
+        "Posting result clearly returns mapping failure reason.",
+        "Core business status becomes WAITING_MASTER_FIX or equivalent hold state."
+      ],
+      "evidence_targets": [
+        { "kind": "screenshot", "path": "testreport/TS-INT-FI-005/error-screen.png", "label": "Posting rejected screen" },
+        { "kind": "json", "path": "testreport/TS-INT-FI-005/response-posting-result.json", "label": "Error payload" },
+        { "kind": "trace", "path": "tests/reports/e2e/test-results/TS-INT-FI-005/trace.zip", "label": "Playwright trace" },
+        { "kind": "video", "path": "tests/reports/e2e/test-results/TS-INT-FI-005/video.webm", "label": "Failure replay video" }
+      ]
+    },
+    {
+      "id": "TS-INT-FI-006",
+      "name": "会計イベント重複送信時の冪等制御",
+      "case_type": "error",
+      "priority": "critical",
+      "status": "planned",
+      "tags": ["integration", "playwright", "idempotency", "duplicate-event"],
+      "bpmn_refs": [
+        "Task_Core_SendAccountingEvent",
+        "Task_FI_ReceiveAccountingEvent",
+        "Task_FI_PostAccountingDocument",
+        "Task_FI_SendPostingResult",
+        "Task_Core_ReceivePostingResult",
+        "MsgFlow_CoreToFI_AccountingEvent",
+        "MsgFlow_FIToCore_PostingResult"
+      ],
+      "preconditions": [
+        "Original accounting event has already been processed successfully once."
+      ],
+      "expected_results": [
+        "Duplicate event does not create another FI document.",
+        "Idempotency key is recognized.",
+        "Core receives duplicate-safe response."
+      ],
+      "evidence_targets": [
+        { "kind": "screenshot", "path": "testreport/TS-INT-FI-006/duplicate-detected.png", "label": "Duplicate detection screen" },
+        { "kind": "json", "path": "testreport/TS-INT-FI-006/response-posting-result.json", "label": "Idempotent response payload" },
+        { "kind": "trace", "path": "tests/reports/e2e/test-results/TS-INT-FI-006/trace.zip", "label": "Playwright trace" }
+      ]
+    },
+    {
+      "id": "TS-INT-FI-007",
+      "name": "銀行明細が未照合で消込不能",
+      "case_type": "error",
+      "priority": "high",
+      "status": "planned",
+      "tags": ["integration", "playwright", "bank-statement", "unmatched", "ar-exception"],
+      "bpmn_refs": [
+        "Task_Bank_SendBankStatement",
+        "Task_FI_ReceiveBankStatement",
+        "Task_FI_ClearOpenItems",
+        "Task_FI_SendClearingResult",
+        "Task_Core_ReceiveClearingResult",
+        "Task_Core_UpdateARAPStatus",
+        "MsgFlow_BankToFI_BankStatement",
+        "MsgFlow_FIToCore_ClearingResult"
+      ],
+      "preconditions": [
+        "Bank statement amount or reference does not match any open item."
+      ],
+      "expected_results": [
+        "No clearing occurs.",
+        "Unmatched reason is returned to core.",
+        "Core status stays in exception-handling state."
+      ],
+      "evidence_targets": [
+        { "kind": "screenshot", "path": "testreport/TS-INT-FI-007/unmatched-bank-statement.png", "label": "Unmatched statement screen" },
+        { "kind": "json", "path": "testreport/TS-INT-FI-007/response-clearing-result.json", "label": "Unmatched clearing response" },
+        { "kind": "trace", "path": "tests/reports/e2e/test-results/TS-INT-FI-007/trace.zip", "label": "Playwright trace" }
+      ]
+    },
+    {
+      "id": "TS-INT-FI-008",
+      "name": "部分入金により残額が残る",
+      "case_type": "warning-path",
+      "priority": "high",
+      "status": "planned",
+      "tags": ["integration", "playwright", "partial-payment", "residual-amount"],
+      "bpmn_refs": [
+        "Task_Bank_SendBankStatement",
+        "Task_FI_ReceiveBankStatement",
+        "Task_FI_ClearOpenItems",
+        "Task_FI_SendClearingResult",
+        "Task_Core_ReceiveClearingResult",
+        "Task_Core_UpdateARAPStatus",
+        "MsgFlow_BankToFI_BankStatement",
+        "MsgFlow_FIToCore_ClearingResult"
+      ],
+      "preconditions": [
+        "Open AR/AP item exists, and bank statement amount is less than the open amount."
+      ],
+      "expected_results": [
+        "Partial clearing is recorded.",
+        "Residual amount is returned.",
+        "Core balance state reflects partial settlement."
+      ],
+      "evidence_targets": [
+        { "kind": "screenshot", "path": "testreport/TS-INT-FI-008/partial-clearing.png", "label": "Partial clearing screen" },
+        { "kind": "json", "path": "testreport/TS-INT-FI-008/response-clearing-result.json", "label": "Residual amount payload" },
+        { "kind": "trace", "path": "tests/reports/e2e/test-results/TS-INT-FI-008/trace.zip", "label": "Playwright trace" }
+      ]
+    },
+    {
+      "id": "TS-INT-FI-009",
+      "name": "締め時点で未解決例外を含む月次レポート",
+      "case_type": "error-review",
+      "priority": "critical",
+      "status": "planned",
+      "tags": ["integration", "playwright", "month-end-close", "accounting-review", "exception-report"],
+      "bpmn_refs": [
+        "Task_FI_SendCloseReport",
+        "Task_Accounting_ReceiveCloseReport",
+        "Task_Accounting_ReconcileException",
+        "MsgFlow_FIToAccounting_CloseReport"
+      ],
+      "preconditions": [
+        "At least one unresolved exception from TS-INT-FI-005 or TS-INT-FI-007 remains open."
+      ],
+      "expected_results": [
+        "Close report includes unresolved exceptions.",
+        "Accounting can identify cause and next action.",
+        "Report ID and exception count are traceable."
+      ],
+      "evidence_targets": [
+        { "kind": "screenshot", "path": "testreport/TS-INT-FI-009/accounting-review-screen.png", "label": "Accounting review screen" },
+        { "kind": "pdf", "path": "testreport/TS-INT-FI-009/close-report-summary.pdf", "label": "Close report summary" },
+        { "kind": "csv", "path": "testreport/TS-INT-FI-009/close-report-detail.csv", "label": "Close report detail CSV" },
+        { "kind": "trace", "path": "tests/reports/e2e/test-results/TS-INT-FI-009/trace.zip", "label": "Playwright trace" }
+      ]
+    },
+    {
+      "id": "TS-INT-FI-010",
+      "name": "マスタ修正後の再送・再起票成功",
+      "case_type": "recovery",
+      "priority": "critical",
+      "status": "planned",
+      "tags": ["integration", "playwright", "recovery", "replay", "month-end-close"],
+      "bpmn_refs": [
+        "Task_Core_SendMasterDelta",
+        "Task_Core_SendAccountingEvent",
+        "Task_FI_ReceiveMasterDelta",
+        "Task_FI_ValidateMasterMapping",
+        "Task_FI_ReceiveAccountingEvent",
+        "Task_FI_PostAccountingDocument",
+        "Task_FI_SendPostingResult",
+        "Task_Core_ReceivePostingResult",
+        "Task_Core_UpdateBusinessStatus",
+        "Task_FI_SendCloseReport",
+        "Task_Accounting_ReceiveCloseReport",
+        "MsgFlow_CoreToFI_MasterDelta",
+        "MsgFlow_CoreToFI_AccountingEvent",
+        "MsgFlow_FIToCore_PostingResult",
+        "MsgFlow_FIToAccounting_CloseReport"
+      ],
+      "preconditions": [
+        "A rejected event from TS-INT-FI-005 exists.",
+        "Missing mappings have been corrected."
+      ],
+      "expected_results": [
+        "Re-posting succeeds after corrected master replay.",
+        "Core status recovers to POSTED.",
+        "Next close report no longer lists this exception."
+      ],
+      "evidence_targets": [
+        { "kind": "screenshot", "path": "testreport/TS-INT-FI-010/replay-master-sent.png", "label": "Corrected master replay screen" },
+        { "kind": "screenshot", "path": "testreport/TS-INT-FI-010/reposted-success.png", "label": "Reposted FI document screen" },
+        { "kind": "screenshot", "path": "testreport/TS-INT-FI-010/close-report-cleared.png", "label": "Close report after recovery" },
+        { "kind": "trace", "path": "tests/reports/e2e/test-results/TS-INT-FI-010/trace.zip", "label": "Playwright trace" }
+      ]
+    }
+  ]
+}

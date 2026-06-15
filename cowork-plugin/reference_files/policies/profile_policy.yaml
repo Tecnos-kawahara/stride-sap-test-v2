@@ -1,0 +1,88 @@
+# Profile Policy — Tecnos-STRIDE v5.4
+# Purpose: 同じ STRIDE Constitution を用途別の報告粒度 + Completeness 閾値で適用する。
+# Scope:
+#   v5.4 で Profile が切り替えるのは「報告粒度」と「Completeness 閾値」のみ。
+#   BPMN / Evidence Pack / SEC-006 Provenance / Ops Pack / Epic-Feature Hierarchy /
+#   Coverage Tier 宣言 は全 Profile 共通（現行正本を維持）。
+#   これらを Profile で切替にする提案は v5.5 以降で別タスクとして起票する。
+#
+# Reference: agent_docs/sdd_bootstrap.md §5 (Task Completion Report),
+#            SDD_MANIFESTO.md (Completeness Principle),
+#            memory/constitution.md (Articles I–XIV は全 Profile 共通)
+
+version: "1.0.0"
+effective_date: "2026-04-24"
+
+profiles:
+  enterprise-erp:
+    description: "SAP / mcframe / Salesforce 等 ERP 導入、監査対象案件"
+    # v5.4 で切替対象
+    task_completion_report: "full_5_step"
+    completeness_lake_max_lines: 200
+    completeness_lake_max_files: 5
+
+  saas-integration:
+    description: "連携業務 SaaS（CBP v3 等）、API / Event 中心の統合案件"
+    # v5.4 で切替対象
+    task_completion_report: "critical_only"   # critical tier のみ 5-step、他は 1-line
+    completeness_lake_max_lines: 150
+    completeness_lake_max_files: 4
+
+  prototype:
+    description: "社内 PoC、innovation 推進部の小規模ツール"
+    # v5.4 で切替対象
+    task_completion_report: "one_line"
+    completeness_lake_max_lines: 100
+    completeness_lake_max_files: 3
+
+# v5.4 で切り替えないもの（全 Profile 共通）
+# 現行正本（下記参照先）の値をそのまま維持する。ここで新たな数値・条件を決め打ちしない。
+# これらを Profile で切替にする提案は v5.5 以降で別途起票すること。
+invariants_across_profiles:
+  bpmn_required:
+    rule: "preserve_current"
+    canonical_source: "agent_docs/sdd_bootstrap.md#section-4-bpmn"
+  evidence_pack:
+    rule: "preserve_current"
+    canonical_source:
+      - "memory/tecnos_org_constraints.md#6.5"
+      - "sdd-templates/templates/ops_template.md"
+  coverage_tier_declaration:
+    rule: "preserve_current"
+    canonical_source: "sdd-templates/templates/basic_design_template.md (basic_design.coverage_tier)"
+  epic_feature_hierarchy:
+    rule: "preserve_current"
+    canonical_source: "memory/constitution.md (Article X)"
+  sec_006_provenance:
+    rule: "preserve_current"
+    canonical_source:
+      - "sdd-templates/tools/stride_security_checker.py (SEC-006)"
+      - "memory/tecnos_org_constraints.md"
+  ops_pack:
+    rule: "preserve_current"
+    canonical_source:
+      - "sdd-templates/templates/ops_pack_registry_template.yaml"
+      - "sdd-templates/templates/epic_design_template.md"
+      - "manual/"
+
+# Profile 解決ルール（v3 で正規キーを basic_design.profile に訂正）
+profile_resolution:
+  order:
+    - "1. basic_design.md の basic_design.profile（正規宣言・SSoT）"
+    - "2. state.yaml の top-level profile フィールド（flat schema、同期キャッシュ）"
+    - "3. いずれも未定義なら 'enterprise-erp' をデフォルト"
+  notes:
+    - "basic_design.md の canonical schema は basic_design.* 配下にフィールドを並べる構造（coverage_tier / autonomy_bias / ed_cf_score 等と同列）"
+    - "meta.* というネストは現行 schema に存在しないため使用禁止"
+    - "state.yaml も flat schema のため workspace.* ネストは使わない"
+    - "basic_design.md の basic_design.profile が SSoT。state.yaml は同期キャッシュ"
+    - "不整合時は basic_design.md を正として state.yaml を更新する（stride-lint が PROFILE_MISMATCH 警告）"
+
+constitution_interpretation:
+  note: |
+    全 Profile で Constitution Articles I〜XIV は共通。
+    Profile は「報告の冗長さ」と「Completeness 閾値」のみを切り替える。
+    Gate 通過のために要求される成果物（BPMN / Evidence Pack / Ops Pack 等）は
+    全 Profile で現行正本のまま。例: Article III (Test-First) の「100% AC coverage」は
+    全 Profile で必須。prototype でも機械検証は同じ。
+    切替対象は「人間向けレポートのフォーマット」と「湖/海判定の閾値」のみ。

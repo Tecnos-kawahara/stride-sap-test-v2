@@ -1,0 +1,5 @@
+# SDD Template Enterprise - Python Dependencies
+# Install: pip install -r sdd-templates/requirements.txt
+
+PyYAML>=6.0
+Jinja2>=3.1

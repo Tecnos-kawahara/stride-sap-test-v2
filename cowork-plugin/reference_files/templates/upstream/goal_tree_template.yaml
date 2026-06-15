@@ -1,0 +1,44 @@
+---
+# Template: goal_tree.yaml
+# Phase: phase_0_discovery
+# BABOK Source: KA6 Strategy Analysis / 6.2 Define Future State
+# Layered Requirements Modeling Source: n/a
+# Inspired by: value-driven discovery method 目的階層ツリー (philosophical inspiration)
+# Rule-0: 正本は YAML フロントマター + 下記 YAML ブロック
+---
+
+artifact: "goal_tree.yaml"
+template_id: "TPL-UP-GLT-001"
+feature_id: "FEAT-XXX"
+upstream_artifact_id: "GLT-XXX"
+title: "Goal Tree - <Feature Name>"
+version: "{{TEMPLATE_VERSION}}"
+status: "draft"
+phase: "phase_0_discovery"
+profile_applicability: ["enterprise-erp", "saas-integration", "prototype"]
+owners: []
+reviewers: []
+links:
+  upstream_policy_ref: "shared/policies/upstream_policy.yaml"
+  baccm_completeness_ref: "shared/policies/baccm_completeness.yaml"
+  iteration_policy_ref: "shared/policies/upstream_iteration_policy.yaml"
+  constitution_ref: "memory/constitution.md"
+  amendment_ref: "memory/constitution_amendments/XV_baccm_completeness.md"
+created_at: "YYYY-MM-DD"
+updated_at: "YYYY-MM-DD"
+
+# Goal Tree 本体 (BACCM Solution 軸)
+root_goal: ""                  # 最上位ゴール (なぜ存在するか)
+subgoals: []
+# 例:
+# - id: "G-001"
+#   parent_id: ""              # root の場合は空、それ以外は親 G-* を指す
+#   statement: "受注登録リードタイム < 24h"
+#   measurement: "受注番号採番から ERP 反映完了までの時間"
+#   target_value: "24h"
+#   horizon: "Q3 2026"
+metrics_alignment: []          # KPI / OKR との対応 (id 参照)
+
+attributions:
+  - { source: "BABOK v3 (IIBA)", role: "framework backbone (KA6.2)", license: "fair-use, names and section refs only" }
+  - { source: "value-driven discovery (philosophical foundation)", role: "goal hierarchy inspiration", license: "fair-use, model name only" }

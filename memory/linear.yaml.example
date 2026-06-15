@@ -1,0 +1,26 @@
+# memory/linear.yaml — Linear integration binding for this STRIDE project (v5.3.1)
+#
+# This file is the project-wide SSoT for the Linear Project (not Issue) binding.
+# Per-feature Issue bindings live in `specs/<feature>/state/state.yaml`
+# under `work_items[].linear_issue_id`.
+#
+# Typical lifecycle:
+#   1. stride new-project my_erp --linear-project my_erp    # auto-create + persist here
+#   2. (or) stride linear project create my_erp             # same, post-hoc
+#   3. (or) stride linear project use <existing_uuid>       # bind to existing
+#   4. stride linear init <feature> <wi>                    # Issue creation uses project_id
+#
+# Precedence (highest wins):
+#   1. CLI --project-id flag (none by default)
+#   2. LINEAR_PROJECT_ID env variable
+#   3. This file's `project_id`
+#   4. None → Issues go to team backlog without a Linear Project
+#
+# Safe to commit: this documents the project/workspace binding, not secrets.
+# `LINEAR_API_KEY` MUST remain in `.env.local` (gitignored).
+
+team_key: "TEC"                       # Linear team key (e.g., Tecnos AI)
+project_id: ""                         # Linear Project UUID (auto-filled by `stride linear project create`)
+project_name: ""                       # Human-readable name (usually === STRIDE project name)
+url: ""                                # Optional: Linear URL for convenience
+# created_at: "2026-04-19"             # Filled when the binding was first persisted

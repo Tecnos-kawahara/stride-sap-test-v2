@@ -1,0 +1,792 @@
+# 共通クラス・共通 Include 使用ルール定義
+# 用途:
+#   1. sap_checklist_suggest.py → spec.md の common_class_applicability に出力
+#   2. sap_common_class_lint.py → ABAPソースの禁止パターン検出 + パラメータ突合
+#   3. sap_quality_score.py → 共通クラス使用チェック
+# 注意:
+#   - forbidden_patterns はリスト形式。後から行追加するだけで禁止パターン拡張可能
+#   - 共通クラス自身のソース（classes[].name に該当するファイル）はlint対象外
+#   - methods[].parameters で定義されたパラメータのみ使用可能（未定義パラメータはlintエラー）
+#   - methods[].description はメソッドの説明（Excel「共通クラスオブジェクト(詳細)」シート由来）
+#   - common_include_rules: 選択画面の共通 Include プログラム。INCLUDE 文で取り込む
+
+common_class_rules:
+  - id: "CC-FILE-01"
+    trigger_pattern: "ファイル|file|CSV|TSV|Excel|固定長|アップロード|ダウンロード"
+    forbidden_patterns:
+      - "CL_GUI_FRONTEND_SERVICES=>GUI_UPLOAD"
+      - "CL_GUI_FRONTEND_SERVICES=>GUI_DOWNLOAD"
+      - "CL_GUI_FRONTEND_SERVICES=>FILE_OPEN_DIALOG"
+      - "CL_GUI_FRONTEND_SERVICES=>DIRECTORY_BROWSE"
+      - "CL_GUI_FRONTEND_SERVICES=>FILE_SAVE_DIALOG"
+      - "OPEN DATASET"
+      - "CLOSE DATASET"
+      - "TRANSFER"
+      - "READ DATASET"
+    classes:
+      - name: ZCL_CMA_LOCAL_FILE
+        condition: "ローカルファイル"
+        description: "ローカルファイル入出力"
+        methods:
+          - name: F4HELP_PATH_IN
+            description: "ローカルファイル入力パスのF4ヘルプ"
+            parameters:
+              - { name: iv_prompt, direction: IMPORTING, type: "STRING", optional: true }
+              - { name: cv_file_path, direction: CHANGING, type: "STRING" }
+          - name: F4HELP_PATH_OUT
+            description: "ローカルファイル出力パスのF4ヘルプ"
+            parameters:
+              - { name: iv_prompt, direction: IMPORTING, type: "STRING", optional: true }
+              - { name: cv_file_path, direction: CHANGING, type: "STRING" }
+          - name: F4HELP_DIRECTORY
+            description: "ディレクトリのF4ヘルプ"
+            parameters:
+              - { name: iv_prompt, direction: IMPORTING, type: "STRING", optional: true }
+              - { name: cv_directory, direction: CHANGING, type: "STRING" }
+          - name: INPUT_TSV
+            description: "ローカルTSVファイル読込"
+            parameters:
+              - { name: iv_path, direction: IMPORTING, type: "STRING" }
+              - { name: rt_data, direction: CHANGING, type: "TY_ROWS" }
+              - { name: rv_result, direction: RETURNING, type: "BAPIRET2" }
+          - name: INPUT_CSV
+            description: "ローカルCSVファイル読込"
+            parameters:
+              - { name: iv_path, direction: IMPORTING, type: "STRING" }
+              - { name: ct_file_data, direction: CHANGING, type: "TY_ROWS" }
+              - { name: rv_result, direction: RETURNING, type: "BAPIRET2" }
+          - name: INPUT_FIX
+            description: "ローカル固定長ファイル読込"
+            parameters:
+              - { name: iv_path, direction: IMPORTING, type: "STRING" }
+              - { name: it_layout, direction: IMPORTING, type: "TY_LAYOUT", optional: true }
+              - { name: ct_file_data, direction: CHANGING, type: "TY_ROWS" }
+              - { name: rv_result, direction: RETURNING, type: "BAPIRET2" }
+          - name: INPUT_EXCEL
+            description: "ローカルExcelファイル読込"
+            parameters:
+              - { name: iv_path, direction: IMPORTING, type: "STRING" }
+              - { name: iv_sheet, direction: IMPORTING, type: "STRING", optional: true }
+              - { name: ct_file_data, direction: CHANGING, type: "TY_ROWS" }
+              - { name: rv_result, direction: RETURNING, type: "BAPIRET2" }
+          - name: OUTPUT_TSV
+            description: "ローカルTSVファイル出力"
+            parameters:
+              - { name: iv_path, direction: IMPORTING, type: "STRING" }
+              - { name: it_data, direction: IMPORTING, type: "TY_ROWS" }
+              - { name: rv_result, direction: RETURNING, type: "BAPIRET2" }
+          - name: OUTPUT_CSV
+            description: "ローカルCSVファイル出力"
+            parameters:
+              - { name: iv_path, direction: IMPORTING, type: "STRING" }
+              - { name: it_data, direction: IMPORTING, type: "TY_ROWS" }
+              - { name: rv_result, direction: RETURNING, type: "BAPIRET2" }
+          - name: OUTPUT_FIX
+            description: "ローカル固定長ファイル出力"
+            parameters:
+              - { name: iv_path, direction: IMPORTING, type: "STRING" }
+              - { name: it_data, direction: IMPORTING, type: "TY_ROWS" }
+              - { name: it_layout, direction: IMPORTING, type: "TY_LAYOUT", optional: true }
+              - { name: rv_result, direction: RETURNING, type: "BAPIRET2" }
+          - name: OUTPUT_EXCEL
+            description: "ローカルExcelファイル出力"
+            parameters:
+              - { name: iv_path, direction: IMPORTING, type: "STRING" }
+              - { name: iv_sheet, direction: IMPORTING, type: "STRING", default: "'Sheet1'" }
+              - { name: it_data, direction: IMPORTING, type: "TY_ROWS" }
+              - { name: rv_result, direction: RETURNING, type: "BAPIRET2" }
+          - name: GET_LAYOUT
+            description: "構造名からレイアウト(フィールド幅)取得"
+            parameters:
+              - { name: iv_structure, direction: IMPORTING, type: "DD02L-TABNAME" }
+              - { name: rt_layout, direction: RETURNING, type: "TY_LAYOUT" }
+      - name: ZCL_CMA_AP_FILE
+        condition: "サーバーファイル"
+        description: "サーバーファイル入出力"
+        methods:
+          - name: INPUT_TSV
+            description: "サーバーTSVファイル読込"
+            parameters:
+              - { name: iv_path, direction: IMPORTING, type: "PATHINTERN" }
+              - { name: iv_file, direction: IMPORTING, type: "FILEINTERN" }
+              - { name: iv_encord, direction: IMPORTING, type: "CHAR4", optional: true }
+              - { name: ct_file_data, direction: CHANGING, type: "TY_ROWS" }
+              - { name: rv_result, direction: RETURNING, type: "BAPIRET2" }
+          - name: INPUT_CSV
+            description: "サーバーCSVファイル読込"
+            parameters:
+              - { name: iv_path, direction: IMPORTING, type: "PATHINTERN" }
+              - { name: iv_file, direction: IMPORTING, type: "FILEINTERN" }
+              - { name: iv_encord, direction: IMPORTING, type: "CHAR4", optional: true }
+              - { name: ct_file_data, direction: CHANGING, type: "TY_ROWS" }
+              - { name: rv_result, direction: RETURNING, type: "BAPIRET2" }
+          - name: INPUT_FIX
+            description: "サーバー固定長ファイル読込"
+            parameters:
+              - { name: iv_path, direction: IMPORTING, type: "PATHINTERN" }
+              - { name: iv_file, direction: IMPORTING, type: "FILEINTERN" }
+              - { name: iv_encord, direction: IMPORTING, type: "CHAR4", optional: true }
+              - { name: it_layout, direction: IMPORTING, type: "TY_LAYOUT", optional: true }
+              - { name: ct_file_data, direction: CHANGING, type: "TY_ROWS" }
+              - { name: rv_result, direction: RETURNING, type: "BAPIRET2" }
+          - name: INPUT_EXCEL
+            description: "サーバーExcelファイル読込"
+            parameters:
+              - { name: iv_path, direction: IMPORTING, type: "PATHINTERN" }
+              - { name: iv_file, direction: IMPORTING, type: "FILEINTERN" }
+              - { name: iv_sheet, direction: IMPORTING, type: "STRING", optional: true }
+              - { name: ct_file_data, direction: CHANGING, type: "TY_ROWS" }
+              - { name: rv_result, direction: RETURNING, type: "BAPIRET2" }
+          - name: OUTPUT_TSV
+            description: "サーバーTSVファイル出力"
+            parameters:
+              - { name: iv_path, direction: IMPORTING, type: "PATHINTERN" }
+              - { name: iv_file, direction: IMPORTING, type: "FILEINTERN" }
+              - { name: iv_encord, direction: IMPORTING, type: "CHAR4", optional: true }
+              - { name: it_data, direction: IMPORTING, type: "TY_ROWS" }
+              - { name: rv_result, direction: RETURNING, type: "BAPIRET2" }
+          - name: OUTPUT_CSV
+            description: "サーバーCSVファイル出力"
+            parameters:
+              - { name: iv_path, direction: IMPORTING, type: "PATHINTERN" }
+              - { name: iv_file, direction: IMPORTING, type: "FILEINTERN" }
+              - { name: iv_encord, direction: IMPORTING, type: "CHAR4", optional: true }
+              - { name: it_data, direction: IMPORTING, type: "TY_ROWS" }
+              - { name: rv_result, direction: RETURNING, type: "BAPIRET2" }
+          - name: OUTPUT_FIX
+            description: "サーバー固定長ファイル出力"
+            parameters:
+              - { name: iv_path, direction: IMPORTING, type: "PATHINTERN" }
+              - { name: iv_file, direction: IMPORTING, type: "FILEINTERN" }
+              - { name: iv_encord, direction: IMPORTING, type: "CHAR4", optional: true }
+              - { name: it_data, direction: IMPORTING, type: "TY_ROWS" }
+              - { name: it_layout, direction: IMPORTING, type: "TY_LAYOUT", optional: true }
+              - { name: rv_result, direction: RETURNING, type: "BAPIRET2" }
+          - name: OUTPUT_EXCEL
+            description: "サーバーExcelファイル出力"
+            parameters:
+              - { name: iv_path, direction: IMPORTING, type: "PATHINTERN" }
+              - { name: iv_file, direction: IMPORTING, type: "FILEINTERN" }
+              - { name: iv_sheet, direction: IMPORTING, type: "STRING", default: "'Sheet1'" }
+              - { name: it_data, direction: IMPORTING, type: "TY_ROWS" }
+              - { name: rv_result, direction: RETURNING, type: "BAPIRET2" }
+          - name: GET_LAYOUT
+            description: "構造名からレイアウト(フィールド幅)取得"
+            parameters:
+              - { name: iv_structure, direction: IMPORTING, type: "DD02L-TABNAME" }
+              - { name: rt_layout, direction: RETURNING, type: "TY_LAYOUT" }
+
+  - id: "CC-AUTH-01"
+    trigger_pattern: "権限|AUTHORITY|会社コード|プラント|販売エリア|購買組織"
+    forbidden_patterns:
+      - "AUTHORITY-CHECK"
+    classes:
+      - name: ZCL_CMA_COMMON_CHECK
+        description: "権限・存在チェック"
+        methods:
+          - name: AUTH_COMPANY
+            description: "会社コード権限チェック"
+            parameters:
+              - { name: iv_bukrs, direction: IMPORTING, type: "BUKRS" }
+              - { name: iv_activity, direction: IMPORTING, type: "CHAR2" }
+              - { name: rv_result, direction: RETURNING, type: "BAPIRET2" }
+          - name: AUTH_SALESAREA
+            description: "販売エリア権限チェック"
+            parameters:
+              - { name: iv_salesorg, direction: IMPORTING, type: "VKORG" }
+              - { name: iv_salesdist, direction: IMPORTING, type: "VTWEG" }
+              - { name: iv_salesspart, direction: IMPORTING, type: "SPART" }
+              - { name: iv_activity, direction: IMPORTING, type: "CHAR2" }
+              - { name: rv_result, direction: RETURNING, type: "BAPIRET2" }
+          - name: AUTH_PUR_ORG
+            description: "購買組織権限チェック"
+            parameters:
+              - { name: iv_porg, direction: IMPORTING, type: "EKORG" }
+              - { name: iv_activity, direction: IMPORTING, type: "CHAR2" }
+              - { name: rv_result, direction: RETURNING, type: "BAPIRET2" }
+          - name: AUTH_PLANT
+            description: "プラント権限チェック"
+            parameters:
+              - { name: iv_plant, direction: IMPORTING, type: "WERKS_D" }
+              - { name: iv_activity, direction: IMPORTING, type: "CHAR2" }
+              - { name: rv_result, direction: RETURNING, type: "BAPIRET2" }
+          - name: EXIST_COMPANY
+            description: "会社コード存在チェック"
+            parameters:
+              - { name: iv_bukrs, direction: IMPORTING, type: "BUKRS" }
+              - { name: rv_result, direction: RETURNING, type: "BAPIRET2" }
+          - name: EXIST_SALESAREA
+            description: "販売エリア存在チェック"
+            parameters:
+              - { name: iv_salesorg, direction: IMPORTING, type: "VKORG" }
+              - { name: iv_salesdist, direction: IMPORTING, type: "VTWEG" }
+              - { name: iv_salesspart, direction: IMPORTING, type: "SPART" }
+              - { name: rv_result, direction: RETURNING, type: "BAPIRET2" }
+          - name: EXIST_PUR_ORG
+            description: "購買組織存在チェック"
+            parameters:
+              - { name: iv_porg, direction: IMPORTING, type: "EKORG" }
+              - { name: rv_result, direction: RETURNING, type: "BAPIRET2" }
+          - name: EXIST_PLANT
+            description: "プラント存在チェック"
+            parameters:
+              - { name: iv_plant, direction: IMPORTING, type: "WERKS_D" }
+              - { name: rv_result, direction: RETURNING, type: "BAPIRET2" }
+
+  - id: "CC-ALV-01"
+    trigger_pattern: "ALV|一覧表示|一覧出力"
+    forbidden_patterns:
+      - "REUSE_ALV_GRID_DISPLAY"
+      - "REUSE_ALV_LIST_DISPLAY"
+      - "CL_SALV_TABLE"
+      - "CL_GUI_ALV_GRID"
+    classes:
+      - name: ZCL_CMA_ALV_GENERIC
+        description: "ALV汎用出力"
+        methods:
+          - name: CONSTRUCTOR
+            description: "コンストラクタ（データ参照でSALV生成）"
+            parameters:
+              - { name: i_data, direction: IMPORTING, type: "REF TO DATA" }
+          - name: SET_COLUMNS
+            description: "列設定一括適用"
+            parameters:
+              - { name: it_columns, direction: IMPORTING, type: "TY_COLUMN_SETTINGS" }
+          - name: SET_COLUMN_TEXT
+            description: "列テキスト設定"
+            parameters:
+              - { name: i_fieldname, direction: IMPORTING, type: "LVC_FNAME" }
+              - { name: i_short_text, direction: IMPORTING, type: "SCRTEXT_S", optional: true }
+              - { name: i_medium_text, direction: IMPORTING, type: "SCRTEXT_M", optional: true }
+              - { name: i_long_text, direction: IMPORTING, type: "SCRTEXT_L", optional: true }
+          - name: SET_HOTSPOT
+            description: "列をホットスポット設定"
+            parameters:
+              - { name: i_fieldname, direction: IMPORTING, type: "LVC_FNAME" }
+          - name: HIDE_COLUMN
+            description: "列を非表示設定"
+            parameters:
+              - { name: i_fieldname, direction: IMPORTING, type: "LVC_FNAME" }
+          - name: SET_OPTIMIZE
+            description: "列幅自動最適化"
+            parameters: []
+          - name: SET_ZEBRA
+            description: "縞模様表示設定"
+            parameters: []
+          - name: REGISTER_HANDLER
+            description: "リンククリックハンドラ登録"
+            parameters:
+              - { name: i_callback, direction: IMPORTING, type: "REF TO ZIF_CMA_ALV_CALLBACK", optional: true }
+          - name: DISPLAY
+            description: "ALV表示"
+            parameters: []
+          - name: GET_SALV
+            description: "SALVオブジェクト取得"
+            parameters:
+              - { name: r_salv, direction: RETURNING, type: "REF TO CL_SALV_TABLE" }
+          - name: F4HELP_VARIANT
+            description: "レイアウトバリアントF4ヘルプ"
+            parameters:
+              - { name: iv_report, direction: IMPORTING, type: "SY-REPID", optional: true }
+              - { name: cv_variant, direction: CHANGING, type: "SLIS_VARI" }
+      - name: ZCL_CMA_ALV_HANDLER
+        description: "ALVイベントハンドラ"
+        methods:
+          - name: CONSTRUCTOR
+            description: "コンストラクタ（コールバック設定）"
+            parameters:
+              - { name: i_callback, direction: IMPORTING, type: "REF TO ZIF_CMA_ALV_CALLBACK", optional: true }
+          - name: ON_LINK_CLICK
+            description: "リンククリックイベントハンドラ"
+            parameters:
+              - { name: row, direction: IMPORTING, type: "(EVENT)" }
+              - { name: column, direction: IMPORTING, type: "(EVENT)" }
+      - name: ZIF_CMA_ALV_CALLBACK
+        description: "ALVコールバックインターフェイス"
+        methods:
+          - name: ON_HOTSPOT_CLICK
+            description: "ホットスポットクリックイベント"
+            parameters:
+              - { name: i_row, direction: IMPORTING, type: "I" }
+              - { name: i_column, direction: IMPORTING, type: "LVC_FNAME" }
+
+  - id: "CC-LOG-01"
+    trigger_pattern: "アプリケーションログ|SLG1|ログ出力|ログ記録"
+    forbidden_patterns:
+      - "BAL_LOG_CREATE"
+      - "BAL_LOG_MSG_ADD"
+      - "BAL_DB_SAVE"
+    classes:
+      - name: ZCL_CMA_APPLOG
+        description: "アプリケーションログ"
+        methods:
+          - name: LOG_CREATE
+            description: "ログオブジェクト作成"
+            parameters:
+              - { name: iv_object, direction: IMPORTING, type: "CHAR20" }
+              - { name: iv_subobject, direction: IMPORTING, type: "CHAR20" }
+              - { name: rv_result, direction: RETURNING, type: "BAPIRET2" }
+          - name: ADD_MESSAGE
+            description: "ログメッセージ追加"
+            parameters:
+              - { name: is_bapiret2, direction: IMPORTING, type: "BAPIRET2" }
+              - { name: rv_result, direction: RETURNING, type: "BAPIRET2" }
+          - name: SAVE_LOG
+            description: "ログDB保存"
+            parameters:
+              - { name: rv_result, direction: RETURNING, type: "BAPIRET2" }
+
+  - id: "CC-JOBRESULT-01"
+    trigger_pattern: "処理結果|JOB.?RESULT|成功件数|エラー件数|処理サマリ"
+    forbidden_patterns: []
+    classes:
+      - name: ZCL_CMA_JOB_RESULT
+        description: "ジョブ結果メッセージ"
+        methods:
+          - name: JOB_RESULT
+            description: "ジョブ結果メッセージ出力"
+            parameters:
+              - { name: iv_err, direction: IMPORTING, type: "ABAP_BOOL" }
+
+  # --- T100 メッセージクラス使用強制 ---
+  - id: "CC-MSG-01"
+    trigger_pattern: "メッセージ|MESSAGE|エラー通知|警告|通知"
+    forbidden_patterns:
+      - "MESSAGE '"
+    classes: []
+
+  # ============================================================
+  # v2 追加クラス（04_ツール §C-6: 16+1 CLAS/IF、92メソッド完全登録）
+  # 以下は HTML 仕様書（参考資料/要対応事項/共通クラス類追加/）から抽出
+  # ============================================================
+
+  - id: "CC-ORG-01"
+    trigger_pattern: "会社|組織|プラント|販売エリア|購買組織"
+    forbidden_patterns: []
+    classes:
+      - name: ZCL_CMA_COMPANY
+        condition: "会社コード関連"
+        description: "会社コードの権限チェック・存在チェック・住所情報取得"
+        methods:
+          - name: CHECK_AUTH
+            description: "会社コード権限チェック"
+            parameters:
+              - { name: IV_BUKRS, direction: IMPORTING, type: "BUKRS", optional: false }
+              - { name: IV_ACTIVITY, direction: IMPORTING, type: "CHAR2", optional: false }
+              - { name: IV_AUTH_OBJ, direction: IMPORTING, type: "XUOBJECT", optional: true }
+              - { name: RV_RESULT, direction: RETURNING, type: "BAPIRET2" }
+          - name: CHECK_EXIST
+            description: "会社コード存在チェック"
+            parameters:
+              - { name: IV_BUKRS, direction: IMPORTING, type: "BUKRS", optional: false }
+              - { name: RV_RESULT, direction: RETURNING, type: "BAPIRET2" }
+          - name: GET_ADDRESS
+            description: "住所情報取得（単一）"
+            parameters:
+              - { name: IV_BUKRS, direction: IMPORTING, type: "BUKRS", optional: false }
+              - { name: IV_NATION, direction: IMPORTING, type: "ADRC-NATION", optional: false }
+              - { name: IV_DATE, direction: IMPORTING, type: "SY-DATUM", optional: true }
+              - { name: RS_RESULT, direction: RETURNING, type: "ZCMA_BUKRS_AD" }
+          - name: GET_ADDRESS_DETAIL
+            description: "住所情報取得（単一・詳細）"
+            parameters:
+              - { name: IV_BUKRS, direction: IMPORTING, type: "BUKRS", optional: false }
+              - { name: IV_NATION, direction: IMPORTING, type: "ADRC-NATION", optional: false }
+              - { name: IV_DATE, direction: IMPORTING, type: "SY-DATUM", optional: true }
+              - { name: RS_RESULT, direction: RETURNING, type: "ZCMA_BUKRS_AD_D" }
+          - name: GET_ADDRESSES
+            description: "住所情報取得（複数）"
+            parameters:
+              - { name: IT_BUKRS, direction: IMPORTING, type: "TT_BUKRS", optional: false }
+              - { name: IT_NATION, direction: IMPORTING, type: "TT_NATION", optional: false }
+              - { name: IV_DATE, direction: IMPORTING, type: "SY-DATUM", optional: true }
+              - { name: RT_RESULT, direction: RETURNING, type: "ZCMATT_BUKRS_AD01" }
+          - name: GET_ADDRESSES_DETAIL
+            description: "住所情報取得（複数・詳細）"
+            parameters:
+              - { name: IT_BUKRS, direction: IMPORTING, type: "TT_BUKRS", optional: false }
+              - { name: IT_NATION, direction: IMPORTING, type: "TT_NATION", optional: false }
+              - { name: IV_DATE, direction: IMPORTING, type: "SY-DATUM", optional: true }
+              - { name: RT_RESULT, direction: RETURNING, type: "ZCMATT_BUKRS_AD_D01" }
+      - name: ZCL_CMA_SALESAREA
+        condition: "販売エリア関連"
+        description: "販売エリアの権限チェック・存在チェック・名称取得"
+        methods:
+          - name: CHECK_AUTH
+            description: "販売エリア権限チェック"
+            parameters:
+              - { name: IV_SALESORG, direction: IMPORTING, type: "VKORG", optional: false }
+              - { name: IV_SALESDIST, direction: IMPORTING, type: "VTWEG", optional: false }
+              - { name: IV_SALESSPART, direction: IMPORTING, type: "SPART", optional: false }
+              - { name: IV_ACTIVITY, direction: IMPORTING, type: "CHAR2", optional: false }
+              - { name: IV_AUTH_OBJ, direction: IMPORTING, type: "XUOBJECT", optional: true }
+              - { name: RV_RESULT, direction: RETURNING, type: "BAPIRET2" }
+          - name: CHECK_EXIST
+            description: "販売エリア存在チェック"
+            parameters:
+              - { name: IV_SALESORG, direction: IMPORTING, type: "VKORG", optional: false }
+              - { name: IV_SALESDIST, direction: IMPORTING, type: "VTWEG", optional: false }
+              - { name: IV_SALESSPART, direction: IMPORTING, type: "SPART", optional: false }
+              - { name: RV_RESULT, direction: RETURNING, type: "BAPIRET2" }
+          - name: GET_NAME
+            description: "名称取得（単一）"
+            parameters:
+              - { name: IV_VKORG, direction: IMPORTING, type: "VKORG", optional: false }
+              - { name: IV_LANGU, direction: IMPORTING, type: "SPRAS", optional: true }
+              - { name: RS_RESULT, direction: RETURNING, type: "ZCMA_VKORG_AD" }
+          - name: GET_NAME_DETAIL
+            description: "名称取得（単一・詳細）"
+            parameters:
+              - { name: IV_VKORG, direction: IMPORTING, type: "VKORG", optional: false }
+              - { name: IV_LANGU, direction: IMPORTING, type: "SPRAS", optional: true }
+              - { name: RS_RESULT, direction: RETURNING, type: "ZCMA_VKORG_AD_D" }
+          - name: GET_NAMES
+            description: "名称取得（複数）"
+            parameters:
+              - { name: IT_VKORG, direction: IMPORTING, type: "TT_VKORG", optional: false }
+              - { name: IV_LANGU, direction: IMPORTING, type: "SPRAS", optional: true }
+              - { name: RT_RESULT, direction: RETURNING, type: "ZCMATT_VKORG_AD01" }
+          - name: GET_NAMES_DETAIL
+            description: "名称取得（複数・詳細）"
+            parameters:
+              - { name: IT_VKORG, direction: IMPORTING, type: "TT_VKORG", optional: false }
+              - { name: IV_LANGU, direction: IMPORTING, type: "SPRAS", optional: true }
+              - { name: RT_RESULT, direction: RETURNING, type: "ZCMATT_VKORG_AD_D01" }
+      - name: ZCL_CMA_PURORG
+        condition: "購買組織関連"
+        description: "購買組織の権限チェック・存在チェック・名称取得"
+        methods:
+          - name: CHECK_AUTH
+            description: "購買組織権限チェック"
+            parameters:
+              - { name: IV_PORG, direction: IMPORTING, type: "EKORG", optional: false }
+              - { name: IV_ACTIVITY, direction: IMPORTING, type: "CHAR2", optional: false }
+              - { name: IV_AUTH_OBJ, direction: IMPORTING, type: "XUOBJECT", optional: true }
+              - { name: RV_RESULT, direction: RETURNING, type: "BAPIRET2" }
+          - name: CHECK_EXIST
+            description: "購買組織存在チェック"
+            parameters:
+              - { name: IV_PORG, direction: IMPORTING, type: "EKORG", optional: false }
+              - { name: RV_RESULT, direction: RETURNING, type: "BAPIRET2" }
+          - name: GET_NAME
+            description: "名称取得（単一）"
+            parameters:
+              - { name: IV_EKORG, direction: IMPORTING, type: "EKORG", optional: false }
+              - { name: RS_RESULT, direction: RETURNING, type: "ZCMA_EKORG_AD" }
+          - name: GET_NAME_DETAIL
+            description: "名称取得（単一・詳細）"
+            parameters:
+              - { name: IV_EKORG, direction: IMPORTING, type: "EKORG", optional: false }
+              - { name: RS_RESULT, direction: RETURNING, type: "ZCMA_EKORG_AD_D" }
+          - name: GET_NAMES
+            description: "名称取得（複数）"
+            parameters:
+              - { name: IT_EKORG, direction: IMPORTING, type: "TT_EKORG", optional: false }
+              - { name: RT_RESULT, direction: RETURNING, type: "ZCMATT_EKORG_AD01" }
+          - name: GET_NAMES_DETAIL
+            description: "名称取得（複数・詳細）"
+            parameters:
+              - { name: IT_EKORG, direction: IMPORTING, type: "TT_EKORG", optional: false }
+              - { name: RT_RESULT, direction: RETURNING, type: "ZCMATT_EKORG_AD_D01" }
+      - name: ZCL_CMA_PLANT
+        condition: "プラント関連"
+        description: "プラントの権限チェック・存在チェック・住所情報取得"
+        methods:
+          - name: CHECK_AUTH
+            description: "プラント権限チェック"
+            parameters:
+              - { name: IV_PLANT, direction: IMPORTING, type: "WERKS_D", optional: false }
+              - { name: IV_ACTIVITY, direction: IMPORTING, type: "CHAR2", optional: false }
+              - { name: IV_AUTH_OBJ, direction: IMPORTING, type: "XUOBJECT", optional: true }
+              - { name: RV_RESULT, direction: RETURNING, type: "BAPIRET2" }
+          - name: CHECK_EXIST
+            description: "プラント存在チェック"
+            parameters:
+              - { name: IV_PLANT, direction: IMPORTING, type: "WERKS_D", optional: false }
+              - { name: RV_RESULT, direction: RETURNING, type: "BAPIRET2" }
+          - name: GET_ADDRESS
+            description: "住所情報取得（単一）"
+            parameters:
+              - { name: IV_PLANT, direction: IMPORTING, type: "WERKS_D", optional: false }
+              - { name: IV_NATION, direction: IMPORTING, type: "ADRC-NATION", optional: false }
+              - { name: IV_DATE, direction: IMPORTING, type: "SY-DATUM", optional: true }
+              - { name: RS_RESULT, direction: RETURNING, type: "ZCMA_WERKS_AD" }
+          - name: GET_ADDRESS_DETAIL
+            description: "住所情報取得（単一・詳細）"
+            parameters:
+              - { name: IV_PLANT, direction: IMPORTING, type: "WERKS_D", optional: false }
+              - { name: IV_NATION, direction: IMPORTING, type: "ADRC-NATION", optional: false }
+              - { name: IV_DATE, direction: IMPORTING, type: "SY-DATUM", optional: true }
+              - { name: RS_RESULT, direction: RETURNING, type: "ZCMA_WERKS_AD_D" }
+          - name: GET_ADDRESSES
+            description: "住所情報取得（複数）"
+            parameters:
+              - { name: IT_PLANT, direction: IMPORTING, type: "TT_WERKS", optional: false }
+              - { name: IT_NATION, direction: IMPORTING, type: "TT_NATION", optional: false }
+              - { name: IV_DATE, direction: IMPORTING, type: "SY-DATUM", optional: true }
+              - { name: RT_RESULT, direction: RETURNING, type: "ZCMATT_WERKS_AD01" }
+          - name: GET_ADDRESSES_DETAIL
+            description: "住所情報取得（複数・詳細）"
+            parameters:
+              - { name: IT_PLANT, direction: IMPORTING, type: "TT_WERKS", optional: false }
+              - { name: IT_NATION, direction: IMPORTING, type: "TT_NATION", optional: false }
+              - { name: IV_DATE, direction: IMPORTING, type: "SY-DATUM", optional: true }
+              - { name: RT_RESULT, direction: RETURNING, type: "ZCMATT_WERKS_AD_D01" }
+
+  - id: "CC-BP-01"
+    trigger_pattern: "取引先|BP|ビジネスパートナー"
+    forbidden_patterns: []
+    classes:
+      - name: ZCL_CMA_BP
+        condition: "取引先(BP)関連"
+        description: "取引先(BP)の住所情報取得"
+        methods:
+          - name: GET_ADDRESS
+            description: "住所情報取得（単一）"
+            parameters:
+              - { name: IV_PARTNER, direction: IMPORTING, type: "BU_PARTNER", optional: false }
+              - { name: IV_NATION, direction: IMPORTING, type: "ADRC-NATION", optional: false }
+              - { name: IV_ADDR_KIND, direction: IMPORTING, type: "BU_ADRKIND", optional: true }
+              - { name: IV_DATE, direction: IMPORTING, type: "SY-DATUM", optional: true }
+              - { name: RS_RESULT, direction: RETURNING, type: "ZCMA_BP_AD" }
+          - name: GET_ADDRESS_DETAIL
+            description: "住所情報取得（単一・詳細）"
+            parameters:
+              - { name: IV_PARTNER, direction: IMPORTING, type: "BU_PARTNER", optional: false }
+              - { name: IV_NATION, direction: IMPORTING, type: "ADRC-NATION", optional: false }
+              - { name: IV_ADDR_KIND, direction: IMPORTING, type: "BU_ADRKIND", optional: true }
+              - { name: IV_DATE, direction: IMPORTING, type: "SY-DATUM", optional: true }
+              - { name: RS_RESULT, direction: RETURNING, type: "ZCMA_BP_AD_D" }
+          - name: GET_ADDRESSES
+            description: "住所情報取得（複数）"
+            parameters:
+              - { name: IT_PARTNER, direction: IMPORTING, type: "TR_PARTNER", optional: false }
+              - { name: IT_NATION, direction: IMPORTING, type: "TR_NATION", optional: false }
+              - { name: IT_ADDR_KIND, direction: IMPORTING, type: "TR_ADDR_KIND", optional: false }
+              - { name: IV_DATE, direction: IMPORTING, type: "SY-DATUM", optional: true }
+              - { name: RT_RESULT, direction: RETURNING, type: "ZCMATT_BP_AD01" }
+          - name: GET_ADDRESSES_DETAIL
+            description: "住所情報取得（複数・詳細）"
+            parameters:
+              - { name: IT_PARTNER, direction: IMPORTING, type: "TR_PARTNER", optional: false }
+              - { name: IT_NATION, direction: IMPORTING, type: "TR_NATION", optional: false }
+              - { name: IT_ADDR_KIND, direction: IMPORTING, type: "TR_ADDR_KIND", optional: false }
+              - { name: IV_DATE, direction: IMPORTING, type: "SY-DATUM", optional: true }
+              - { name: RT_RESULT, direction: RETURNING, type: "ZCMATT_BP_AD_D01" }
+
+  - id: "CC-TYPE-01"
+    trigger_pattern: "型検証|DDIC|TYPE|入力チェック"
+    forbidden_patterns: []
+    classes:
+      - name: ZCL_CMA_TYPE_CHECK
+        condition: "DDIC型検証"
+        description: "DDIC型情報に基づく入力値の検証・変換"
+        methods:
+          - name: CHECK_AND_CONVERT
+            description: "DDIC型に基づく値検証・変換"
+            parameters:
+              - { name: IV_VALUE, direction: IMPORTING, type: "STRING", optional: false }
+              - { name: ES_MESSAGE, direction: EXPORTING, type: "BAPIRET2" }
+              - { name: CV_VALUE, direction: CHANGING, type: "ANY" }
+          - name: CHECK_DATS
+            description: "DATS型の日付妥当性チェック"
+            parameters:
+              - { name: IV_VALUE, direction: IMPORTING, type: "STRING", optional: false }
+              - { name: CV_MESS, direction: CHANGING, type: "BAPIRET2-MESSAGE" }
+          - name: CHECK_TIMS
+            description: "TIMS型の時刻妥当性チェック"
+            parameters:
+              - { name: IV_VALUE, direction: IMPORTING, type: "STRING", optional: false }
+              - { name: CV_MESS, direction: CHANGING, type: "BAPIRET2-MESSAGE" }
+          - name: CHECK_NUMC
+            description: "NUMC型の数字・桁数チェック"
+            parameters:
+              - { name: IV_VALUE, direction: IMPORTING, type: "STRING", optional: false }
+              - { name: IV_LENG, direction: IMPORTING, type: "DDLENG", optional: false }
+              - { name: IV_DOMNAME, direction: IMPORTING, type: "DOMNAME", optional: false }
+              - { name: CV_MESS, direction: CHANGING, type: "BAPIRET2-MESSAGE" }
+          - name: CHECK_CHAR
+            description: "CHAR型の桁数チェック"
+            parameters:
+              - { name: IV_VALUE, direction: IMPORTING, type: "STRING", optional: false }
+              - { name: IV_LENG, direction: IMPORTING, type: "DDLENG", optional: false }
+              - { name: IV_DOMNAME, direction: IMPORTING, type: "DOMNAME", optional: false }
+              - { name: CV_MESS, direction: CHANGING, type: "BAPIRET2-MESSAGE" }
+          - name: CHECK_DECIMAL
+            description: "DEC/CURR/QUAN型の数値変換"
+            parameters:
+              - { name: IV_VALUE, direction: IMPORTING, type: "STRING", optional: false }
+              - { name: CV_VALUE, direction: CHANGING, type: "ANY" }
+              - { name: CV_MESS, direction: CHANGING, type: "BAPIRET2-MESSAGE" }
+          - name: CHECK_INTEGER
+            description: "INT型の整数変換"
+            parameters:
+              - { name: IV_VALUE, direction: IMPORTING, type: "STRING", optional: false }
+              - { name: CV_VALUE, direction: CHANGING, type: "ANY" }
+              - { name: CV_MESS, direction: CHANGING, type: "BAPIRET2-MESSAGE" }
+          - name: CHECK_BOOLEAN
+            description: "真偽値チェック"
+            parameters:
+              - { name: IV_VALUE, direction: IMPORTING, type: "STRING", optional: false }
+              - { name: CV_MESS, direction: CHANGING, type: "BAPIRET2-MESSAGE" }
+          - name: CHECK_FIXED_VALUE_DOMAIN
+            description: "固定値ドメインの値範囲チェック"
+            parameters:
+              - { name: IV_VALUE, direction: IMPORTING, type: "STRING", optional: false }
+              - { name: IV_DOMNAME, direction: IMPORTING, type: "DOMNAME", optional: false }
+              - { name: CV_MESS, direction: CHANGING, type: "BAPIRET2-MESSAGE" }
+
+  - id: "CC-TRACE-01"
+    trigger_pattern: "トレース|デバッグ|ランタイム"
+    forbidden_patterns: []
+    classes:
+      - name: ZCL_CMA_RUNTIME_TRACE
+        condition: "ランタイムトレース"
+        description: "ランタイム情報をLOG-POINT経由で記録"
+        methods:
+          - name: CHECKPOINT
+            description: "チェックポイント記録"
+            parameters:
+              - { name: IV_POINT, direction: IMPORTING, type: "STRING", optional: false }
+              - { name: IV_TEXT, direction: IMPORTING, type: "STRING", optional: true }
+          - name: LOG_VALUE
+            description: "変数値ログ"
+            parameters:
+              - { name: IV_POINT, direction: IMPORTING, type: "STRING", optional: true }
+              - { name: IV_NAME, direction: IMPORTING, type: "STRING", optional: false }
+              - { name: IV_VALUE, direction: IMPORTING, type: "ANY", optional: false }
+          - name: LOG_COUNT
+            description: "件数ログ"
+            parameters:
+              - { name: IV_POINT, direction: IMPORTING, type: "STRING", optional: true }
+              - { name: IV_NAME, direction: IMPORTING, type: "STRING", optional: false }
+              - { name: IV_COUNT, direction: IMPORTING, type: "I", optional: false }
+          - name: GET_CONTEXT
+            description: "ランタイムコンテキスト取得"
+            parameters:
+              - { name: RS_CONTEXT, direction: RETURNING, type: "GTS_CONTEXT" }
+      - name: ZCG_CMA_RUNTIME_TRACE
+        condition: "Checkpoint Group"
+        description: "LOG-POINT出力先（CHKOオブジェクト、メソッドなし）"
+        methods: []
+
+  - id: "CC-RANGE-01"
+    trigger_pattern: "RANGE|SELECT-OPTIONS|選択条件"
+    forbidden_patterns: []
+    classes:
+      - name: ZCL_CMA_RANGE_UTIL
+        condition: "RANGE TABLE構築"
+        description: "RANGE TABLEエントリ構築ユーティリティ"
+        methods:
+          - name: ADD_EQ
+            description: "EQ値追加"
+            parameters:
+              - { name: IV_VALUE, direction: IMPORTING, type: "ANY", optional: false }
+              - { name: CT_RANGE, direction: CHANGING, type: "INDEX TABLE" }
+          - name: ADD_BT
+            description: "BT範囲追加"
+            parameters:
+              - { name: IV_LOW, direction: IMPORTING, type: "ANY", optional: false }
+              - { name: IV_HIGH, direction: IMPORTING, type: "ANY", optional: false }
+              - { name: CT_RANGE, direction: CHANGING, type: "INDEX TABLE" }
+          - name: ADD_FROM_TABLE
+            description: "内部テーブル全要素をEQ一括追加"
+            parameters:
+              - { name: IT_VALUES, direction: IMPORTING, type: "ANY TABLE", optional: false }
+              - { name: CT_RANGE, direction: CHANGING, type: "ANY TABLE" }
+          - name: EXISTS_RANGE_LINE
+            description: "重複判定ヘルパー"
+            parameters:
+              - { name: IV_SIGN, direction: IMPORTING, type: "C", optional: false }
+              - { name: IV_OPTION, direction: IMPORTING, type: "C", optional: false }
+              - { name: IV_LOW, direction: IMPORTING, type: "ANY", optional: false }
+              - { name: IV_HIGH, direction: IMPORTING, type: "ANY", optional: true }
+              - { name: CT_RANGE, direction: CHANGING, type: "ANY TABLE" }
+              - { name: RV_EXISTS, direction: RETURNING, type: "ABAP_BOOL" }
+
+# =============================================
+# 共通 Include プログラム（選択画面共通部品）
+# =============================================
+# 選択画面に組織項目やファイルパス項目を配置する場合、
+# 共通 Include を INCLUDE 文で取り込むこと。
+# 各 Include が提供する PARAMETERS / SELECT-OPTIONS は命名規約に準拠済み。
+#
+# 用途:
+#   1. sap_checklist_suggest.py → spec.md の common_include_applicability に出力
+#   2. sap_common_class_lint.py → ABAP ソースに INCLUDE 文があるか検証（将来拡張）
+#
+# trigger_pattern: AC/selection_screen の記述にマッチした場合に適用候補として提示
+# provides: Include が提供する選択画面項目の概要
+
+common_include_rules:
+  - id: "CI-ORG-01"
+    name: "ZCMAI000101"
+    description: "会社コード共通画面(単一)"
+    trigger_pattern: "会社コード|BUKRS|company.?code"
+    provides: "P_BUKRS (会社コード PARAMETERS)"
+
+  - id: "CI-ORG-02"
+    name: "ZCMAI000102"
+    description: "販売エリア共通画面(単一)"
+    trigger_pattern: "販売エリア|販売組織|流通チャネル|製品部門|VKORG|VTWEG|SPART|sales.?area"
+    provides: "P_VKORG, P_VTWEG, P_SPART (販売エリア PARAMETERS)"
+
+  - id: "CI-ORG-03"
+    name: "ZCMAI000103"
+    description: "販売組織共通画面(単一)"
+    trigger_pattern: "販売組織|VKORG|sales.?org"
+    provides: "P_VKORG (販売組織 PARAMETERS)"
+
+  - id: "CI-ORG-04"
+    name: "ZCMAI000104"
+    description: "購買組織共通画面(単一)"
+    trigger_pattern: "購買組織|EKORG|purchasing.?org"
+    provides: "P_EKORG (購買組織 PARAMETERS)"
+
+  - id: "CI-ORG-05"
+    name: "ZCMAI000105"
+    description: "プラント共通画面(単一)"
+    trigger_pattern: "プラント|WERKS|plant"
+    provides: "P_WERKS (プラント PARAMETERS)"
+
+  - id: "CI-ORG-06"
+    name: "ZCMAI000106"
+    description: "管理領域共通画面(単一)"
+    trigger_pattern: "管理領域|KOKRS|controlling.?area"
+    provides: "P_KOKRS (管理領域 PARAMETERS)"
+
+  - id: "CI-FILE-01"
+    name: "ZCMAI000107"
+    description: "Localファイル共通画面"
+    trigger_pattern: "ローカルファイル|local.?file|アップロード|ダウンロード|ファイルパス"
+    provides: "P_FILE (ローカルファイルパス PARAMETERS)"
+
+  - id: "CI-FILE-02"
+    name: "ZCMAI000108"
+    description: "Localファイル(エラー)共通画面"
+    trigger_pattern: "エラーファイル|error.?file|エラーダウンロード"
+    provides: "P_EFILE (エラーファイルパス PARAMETERS)"
+
+  - id: "CI-FILE-03"
+    name: "ZCMAI000109"
+    description: "APファイル共通画面"
+    trigger_pattern: "サーバーファイル|AP.?ファイル|server.?file"
+    provides: "P_DPATH, P_DFILE (サーバーファイルパス・ファイル名 PARAMETERS)"
+
+  - id: "CI-FILE-04"
+    name: "ZCMAI000110"
+    description: "APファイル(エラー)共通画面"
+    trigger_pattern: "サーバーエラーファイル|AP.?エラー"
+    provides: "P_EDPATH, P_EDFILE (サーバーエラーファイルパス・ファイル名 PARAMETERS)"
+
+  - id: "CI-TEST-01"
+    name: "ZCMAI000111"
+    description: "テスト実行共通画面"
+    trigger_pattern: "テスト実行|テストモード|test.?run|test.?mode"
+    provides: "P_TEST (テスト実行フラグ PARAMETERS)"
+
+  - id: "CI-ALV-01"
+    name: "ZCMAI000112"
+    description: "ALV共通画面"
+    trigger_pattern: "ALV|バリアント|一覧表示|variant"
+    provides: "P_VARI (ALV バリアント PARAMETERS)"

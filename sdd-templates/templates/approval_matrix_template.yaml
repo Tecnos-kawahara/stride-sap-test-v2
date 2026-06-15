@@ -1,0 +1,250 @@
+# Approval Matrix Template - Enterprise SDD Extension
+# Version: 1.0.0
+# Purpose: Define delegated approval rules based on roles and gate types
+# Location: memory/approval_matrix.yaml (when deployed)
+
+approval_matrix:
+  meta:
+    matrix_id: "APM-001"
+    version: "1.0.0"
+    organization: "{{Organization Name}}"
+    effective_date: "YYYY-MM-DD"
+    description: |
+      委任承認マトリクス。
+      Coverage TierとGate種別に基づいて承認権限を定義する。
+
+  # 役割定義
+  roles:
+    - role_id: "TECH_LEAD"
+      name: "Tech Lead"
+      level: "team"
+      description: "チームの技術リーダー。standard/experimental tierの技術承認を担当。"
+      can_approve:
+        - gate_type: "basic_design"
+          coverage_tiers: ["standard", "experimental"]
+        - gate_type: "bpmn"
+          coverage_tiers: ["standard", "experimental"]
+        - gate_type: "spec"
+          coverage_tiers: ["experimental"]
+        - gate_type: "plan"
+          coverage_tiers: ["experimental"]
+        - gate_type: "tasks"
+          coverage_tiers: ["experimental"]
+        - gate_type: "final"
+          coverage_tiers: ["experimental"]
+
+    - role_id: "PM"
+      name: "Project Manager"
+      level: "team"
+      description: "プロジェクトマネージャー。standard tierのビジネス承認を担当。"
+      can_approve:
+        - gate_type: "spec"
+          coverage_tiers: ["standard"]
+        - gate_type: "plan"
+          coverage_tiers: ["standard"]
+        - gate_type: "tasks"
+          coverage_tiers: ["standard"]
+        - gate_type: "final"
+          coverage_tiers: ["standard"]
+          requires_co_approval: ["TECH_LEAD"]
+
+    - role_id: "ARCH_BOARD"
+      name: "Architecture Board"
+      level: "organization"
+      description: "アーキテクチャボード。critical tierおよびcross-team変更の承認を担当。"
+      can_approve:
+        - gate_type: "*"  # 全Gate
+          coverage_tiers: ["critical"]
+        - gate_type: "shared_contract_change"
+          coverage_tiers: ["*"]
+        - gate_type: "cross_team_dependency"
+          coverage_tiers: ["*"]
+
+    - role_id: "EPIC_LEAD"
+      name: "Epic Lead"
+      level: "epic"
+      description: "Epicリーダー。Epic全体の承認とcross-team調整を担当。"
+      can_approve:
+        - gate_type: "epic_design"
+          coverage_tiers: ["*"]
+        - gate_type: "feature_breakdown"
+          coverage_tiers: ["*"]
+        - gate_type: "integration_plan"
+          coverage_tiers: ["*"]
+        - gate_type: "epic_final"
+          coverage_tiers: ["*"]
+
+    - role_id: "SECURITY_OFFICER"
+      name: "Security Officer"
+      level: "organization"
+      description: "セキュリティ責任者。セキュリティ重要機能の承認を担当。"
+      can_approve:
+        - gate_type: "basic_design"
+          coverage_tiers: ["critical"]
+        - gate_type: "spec"
+          coverage_tiers: ["critical"]
+        - gate_type: "final"
+          coverage_tiers: ["critical"]
+
+  # エスカレーションルール
+  escalation_rules:
+    - rule_id: "ESC-001"
+      condition: "coverage_tier == 'critical'"
+      escalate_to: "ARCH_BOARD"
+      reason: "Critical機能はArchitecture Board承認が必要"
+      mandatory: true
+
+    - rule_id: "ESC-002"
+      condition: "cross_team_dependency == true"
+      escalate_to: "ARCH_BOARD"
+      reason: "Cross-team依存は組織横断レビューが必要"
+      mandatory: true
+
+    - rule_id: "ESC-003"
+      condition: "shared_contract_change == true"
+      escalate_to: "ARCH_BOARD"
+      reason: "共有契約変更は複数チームに影響するため"
+      mandatory: true
+
+    - rule_id: "ESC-004"
+      condition: "security_sensitive == true AND coverage_tier == 'critical'"
+      escalate_to: "SECURITY_OFFICER"
+      reason: "セキュリティ重要機能は専門レビューが必要"
+      mandatory: true
+
+    - rule_id: "ESC-005"
+      condition: "erp_integration == true"
+      escalate_to: "ARCH_BOARD"
+      reason: "ERP連携は組織横断レビューが必要"
+      mandatory: true
+
+  # 並列処理ルール
+  parallel_processing:
+    enabled: true
+    description: |
+      特定の条件下でGateを並列処理可能にする。
+      依存関係がないGate間でのみ適用可能。
+    rules:
+      - rule_id: "PAR-001"
+        gate_type: "spec"
+        can_parallel_with: ["plan"]
+        condition: "same_team AND coverage_tier in ['standard', 'experimental']"
+        rationale: "同一チーム・非criticalならSpec/Planは並列可能"
+
+      - rule_id: "PAR-002"
+        gate_type: "basic_design"
+        can_parallel_with: ["bpmn"]
+        condition: "same_feature"
+        rationale: "同一Feature内ならBasic Design/BPMNは並列可能"
+
+      - rule_id: "PAR-003"
+        gate_type: "tasks"
+        can_parallel_with: []
+        condition: "never"
+        rationale: "Tasksは常にPlan完了後（直列）"
+
+  # 委任チェーン
+  delegation_chain:
+    description: |
+      上位役割から下位役割への承認委任ルール。
+      特定条件下で承認権限を委任可能。
+    rules:
+      - delegation_id: "DEL-001"
+        primary: "ARCH_BOARD"
+        delegate_to: "EPIC_LEAD"
+        condition: "epic_lead_approved_feature_breakdown AND coverage_tier != 'critical'"
+        scope: "Feature-level gates only"
+        expiry: "Until epic completion"
+
+      - delegation_id: "DEL-002"
+        primary: "EPIC_LEAD"
+        delegate_to: "TECH_LEAD"
+        condition: "coverage_tier in ['standard', 'experimental'] AND no_cross_team_deps"
+        scope: "Single-team features only"
+        expiry: "Per feature"
+
+      - delegation_id: "DEL-003"
+        primary: "PM"
+        delegate_to: "TECH_LEAD"
+        condition: "coverage_tier == 'experimental' AND internal_tool == true"
+        scope: "Internal tools only"
+        expiry: "Per feature"
+
+  # Gate別承認マトリクス（サマリー）
+  gate_approval_summary:
+    # Feature-level gates
+    basic_design:
+      critical: ["ARCH_BOARD"]
+      standard: ["TECH_LEAD"]
+      experimental: ["TECH_LEAD"]
+
+    bpmn:
+      critical: ["ARCH_BOARD"]
+      standard: ["TECH_LEAD"]
+      experimental: ["TECH_LEAD"]
+
+    spec:
+      critical: ["ARCH_BOARD"]
+      standard: ["PM"]
+      experimental: ["TECH_LEAD"]
+
+    plan:
+      critical: ["ARCH_BOARD"]
+      standard: ["PM"]
+      experimental: ["TECH_LEAD"]
+
+    tasks:
+      critical: ["ARCH_BOARD"]
+      standard: ["PM"]
+      experimental: ["TECH_LEAD"]
+
+    final:
+      critical: ["ARCH_BOARD"]
+      standard: ["PM", "TECH_LEAD"]  # 共同承認
+      experimental: ["TECH_LEAD"]
+
+    # Epic-level gates
+    epic_design:
+      all_tiers: ["EPIC_LEAD", "ARCH_BOARD"]
+
+    feature_breakdown:
+      all_tiers: ["EPIC_LEAD"]
+
+    shared_contract:
+      all_tiers: ["ARCH_BOARD"]
+
+    integration_plan:
+      all_tiers: ["EPIC_LEAD"]
+
+    epic_final:
+      all_tiers: ["EPIC_LEAD", "ARCH_BOARD"]
+
+  # 承認期限
+  approval_deadlines:
+    default_review_days: 5
+    escalation_after_days: 7
+    auto_reminder_days: [3, 5, 7]
+    by_coverage_tier:
+      critical:
+        max_review_days: 7
+        escalation_after_days: 10
+      standard:
+        max_review_days: 5
+        escalation_after_days: 7
+      experimental:
+        max_review_days: 3
+        escalation_after_days: 5
+
+  # 監査設定
+  audit:
+    log_all_approvals: true
+    log_all_rejections: true
+    log_all_escalations: true
+    retention_days: 365
+    required_fields:
+      - "approver_name"
+      - "approver_role"
+      - "approval_date"
+      - "gate_type"
+      - "feature_id"
+      - "coverage_tier"

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+  xmlns:modeler="http://camunda.org/schema/modeler/1.0"
+  modeler:executionPlatform="Camunda Cloud"
+  modeler:executionPlatformVersion="8.8.0"
+  id="Definitions_1"
+  targetNamespace="http://bpmn.io/schema/bpmn"
+  exporter="Camunda Modeler"
+  exporterVersion="5.20.0">
+
+  <bpmn:process id="BPMN-PROC-001" name="Web-EDI受注処理プロセス" isExecutable="true">
+    <bpmn:startEvent id="BPMN-EVT-001" name="発注受信">
+      <bpmn:outgoing>BPMN-FLOW-001</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:serviceTask id="BPMN-TASK-001" name="受注登録">
+      <bpmn:incoming>BPMN-FLOW-001</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-002</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="register-order" retries="3" />
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="BPMN-EVT-999" name="受注受付完了">
+      <bpmn:incoming>BPMN-FLOW-002</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="BPMN-FLOW-001" sourceRef="BPMN-EVT-001" targetRef="BPMN-TASK-001" />
+    <bpmn:sequenceFlow id="BPMN-FLOW-002" sourceRef="BPMN-TASK-001" targetRef="BPMN-EVT-999" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="BPMN-PROC-001">
+
+      <bpmndi:BPMNShape id="BPMNShape_EVT_001" bpmnElement="BPMN-EVT-001">
+        <dc:Bounds x="100" y="100" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="BPMNShape_TASK_001" bpmnElement="BPMN-TASK-001">
+        <dc:Bounds x="200" y="80" width="120" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="BPMNShape_EVT_999" bpmnElement="BPMN-EVT-999">
+        <dc:Bounds x="360" y="100" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="BPMNEdge_FLOW_001" bpmnElement="BPMN-FLOW-001">
+        <di:waypoint x="136" y="118" />
+        <di:waypoint x="200" y="118" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="BPMNEdge_FLOW_002" bpmnElement="BPMN-FLOW-002">
+        <di:waypoint x="320" y="118" />
+        <di:waypoint x="360" y="118" />
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

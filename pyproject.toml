@@ -1,0 +1,15 @@
+[tool.pytest.ini_options]
+testpaths = ["symphony/tests", "tests", "sdd-templates/tests"]
+pythonpath = ["."]
+# Default run excludes `api`-marked tests so `pytest -q` is hermetic:
+# - api 依存テストは provider 到達性（API key 有無 + ネット／配当額）に
+#   左右されるため CI/local の default から除外。
+# - 明示実行: `pytest -m api` または `pytest -m "api and not slow"`
+# - 全て実行: `pytest --override-ini="addopts="`
+addopts = "-m 'not api'"
+markers = [
+    "api: tests that call external APIs (deselect with -m 'not api', default addopts で除外)",
+    "slow: slow tests (deselect with -m 'not slow')",
+    "e2e: end-to-end workflow tests (deselect with -m 'not e2e')",
+    "harness: harness maturity tests (v5.1)",
+]

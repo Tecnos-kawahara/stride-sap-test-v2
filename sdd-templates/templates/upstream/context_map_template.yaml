@@ -1,0 +1,40 @@
+---
+# Template: context_map.yaml
+# Phase: phase_0_discovery
+# BABOK Source: KA6 Strategy Analysis / 6.1 Analyze Current State (Internal & External Context)
+# Layered Requirements Modeling Source: システムコンテキスト図 (System Context Diagram) — concept reference only
+# Inspired by: value-driven discovery method コンテキストモデル (philosophical inspiration)
+# Rule-0: 正本は YAML フロントマター + 下記 YAML ブロック
+---
+
+artifact: "context_map.yaml"
+template_id: "TPL-UP-CTX-001"
+feature_id: "FEAT-XXX"
+upstream_artifact_id: "CTX-XXX"
+title: "Context Map - <Feature Name>"
+version: "{{TEMPLATE_VERSION}}"
+status: "draft"
+phase: "phase_0_discovery"
+profile_applicability: ["enterprise-erp", "saas-integration", "prototype"]
+owners: []
+reviewers: []
+links:
+  upstream_policy_ref: "shared/policies/upstream_policy.yaml"
+  baccm_completeness_ref: "shared/policies/baccm_completeness.yaml"
+  iteration_policy_ref: "shared/policies/upstream_iteration_policy.yaml"
+  constitution_ref: "memory/constitution.md"
+  amendment_ref: "memory/constitution_amendments/XV_baccm_completeness.md"
+created_at: "YYYY-MM-DD"
+updated_at: "YYYY-MM-DD"
+
+# Context Map 本体 (BACCM Context 軸)
+internal_context: []           # 組織内の文化・体制・既存システム・既存プロセス
+external_context: []           # 業界動向・規制・市場・競合・パートナー
+regulatory_constraints: []     # 法令・業界基準・社内規程
+seasonal_factors: []           # 月次締め・年度切替・繁忙期等
+external_systems: []           # 連携対象 (SAP / mcframe / Salesforce 等)
+boundary_definition: ""        # 文脈境界の宣言 (どこまで対象、どこからは対象外)
+
+attributions:
+  - { source: "BABOK v3 (IIBA)", role: "framework backbone (KA6)", license: "fair-use, names and section refs only" }
+  - { source: "Layered Requirements Modeling ((concept reference, no proprietary brand))", role: "system context diagram concept", license: "fair-use, diagram name only" }

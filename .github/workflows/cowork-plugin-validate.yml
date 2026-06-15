@@ -1,0 +1,126 @@
+# Cowork Plugin Validation CI (Phase F-1 緊急、WI-VALF01-002 / Gap-F-002)
+#
+# Purpose: PR で Cowork Plugin 関連 path 変更が含まれる場合に
+#   1. claude plugin validate ./cowork-plugin で Plugin 構造を機械検証
+#   2. tests/test_cowork_plugin_*.py で関連テストを実行
+# する。Plugin 関連 PR で defect が機械検出され、main 安定性が担保される。
+#
+# Triggered by: cowork-plugin/** + .claude-plugin/** + scripts/build_basic_design_html.py + tests/test_cowork_plugin_*.py + 本 workflow 自身
+# Skipped on: 上記 path 変更を含まない PR (Plugin 無関係 PR で CI 時間消費なし)
+#
+# Security: PR title / body / comments 等の untrusted input は consume しない。
+# all run: は静的文字列または repository-local file (find, python3 -c, npm install, claude plugin validate, pytest, shasum) のみ。
+# github.event.* references を一切使わない。
+#
+# Reference: specs/val_f01/spec.md AC-US-FEATVALF01-002-01 / specs/val_f01/plan.md CT-CLI-02
+
+name: Cowork Plugin Validate
+
+on:
+  pull_request:
+    paths:
+      - 'cowork-plugin/**'
+      - '.claude-plugin/**'
+      - 'scripts/build_basic_design_html.py'
+      - 'tests/test_cowork_plugin_*.py'
+      - '.github/workflows/cowork-plugin-validate.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'cowork-plugin/**'
+      - '.claude-plugin/**'
+      - 'scripts/build_basic_design_html.py'
+      - 'tests/test_cowork_plugin_*.py'
+      - '.github/workflows/cowork-plugin-validate.yml'
+
+jobs:
+  validate-plugin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python test deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pyyaml jsonschema
+
+      - name: Setup Node.js (for claude CLI)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install claude CLI
+        run: |
+          npm install -g @anthropic-ai/claude-code || {
+            echo "::warning::claude CLI install via npm failed; falling back to manual structural checks only"
+            exit 0
+          }
+
+      - name: Validate Plugin manifest (claude plugin validate)
+        run: |
+          if command -v claude >/dev/null 2>&1; then
+            claude plugin validate ./cowork-plugin
+          else
+            echo "::warning::claude CLI unavailable; running fallback structural checks"
+            python3 -c "import json; json.load(open('cowork-plugin/.claude-plugin/plugin.json'))"
+            python3 -c "import json; json.load(open('cowork-plugin/.mcp.json'))"
+          fi
+
+      - name: Verify Plugin structure (counts + expected files)
+        run: |
+          set -eu
+          skill_count=$(find cowork-plugin/skills -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l | tr -d ' ')
+          command_count=$(find cowork-plugin/commands -maxdepth 1 -name '*.md' | wc -l | tr -d ' ')
+          ref_count=$(find cowork-plugin/reference_files -type f | wc -l | tr -d ' ')
+          echo "skills=$skill_count commands=$command_count reference_files=$ref_count"
+          # v0.5.0-agent-hardening (2026-05-08): skill threshold 7 → 8 (stride-conductor、Phase G PR-E)
+          if [ "$skill_count" -lt 8 ]; then echo "::error::skills < 8"; exit 1; fi
+          # v0.5.0-agent-hardening: command threshold 9 → 14 (Phase F: stride-export-html + stride-tasking、Phase G: stride-bootstrap-repo + start、BPMN: stride-bpmn-validate)
+          if [ "$command_count" -lt 14 ]; then echo "::error::commands < 14"; exit 1; fi
+          # v0.4.0-bpmn-package-integration (2026-05-07): BPMN 4 ファイルを reference_files から bpmn/ に移動 (drift 防止)、49 → 46
+          if [ "$ref_count" -ne 46 ]; then echo "::error::reference_files != 46 (got $ref_count)"; exit 1; fi
+
+      - name: Run Cowork Plugin pytests
+        run: |
+          if compgen -G "tests/test_cowork_plugin_*.py" > /dev/null; then
+            python -m pytest tests/test_cowork_plugin_*.py -q
+          else
+            echo "::warning::No tests/test_cowork_plugin_*.py found; skipping pytest"
+          fi
+
+      - name: Verify SKILL.md STEP 0 PRE-FLIGHT (agent hardening、postmortem 2026-05-08)
+        if: hashFiles('cowork-plugin/scripts/check_skill_step0.py') != ''
+        run: |
+          set -eu
+          python3 cowork-plugin/scripts/check_skill_step0.py
+
+      - name: Verify reference_files sync script idempotency
+        if: hashFiles('scripts/sync_cowork_plugin_reference.sh') != ''
+        run: |
+          set -eu
+          chmod +x scripts/sync_cowork_plugin_reference.sh
+          # v0.5.0 diagnostic: snapshot before/after manifest for drift root cause analysis
+          find cowork-plugin/reference_files -type f -print0 | sort -z | xargs -0 shasum > /tmp/before.shasum
+          before_hash=$(shasum /tmp/before.shasum | awk '{print $1}')
+          before_count=$(wc -l < /tmp/before.shasum | tr -d ' ')
+          ./scripts/sync_cowork_plugin_reference.sh > /tmp/sync.out 2>&1 || true
+          find cowork-plugin/reference_files -type f -print0 | sort -z | xargs -0 shasum > /tmp/after.shasum
+          after_hash=$(shasum /tmp/after.shasum | awk '{print $1}')
+          after_count=$(wc -l < /tmp/after.shasum | tr -d ' ')
+          if [ "$before_hash" != "$after_hash" ]; then
+            echo "::error::sync script not idempotent (reference_files content drifted)"
+            echo "before count: $before_count, after count: $after_count"
+            echo "=== sync output ==="
+            cat /tmp/sync.out || true
+            echo "=== diff manifest ==="
+            diff /tmp/before.shasum /tmp/after.shasum | head -40 || true
+            exit 1
+          fi
+          echo "✅ sync script idempotent (count=$after_count)"

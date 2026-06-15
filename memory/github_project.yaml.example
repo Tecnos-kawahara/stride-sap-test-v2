@@ -1,0 +1,26 @@
+# memory/github_project.yaml — GitHub Project V2 binding for this STRIDE project (v5.3.1)
+#
+# This file is the project-wide SSoT for the GitHub Project V2 binding.
+# Feature-level state (e.g., per-WI `linear_issue_id`) lives in
+# `specs/<feature>/state/state.yaml` — this file is about the top-level project board.
+#
+# Typical lifecycle:
+#   1. stride new-project my_erp --org my-org --github-project "My ERP SDD Board"
+#      → auto-creates Project V2 and persists here (if gh is authenticated)
+#   2. (or) stride project create "My ERP SDD Board" --owner my-org
+#   3. (or) stride project use 7 --owner my-org                # bind existing #7
+#   4. GitHub Actions workflows and sync_projects_to_stride.py read this binding
+#
+# Precedence (highest wins):
+#   1. GITHUB_PROJECT_NUMBER env variable
+#   2. This file's `project_number`
+#   3. None → stride_wi_sync + Projects sync fall back to env or error
+#
+# Safe to commit: this is the team-visible binding.
+
+owner: ""                              # GitHub owner (user or org), e.g. "tecnos-japan-cbp"
+project_number: null                   # Integer, Projects V2 number (auto-filled by `stride project create`)
+project_id: ""                         # GraphQL node ID (starts with "PVT_...")
+project_title: ""                      # Human-readable title
+url: ""                                # e.g. https://github.com/orgs/<org>/projects/<N>
+# created_at: "2026-04-19"

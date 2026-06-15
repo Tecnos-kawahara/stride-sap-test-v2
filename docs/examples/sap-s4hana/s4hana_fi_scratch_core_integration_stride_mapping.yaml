@@ -1,0 +1,156 @@
+suite: "S/4HANA FI x Scratch Core Integration"
+suite_id: "SUITE-S4FI-INT-001"
+source_bpmn: "docs/s4hana_fi_scratch_core_integration_epic_flow.bpmn"
+source_scenarios: "docs/s4hana_fi_scratch_core_integration_test_scenarios.md"
+source_cases: "docs/s4hana_fi_scratch_core_integration_cases.json"
+gate: "Tasks Gate / Integration Test Review"
+
+notes:
+  - "This is a sample stride_mapping.yaml for docs usage."
+  - "Replace AC-INT-FI-* sample IDs with actual acceptance IDs from spec.md before operational use."
+  - "bpmn_refs and message_flow_refs are supplemental fields for review convenience; stride-testreport-bridge requires case_id and stride_refs."
+
+mappings:
+  - case_id: "TS-INT-FI-001"
+    stride_refs:
+      - "AC-INT-FI-001-01"
+      - "AC-INT-FI-001-02"
+      - "AC-INT-FI-001-03"
+    bpmn_refs:
+      - "Task_Core_RecordTransaction"
+      - "Task_Core_SendMasterDelta"
+      - "Task_Core_SendAccountingEvent"
+      - "Task_FI_PostAccountingDocument"
+      - "Task_FI_SendPostingResult"
+      - "Task_Core_UpdateBusinessStatus"
+    message_flow_refs:
+      - "MsgFlow_CoreToFI_MasterDelta"
+      - "MsgFlow_CoreToFI_AccountingEvent"
+      - "MsgFlow_FIToCore_PostingResult"
+
+  - case_id: "TS-INT-FI-002"
+    stride_refs:
+      - "AC-INT-FI-002-01"
+      - "AC-INT-FI-002-02"
+      - "AC-INT-FI-002-03"
+    bpmn_refs:
+      - "Task_Bank_SendBankStatement"
+      - "Task_FI_ReceiveBankStatement"
+      - "Task_FI_ClearOpenItems"
+      - "Task_FI_SendClearingResult"
+      - "Task_Core_UpdateARAPStatus"
+      - "Task_Accounting_ReceiveCloseReport"
+    message_flow_refs:
+      - "MsgFlow_BankToFI_BankStatement"
+      - "MsgFlow_FIToCore_ClearingResult"
+      - "MsgFlow_FIToAccounting_CloseReport"
+
+  - case_id: "TS-INT-FI-003"
+    stride_refs:
+      - "AC-INT-FI-003-01"
+      - "AC-INT-FI-003-02"
+    bpmn_refs:
+      - "Task_Bank_SendBankStatement"
+      - "Task_FI_ClearOpenItems"
+      - "Task_FI_SendClearingResult"
+      - "Task_Core_UpdateARAPStatus"
+    message_flow_refs:
+      - "MsgFlow_BankToFI_BankStatement"
+      - "MsgFlow_FIToCore_ClearingResult"
+
+  - case_id: "TS-INT-FI-004"
+    stride_refs:
+      - "AC-INT-FI-004-01"
+      - "AC-INT-FI-004-02"
+    bpmn_refs:
+      - "Task_Core_SendAccountingEvent"
+      - "Task_FI_ReceiveAccountingEvent"
+      - "Task_FI_ValidateMasterMapping"
+      - "Task_FI_SendPostingResult"
+      - "Task_Core_UpdateBusinessStatus"
+    message_flow_refs:
+      - "MsgFlow_CoreToFI_AccountingEvent"
+      - "MsgFlow_FIToCore_PostingResult"
+
+  - case_id: "TS-INT-FI-005"
+    stride_refs:
+      - "AC-INT-FI-005-01"
+      - "AC-INT-FI-005-02"
+      - "AC-INT-FI-005-03"
+    bpmn_refs:
+      - "Task_Core_SendMasterDelta"
+      - "Task_FI_ReceiveMasterDelta"
+      - "Task_FI_ValidateMasterMapping"
+      - "Task_FI_SendPostingResult"
+      - "Task_Core_UpdateBusinessStatus"
+    message_flow_refs:
+      - "MsgFlow_CoreToFI_MasterDelta"
+      - "MsgFlow_FIToCore_PostingResult"
+
+  - case_id: "TS-INT-FI-006"
+    stride_refs:
+      - "AC-INT-FI-006-01"
+      - "AC-INT-FI-006-02"
+    bpmn_refs:
+      - "Task_Core_SendAccountingEvent"
+      - "Task_FI_ReceiveAccountingEvent"
+      - "Task_FI_PostAccountingDocument"
+      - "Task_FI_SendPostingResult"
+    message_flow_refs:
+      - "MsgFlow_CoreToFI_AccountingEvent"
+      - "MsgFlow_FIToCore_PostingResult"
+
+  - case_id: "TS-INT-FI-007"
+    stride_refs:
+      - "AC-INT-FI-007-01"
+      - "AC-INT-FI-007-02"
+    bpmn_refs:
+      - "Task_Bank_SendBankStatement"
+      - "Task_FI_ReceiveBankStatement"
+      - "Task_FI_ClearOpenItems"
+      - "Task_FI_SendClearingResult"
+      - "Task_Core_UpdateARAPStatus"
+    message_flow_refs:
+      - "MsgFlow_BankToFI_BankStatement"
+      - "MsgFlow_FIToCore_ClearingResult"
+
+  - case_id: "TS-INT-FI-008"
+    stride_refs:
+      - "AC-INT-FI-008-01"
+      - "AC-INT-FI-008-02"
+    bpmn_refs:
+      - "Task_FI_ClearOpenItems"
+      - "Task_FI_SendClearingResult"
+      - "Task_Core_UpdateARAPStatus"
+    message_flow_refs:
+      - "MsgFlow_BankToFI_BankStatement"
+      - "MsgFlow_FIToCore_ClearingResult"
+
+  - case_id: "TS-INT-FI-009"
+    stride_refs:
+      - "AC-INT-FI-009-01"
+      - "AC-INT-FI-009-02"
+    bpmn_refs:
+      - "Task_FI_SendCloseReport"
+      - "Task_Accounting_ReceiveCloseReport"
+      - "Task_Accounting_ReconcileException"
+    message_flow_refs:
+      - "MsgFlow_FIToAccounting_CloseReport"
+
+  - case_id: "TS-INT-FI-010"
+    stride_refs:
+      - "AC-INT-FI-010-01"
+      - "AC-INT-FI-010-02"
+      - "AC-INT-FI-010-03"
+    bpmn_refs:
+      - "Task_Core_SendMasterDelta"
+      - "Task_Core_SendAccountingEvent"
+      - "Task_FI_ValidateMasterMapping"
+      - "Task_FI_PostAccountingDocument"
+      - "Task_Core_UpdateBusinessStatus"
+      - "Task_FI_SendCloseReport"
+    message_flow_refs:
+      - "MsgFlow_CoreToFI_MasterDelta"
+      - "MsgFlow_CoreToFI_AccountingEvent"
+      - "MsgFlow_FIToCore_PostingResult"
+      - "MsgFlow_FIToAccounting_CloseReport"

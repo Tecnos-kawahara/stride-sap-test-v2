@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+  xmlns:modeler="http://camunda.org/schema/modeler/1.0"
+  id="Definitions_1"
+  targetNamespace="http://bpmn.io/schema/bpmn"
+  exporter="Camunda Modeler"
+  exporterVersion="5.20.0"
+  modeler:executionPlatform="Camunda Cloud"
+  modeler:executionPlatformVersion="8.8.0">
+
+  <!-- ============================================================
+       Global Definitions (Message, Error, Signal, Escalation)
+       ============================================================ -->
+  <bpmn:message id="Message_OrderConfirmed" name="OrderConfirmed">
+    <bpmn:extensionElements>
+      <zeebe:subscription correlationKey="=orderId" />
+    </bpmn:extensionElements>
+  </bpmn:message>
+
+  <bpmn:error id="Error_ValidationFailed" name="Validation Failed" errorCode="VALIDATION_ERROR" />
+
+  <!-- ============================================================
+       Process Definition
+       ============================================================ -->
+  <bpmn:process id="Process_OrderFulfillment" name="Order Fulfillment Process" isExecutable="true">
+    <bpmn:documentation>Order validation, review, and fulfillment workflow.
+Start: Order received from customer
+End: Order processed or rejected/timed out</bpmn:documentation>
+    <bpmn:extensionElements>
+      <zeebe:properties>
+        <zeebe:property name="version" value="1.0" />
+      </zeebe:properties>
+    </bpmn:extensionElements>
+
+    <!-- Start Event -->
+    <bpmn:startEvent id="StartEvent_OrderReceived" name="Order Received">
+      <bpmn:outgoing>Flow_Start_To_Validate</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Service Task: Validate Order -->
+    <bpmn:serviceTask id="Task_ValidateOrder" name="Validate Order">
+      <bpmn:documentation>Purpose: Validate incoming order data against business rules
+Input: order payload
+Output: validationResult (boolean)</bpmn:documentation>
+      <bpmn:incoming>Flow_Start_To_Validate</bpmn:incoming>
+      <bpmn:outgoing>Flow_Validate_To_Gateway</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="order-validator" retries="3" />
+        <zeebe:ioMapping>
+          <zeebe:input source="=order" target="orderData" />
+          <zeebe:output source="=validationResult" target="isValid" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <!-- Exclusive Gateway: Is Valid? -->
+    <bpmn:exclusiveGateway id="Gateway_IsValid" name="Is Valid?" default="Flow_Invalid">
+      <bpmn:documentation>Decision: Route based on validation result
+Default: Flow_Invalid (reject order)</bpmn:documentation>
+      <bpmn:incoming>Flow_Validate_To_Gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_Valid</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Invalid</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- User Task: Review Order -->
+    <bpmn:userTask id="UserTask_ReviewOrder" name="Review Order">
+      <bpmn:documentation>Purpose: Human review of validated order before processing
+Input: order data, validation result
+Output: review decision (approve/reject)</bpmn:documentation>
+      <bpmn:incoming>Flow_Valid</bpmn:incoming>
+      <bpmn:outgoing>Flow_Review_To_Process</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+        <zeebe:formDefinition formId="order-review-form" />
+        <zeebe:assignmentDefinition assignee="=reviewerEmail" />
+        <zeebe:taskSchedule dueDate="=now() + duration(&quot;PT2H&quot;)" />
+      </bpmn:extensionElements>
+    </bpmn:userTask>
+
+    <!-- Timer Boundary Event: Timeout -->
+    <bpmn:boundaryEvent id="Boundary_ReviewTimeout" name="2 Hours" attachedToRef="UserTask_ReviewOrder" cancelActivity="true">
+      <bpmn:outgoing>Flow_Timeout</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>PT2H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <!-- Service Task: Process Order -->
+    <bpmn:serviceTask id="Task_ProcessOrder" name="Process Order">
+      <bpmn:documentation>Purpose: Execute order fulfillment after approval
+Input: approved order data
+Output: fulfillment confirmation</bpmn:documentation>
+      <bpmn:incoming>Flow_Review_To_Process</bpmn:incoming>
+      <bpmn:outgoing>Flow_Process_To_End</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="order-processor" retries="3" />
+        <zeebe:executionListener eventType="start" type="audit-logger" />
+        <zeebe:executionListener eventType="end" type="metrics-collector" />
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <!-- End Events -->
+    <bpmn:endEvent id="EndEvent_Success" name="Order Completed">
+      <bpmn:incoming>Flow_Process_To_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="EndEvent_Invalid" name="Order Rejected">
+      <bpmn:incoming>Flow_Invalid</bpmn:incoming>
+      <bpmn:errorEventDefinition errorRef="Error_ValidationFailed" />
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="EndEvent_Timeout" name="Review Timeout">
+      <bpmn:incoming>Flow_Timeout</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_Start_To_Validate" sourceRef="StartEvent_OrderReceived" targetRef="Task_ValidateOrder" />
+    <bpmn:sequenceFlow id="Flow_Validate_To_Gateway" sourceRef="Task_ValidateOrder" targetRef="Gateway_IsValid" />
+    <bpmn:sequenceFlow id="Flow_Valid" name="Yes" sourceRef="Gateway_IsValid" targetRef="UserTask_ReviewOrder">
+      <bpmn:documentation>Order passed validation, proceed to human review</bpmn:documentation>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=isValid = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Invalid" name="No" sourceRef="Gateway_IsValid" targetRef="EndEvent_Invalid" />
+    <bpmn:sequenceFlow id="Flow_Review_To_Process" sourceRef="UserTask_ReviewOrder" targetRef="Task_ProcessOrder" />
+    <bpmn:sequenceFlow id="Flow_Process_To_End" sourceRef="Task_ProcessOrder" targetRef="EndEvent_Success" />
+    <bpmn:sequenceFlow id="Flow_Timeout" sourceRef="Boundary_ReviewTimeout" targetRef="EndEvent_Timeout" />
+
+    <!-- Text Annotation -->
+    <bpmn:textAnnotation id="TextAnnotation_1">
+      <bpmn:text>This process handles order validation, review, and fulfillment</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_1" sourceRef="TextAnnotation_1" targetRef="StartEvent_OrderReceived" />
+
+  </bpmn:process>
+
+  <!-- ============================================================
+       BPMNDI Diagram Information
+       ============================================================ -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_OrderFulfillment">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="StartEvent_OrderReceived_di" bpmnElement="StartEvent_OrderReceived">
+        <dc:Bounds x="179" y="99" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="160" y="142" width="74" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Validate Order -->
+      <bpmndi:BPMNShape id="Task_ValidateOrder_di" bpmnElement="Task_ValidateOrder">
+        <dc:Bounds x="270" y="77" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Gateway: Is Valid? -->
+      <bpmndi:BPMNShape id="Gateway_IsValid_di" bpmnElement="Gateway_IsValid" isMarkerVisible="true">
+        <dc:Bounds x="425" y="92" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="428" y="62" width="44" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- User Task: Review Order -->
+      <bpmndi:BPMNShape id="UserTask_ReviewOrder_di" bpmnElement="UserTask_ReviewOrder">
+        <dc:Bounds x="530" y="77" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Boundary Event: Timeout -->
+      <bpmndi:BPMNShape id="Boundary_ReviewTimeout_di" bpmnElement="Boundary_ReviewTimeout">
+        <dc:Bounds x="562" y="139" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="558" y="182" width="44" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Process Order -->
+      <bpmndi:BPMNShape id="Task_ProcessOrder_di" bpmnElement="Task_ProcessOrder">
+        <dc:Bounds x="690" y="77" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- End Event: Success -->
+      <bpmndi:BPMNShape id="EndEvent_Success_di" bpmnElement="EndEvent_Success">
+        <dc:Bounds x="852" y="99" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="829" y="142" width="82" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- End Event: Invalid -->
+      <bpmndi:BPMNShape id="EndEvent_Invalid_di" bpmnElement="EndEvent_Invalid">
+        <dc:Bounds x="432" y="212" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="415" y="255" width="70" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- End Event: Timeout -->
+      <bpmndi:BPMNShape id="EndEvent_Timeout_di" bpmnElement="EndEvent_Timeout">
+        <dc:Bounds x="562" y="272" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="543" y="315" width="74" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Text Annotation -->
+      <bpmndi:BPMNShape id="TextAnnotation_1_di" bpmnElement="TextAnnotation_1">
+        <dc:Bounds x="160" y="20" width="200" height="40" />
+      </bpmndi:BPMNShape>
+
+      <!-- Edges -->
+      <bpmndi:BPMNEdge id="Flow_Start_To_Validate_di" bpmnElement="Flow_Start_To_Validate">
+        <di:waypoint x="215" y="117" />
+        <di:waypoint x="270" y="117" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Validate_To_Gateway_di" bpmnElement="Flow_Validate_To_Gateway">
+        <di:waypoint x="370" y="117" />
+        <di:waypoint x="425" y="117" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Valid_di" bpmnElement="Flow_Valid">
+        <di:waypoint x="475" y="117" />
+        <di:waypoint x="530" y="117" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="495" y="99" width="18" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Invalid_di" bpmnElement="Flow_Invalid">
+        <di:waypoint x="450" y="142" />
+        <di:waypoint x="450" y="212" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="458" y="173" width="15" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Review_To_Process_di" bpmnElement="Flow_Review_To_Process">
+        <di:waypoint x="630" y="117" />
+        <di:waypoint x="690" y="117" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Process_To_End_di" bpmnElement="Flow_Process_To_End">
+        <di:waypoint x="790" y="117" />
+        <di:waypoint x="852" y="117" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Timeout_di" bpmnElement="Flow_Timeout">
+        <di:waypoint x="580" y="175" />
+        <di:waypoint x="580" y="272" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Association_1_di" bpmnElement="Association_1">
+        <di:waypoint x="210" y="60" />
+        <di:waypoint x="197" y="99" />
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

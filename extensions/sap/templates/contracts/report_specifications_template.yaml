@@ -1,0 +1,31 @@
+# SAP Extension Pack v2 — report_specifications_template.yaml
+# 参照仕様: 05_テンプレート設計.md §B-6
+# 帳票（ALV / SmartForms / Adobe Forms）の仕様
+
+version: "1.0.0"
+reports:
+  - id: "RPT-001"
+    name: ""
+    type: ""                          # alv_grid | alv_list | smartforms | adobe_forms
+    description: ""
+    columns:
+      - fieldname: ""
+        column_text: ""
+        data_type: ""
+        output_length: 0
+        key: false
+        sortable: true
+        filterable: true
+        total: false
+        currency_ref: ""
+        unit_ref: ""
+    sort_keys:
+      - fieldname: ""
+        direction: ""                 # ASC | DESC
+        subtotal: false
+    filter_defaults: []
+    layout_variant:
+      default: ""
+      user_specific: true
+    export:
+      formats: []                     # excel | pdf | csv

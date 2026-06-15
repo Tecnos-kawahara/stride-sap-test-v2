@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+    xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+    xmlns:modeler="http://camunda.org/schema/modeler/1.0"
+    id="Definitions_CollaborationPreview"
+    targetNamespace="http://tecnos.co.jp/sdd/bpmn/collaboration-preview"
+    exporter="Camunda Modeler"
+    exporterVersion="5.20.0"
+    modeler:executionPlatform="Camunda Cloud"
+    modeler:executionPlatformVersion="8.8.0">
+
+  <!-- Preview sample for collaboration/pool notation.
+       This is intended for visual review first.
+       If adopted as a template, stride_lint will need collaboration-aware validation. -->
+
+  <bpmn:collaboration id="Collaboration_RequestToERP">
+    <bpmn:participant id="Participant_Sales" name="営業部門" processRef="Process_Sales" />
+    <bpmn:participant id="Participant_ERP" name="基幹システム" processRef="Process_ERP" />
+    <bpmn:messageFlow id="MessageFlow_Request" name="申請送信" sourceRef="Task_SendRequest" targetRef="Task_ReceiveRequest" />
+    <bpmn:messageFlow id="MessageFlow_Result" name="登録結果通知" sourceRef="Task_SendResult" targetRef="Task_ConfirmResult" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="Process_Sales" name="営業部門プロセス" isExecutable="true">
+    <bpmn:startEvent id="Event_Start_Sales" name="申請開始">
+      <bpmn:outgoing>Flow_Sales_001</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:userTask id="Task_PrepareRequest" name="申請内容入力">
+      <bpmn:incoming>Flow_Sales_001</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sales_002</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+        <zeebe:formDefinition formId="sales-request-form" />
+        <zeebe:assignmentDefinition assignee="=salesRepEmail" />
+      </bpmn:extensionElements>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="Task_SendRequest" name="申請送信">
+      <bpmn:incoming>Flow_Sales_002</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sales_003</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="send-request" retries="3" />
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="Task_ConfirmResult" name="登録結果確認">
+      <bpmn:incoming>Flow_Sales_003</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sales_004</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+        <zeebe:formDefinition formId="sales-result-form" />
+        <zeebe:assignmentDefinition assignee="=salesRepEmail" />
+      </bpmn:extensionElements>
+    </bpmn:userTask>
+
+    <bpmn:endEvent id="Event_End_Sales" name="営業部門完了">
+      <bpmn:incoming>Flow_Sales_004</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_Sales_001" sourceRef="Event_Start_Sales" targetRef="Task_PrepareRequest" />
+    <bpmn:sequenceFlow id="Flow_Sales_002" sourceRef="Task_PrepareRequest" targetRef="Task_SendRequest" />
+    <bpmn:sequenceFlow id="Flow_Sales_003" sourceRef="Task_SendRequest" targetRef="Task_ConfirmResult" />
+    <bpmn:sequenceFlow id="Flow_Sales_004" sourceRef="Task_ConfirmResult" targetRef="Event_End_Sales" />
+  </bpmn:process>
+
+  <bpmn:process id="Process_ERP" name="基幹システムプロセス" isExecutable="true">
+    <bpmn:startEvent id="Event_Start_ERP" name="受付開始">
+      <bpmn:outgoing>Flow_ERP_001</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:serviceTask id="Task_ReceiveRequest" name="申請受信">
+      <bpmn:incoming>Flow_ERP_001</bpmn:incoming>
+      <bpmn:outgoing>Flow_ERP_002</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="receive-request" retries="3" />
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_RegisterOrder" name="ERP登録">
+      <bpmn:incoming>Flow_ERP_002</bpmn:incoming>
+      <bpmn:outgoing>Flow_ERP_003</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="register-to-erp" retries="3" />
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_SendResult" name="登録結果通知">
+      <bpmn:incoming>Flow_ERP_003</bpmn:incoming>
+      <bpmn:outgoing>Flow_ERP_004</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="send-result" retries="3" />
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="Event_End_ERP" name="基幹システム完了">
+      <bpmn:incoming>Flow_ERP_004</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_ERP_001" sourceRef="Event_Start_ERP" targetRef="Task_ReceiveRequest" />
+    <bpmn:sequenceFlow id="Flow_ERP_002" sourceRef="Task_ReceiveRequest" targetRef="Task_RegisterOrder" />
+    <bpmn:sequenceFlow id="Flow_ERP_003" sourceRef="Task_RegisterOrder" targetRef="Task_SendResult" />
+    <bpmn:sequenceFlow id="Flow_ERP_004" sourceRef="Task_SendResult" targetRef="Event_End_ERP" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_RequestToERP">
+      <bpmndi:BPMNShape id="Participant_Sales_di" bpmnElement="Participant_Sales" isHorizontal="false">
+        <dc:Bounds x="80" y="80" width="300" height="980" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Participant_ERP_di" bpmnElement="Participant_ERP" isHorizontal="false">
+        <dc:Bounds x="460" y="80" width="300" height="980" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Event_Start_Sales_di" bpmnElement="Event_Start_Sales">
+        <dc:Bounds x="212" y="140" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_PrepareRequest_di" bpmnElement="Task_PrepareRequest">
+        <dc:Bounds x="175" y="240" width="110" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_SendRequest_di" bpmnElement="Task_SendRequest">
+        <dc:Bounds x="175" y="420" width="110" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_ConfirmResult_di" bpmnElement="Task_ConfirmResult">
+        <dc:Bounds x="175" y="780" width="110" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Event_End_Sales_di" bpmnElement="Event_End_Sales">
+        <dc:Bounds x="212" y="940" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Event_Start_ERP_di" bpmnElement="Event_Start_ERP">
+        <dc:Bounds x="592" y="240" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_ReceiveRequest_di" bpmnElement="Task_ReceiveRequest">
+        <dc:Bounds x="555" y="420" width="110" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_RegisterOrder_di" bpmnElement="Task_RegisterOrder">
+        <dc:Bounds x="555" y="600" width="110" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_SendResult_di" bpmnElement="Task_SendResult">
+        <dc:Bounds x="555" y="780" width="110" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Event_End_ERP_di" bpmnElement="Event_End_ERP">
+        <dc:Bounds x="592" y="940" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="Flow_Sales_001_di" bpmnElement="Flow_Sales_001">
+        <di:waypoint x="230" y="176" />
+        <di:waypoint x="230" y="240" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Sales_002_di" bpmnElement="Flow_Sales_002">
+        <di:waypoint x="230" y="320" />
+        <di:waypoint x="230" y="420" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Sales_003_di" bpmnElement="Flow_Sales_003">
+        <di:waypoint x="230" y="500" />
+        <di:waypoint x="230" y="780" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Sales_004_di" bpmnElement="Flow_Sales_004">
+        <di:waypoint x="230" y="860" />
+        <di:waypoint x="230" y="940" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_ERP_001_di" bpmnElement="Flow_ERP_001">
+        <di:waypoint x="610" y="276" />
+        <di:waypoint x="610" y="420" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_ERP_002_di" bpmnElement="Flow_ERP_002">
+        <di:waypoint x="610" y="500" />
+        <di:waypoint x="610" y="600" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_ERP_003_di" bpmnElement="Flow_ERP_003">
+        <di:waypoint x="610" y="680" />
+        <di:waypoint x="610" y="780" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_ERP_004_di" bpmnElement="Flow_ERP_004">
+        <di:waypoint x="610" y="860" />
+        <di:waypoint x="610" y="940" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="MessageFlow_Request_di" bpmnElement="MessageFlow_Request">
+        <di:waypoint x="285" y="460" />
+        <di:waypoint x="555" y="460" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="MessageFlow_Result_di" bpmnElement="MessageFlow_Result">
+        <di:waypoint x="555" y="820" />
+        <di:waypoint x="285" y="820" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

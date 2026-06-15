@@ -1,0 +1,244 @@
+# Plane Classification Ruleset v1
+# Feature: FEAT-METHODSSOTEXTERNALIZATION
+# Version: 1.0
+# Status: approved (Method Board 3 person 2026-05-08)
+# References:
+#   - specs/method_ssot_externalization/upstream/phase_0_5_context_modelling/condition_variation.yaml CND-001
+#   - specs/method_ssot_externalization/upstream/phase_0_5_context_modelling/condition_variation.yaml DTBL-001
+#   - specs/method_ssot_externalization/contracts/method-store-schema.json
+
+plane: "internal"
+visibility: "abstract"
+return_policy:
+  customer: "abstract"
+  platform_admin: "abstract"
+  tecnos_admin: "full"
+ruleset_version: "1.0"
+ruleset_id: "PLANE-CLS-v1"
+sdd_method_version: "6.0.0-tecnos-stride-value"
+last_reviewed_at: "2026-05-08"
+maintainer: "Tecnos PMO + Method Board"
+
+# 適用順序: 上から順に評価、最初にマッチした rule を採用 (default はリスト末尾)。
+path_rules:
+  # ─────────────────────────────────────────────────────
+  # Method Templates (内部知財ベース、構造のみ公開)
+  # ─────────────────────────────────────────────────────
+  - id: "RULE-001"
+    pattern: "sdd-templates/templates/**/*.md"
+    plane: "internal"
+    visibility: "redacted"
+    return_policy: { customer: "id_only", platform_admin: "abstract", tecnos_admin: "full" }
+    rationale: "Method 原本テンプレート — 構造は redacted で公開可、内容は internal"
+
+  - id: "RULE-002"
+    pattern: "sdd-templates/templates/**/*.{yaml,yml,json}"
+    plane: "internal"
+    visibility: "redacted"
+    return_policy: { customer: "id_only", platform_admin: "abstract", tecnos_admin: "full" }
+    rationale: "spec_as_code 雛形 — 構造のみ redacted で公開可"
+
+  # ─────────────────────────────────────────────────────
+  # Method Policies (governance ルール、要約公開可)
+  # ─────────────────────────────────────────────────────
+  - id: "RULE-010"
+    pattern: "sdd-templates/policies/**"
+    plane: "internal"
+    visibility: "abstract"
+    return_policy: { customer: "abstract", platform_admin: "abstract", tecnos_admin: "full" }
+    rationale: "Method policy — 方針は要約公開可、ロジック詳細は internal"
+
+  - id: "RULE-011"
+    pattern: "shared/policies/**"
+    plane: "internal"
+    visibility: "abstract"
+    return_policy: { customer: "abstract", platform_admin: "abstract", tecnos_admin: "full" }
+    rationale: "共有 policy — Method Store 配信時 abstract で公開可"
+
+  # ─────────────────────────────────────────────────────
+  # Skills (cowork-plugin、description は public、technique は internal)
+  # ─────────────────────────────────────────────────────
+  - id: "RULE-020"
+    pattern: "cowork-plugin/skills/**/SKILL.md"
+    plane: "internal"
+    visibility: "abstract"
+    return_policy: { customer: "abstract", platform_admin: "abstract", tecnos_admin: "full" }
+    rationale: "skill SKILL.md — description (起動条件) は public 抽象、technique 詳細は INTERNAL_PROMPT で包囲"
+
+  - id: "RULE-021"
+    pattern: "cowork-plugin/commands/**/*.md"
+    plane: "public"
+    visibility: "full"
+    return_policy: { customer: "full", platform_admin: "full", tecnos_admin: "full" }
+    rationale: "slash command Markdown — 公開 UX、全文公開可"
+
+  # ─────────────────────────────────────────────────────
+  # Hooks / Validators (Python tool 群、internal redacted)
+  # ─────────────────────────────────────────────────────
+  - id: "RULE-030"
+    pattern: "sdd-templates/hooks/**/*.py"
+    plane: "internal"
+    visibility: "id_only"
+    return_policy: { customer: "id_only", platform_admin: "id_only", tecnos_admin: "full" }
+    rationale: "Hook 実装 — Tecnos 内部、ID のみ公開"
+
+  - id: "RULE-031"
+    pattern: "bpmn/validators/**/*.py"
+    plane: "public"
+    visibility: "full"
+    return_policy: { customer: "full", platform_admin: "full", tecnos_admin: "full" }
+    rationale: "BPMN validator (stdlib only) — Camunda 8 公開仕様の検証、公開可"
+
+  - id: "RULE-032"
+    pattern: "sdd-templates/tools/**/*.py"
+    plane: "internal"
+    visibility: "id_only"
+    return_policy: { customer: "id_only", platform_admin: "id_only", tecnos_admin: "full" }
+    rationale: "stride CLI tools 実装 — Tecnos 内部、ID のみ公開"
+
+  # ─────────────────────────────────────────────────────
+  # Memory (社内 FB / lessons)
+  # ─────────────────────────────────────────────────────
+  - id: "RULE-040"
+    pattern: "memory/lessons_learned/**"
+    plane: "internal"
+    visibility: "id_only"
+    return_policy: { customer: "id_only", platform_admin: "id_only", tecnos_admin: "full" }
+    rationale: "Tecnos 社内 lessons learned — 顧客返却禁止、ID のみ可 (Q-001 解消、Method Board 確認済)"
+
+  - id: "RULE-041"
+    pattern: "memory/constitution.md"
+    plane: "public"
+    visibility: "full"
+    return_policy: { customer: "full", platform_admin: "full", tecnos_admin: "full" }
+    rationale: "constitution は governance 公開原則、ただし meta.version / last_reviewed_at は AI 編集禁止"
+
+  - id: "RULE-042"
+    pattern: "memory/tecnos_org_constraints.md"
+    plane: "public"
+    visibility: "full"
+    return_policy: { customer: "full", platform_admin: "full", tecnos_admin: "full" }
+    rationale: "tecnos_org_constraints は INVIOLABLE 公開、ただし AI 編集禁止"
+
+  - id: "RULE-043"
+    pattern: "memory/constitution_amendments/**"
+    plane: "public"
+    visibility: "full"
+    return_policy: { customer: "full", platform_admin: "full", tecnos_admin: "full" }
+    rationale: "constitution amendments も governance 公開"
+
+  - id: "RULE-044"
+    pattern: "memory/artifact_registry.md"
+    plane: "internal"
+    visibility: "abstract"
+    return_policy: { customer: "abstract", platform_admin: "abstract", tecnos_admin: "full" }
+    rationale: "artifact registry は ID + 概要のみ公開、詳細は internal"
+
+  # ─────────────────────────────────────────────────────
+  # cowork-plugin/reference_files/ (sync された 49 件)
+  # ─────────────────────────────────────────────────────
+  - id: "RULE-050"
+    pattern: "cowork-plugin/reference_files/manual/**"
+    plane: "public"
+    visibility: "full"
+    return_policy: { customer: "full", platform_admin: "full", tecnos_admin: "full" }
+    rationale: "manual ファイル — 公開 documentation"
+
+  - id: "RULE-051"
+    pattern: "cowork-plugin/reference_files/templates/**"
+    plane: "internal"
+    visibility: "redacted"
+    return_policy: { customer: "id_only", platform_admin: "abstract", tecnos_admin: "full" }
+    rationale: "template 参照 — sdd-templates/templates/ と同一規約"
+
+  - id: "RULE-052"
+    pattern: "cowork-plugin/reference_files/policies/**"
+    plane: "internal"
+    visibility: "abstract"
+    return_policy: { customer: "abstract", platform_admin: "abstract", tecnos_admin: "full" }
+    rationale: "policy 参照 — sdd-templates/policies/ と同一規約"
+
+  - id: "RULE-053"
+    pattern: "cowork-plugin/reference_files/**/*.md"
+    plane: "internal"
+    visibility: "abstract"
+    return_policy: { customer: "abstract", platform_admin: "abstract", tecnos_admin: "full" }
+    rationale: "その他 reference markdown — abstract"
+
+  # ─────────────────────────────────────────────────────
+  # Sample specs (一般化済 PoC 例)
+  # ─────────────────────────────────────────────────────
+  - id: "RULE-060"
+    pattern: "archive/sample-specs/**"
+    plane: "sample"
+    visibility: "full"
+    return_policy: { customer: "full", platform_admin: "full", tecnos_admin: "full" }
+    rationale: "一般化サンプル — 全公開可"
+
+  # ─────────────────────────────────────────────────────
+  # Public docs
+  # ─────────────────────────────────────────────────────
+  - id: "RULE-070"
+    pattern: "docs/**/*.md"
+    plane: "public"
+    visibility: "full"
+    return_policy: { customer: "full", platform_admin: "full", tecnos_admin: "full" }
+    rationale: "公開ドキュメント"
+
+  - id: "RULE-071"
+    pattern: "bpmn/spec/**"
+    plane: "public"
+    visibility: "full"
+    return_policy: { customer: "full", platform_admin: "full", tecnos_admin: "full" }
+    rationale: "BPMN spec (Camunda 8 OMG 公開仕様)"
+
+  - id: "RULE-072"
+    pattern: "bpmn/templates/**"
+    plane: "public"
+    visibility: "full"
+    return_policy: { customer: "full", platform_admin: "full", tecnos_admin: "full" }
+    rationale: "BPMN templates (Camunda 8 互換、公開可)"
+
+  - id: "RULE-073"
+    pattern: "bpmn/examples/**"
+    plane: "sample"
+    visibility: "full"
+    return_policy: { customer: "full", platform_admin: "full", tecnos_admin: "full" }
+    rationale: "BPMN examples (一般化済サンプル)"
+
+  - id: "RULE-074"
+    pattern: "bpmn/rules/**"
+    plane: "public"
+    visibility: "full"
+    return_policy: { customer: "full", platform_admin: "full", tecnos_admin: "full" }
+    rationale: "BPMN rules (Tecnos 公開ルール、知財ではなく実装ガイダンス)"
+
+  # ─────────────────────────────────────────────────────
+  # Default (catch-all): unknown paths require manual labeling
+  # ─────────────────────────────────────────────────────
+  - id: "RULE-DEFAULT"
+    pattern: "**"
+    plane: "internal"
+    visibility: "id_only"
+    return_policy: { customer: "blocked", platform_admin: "id_only", tecnos_admin: "full" }
+    rationale: "未分類 path — 安全側で internal blocked、Method Board interview リスト化対象"
+
+# Element type 推定 (path → type マッピング)
+type_inference:
+  - { pattern: "**/templates/**", type: "template" }
+  - { pattern: "**/skills/**", type: "skill" }
+  - { pattern: "**/policies/**", type: "policy" }
+  - { pattern: "**/hooks/**", type: "hook" }
+  - { pattern: "**/validators/**", type: "validator" }
+  - { pattern: "**/lessons_learned/**", type: "lesson" }
+  - { pattern: "**", type: "reference" }   # default
+
+# AI suggest confidence thresholds
+confidence_thresholds:
+  auto_apply: 0.9          # confidence > 0.9 で自動 frontmatter 付与
+  draft_with_todo: 0.5     # 0.5-0.9 で TODO comment 付き draft
+  manual_review: 0.0       # < 0.5 で Method Board interview リスト化
+
+attributions:
+  - { source: "BABOK v3 (IIBA)", role: "framework backbone (KA6)", license: "fair-use, names and section refs only" }
+  - { source: "Layered Requirements Modeling ((concept reference, no proprietary brand))", role: "concept reference", license: "fair-use, concept name only" }

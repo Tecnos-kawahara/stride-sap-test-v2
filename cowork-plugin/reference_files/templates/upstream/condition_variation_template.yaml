@@ -1,0 +1,46 @@
+---
+# Template: condition_variation.yaml
+# Phase: phase_0_5_context_modelling
+# BABOK Source: KA7 Requirements Analysis / Technique 10.9 Business Rules Analysis / Technique 10.17 Decision Modelling
+# Layered Requirements Modeling Source: 条件・バリエーションモデル (Condition / Variation Model)
+# Inspired by: n/a
+# Rule-0: 正本は YAML フロントマター + 下記 YAML ブロック
+---
+
+artifact: "condition_variation.yaml"
+template_id: "TPL-UP-CVR-001"
+feature_id: "FEAT-XXX"
+upstream_artifact_id: "CVR-XXX"
+title: "Condition / Variation Model - <Feature Name>"
+version: "{{TEMPLATE_VERSION}}"
+status: "draft"
+phase: "phase_0_5_context_modelling"
+profile_applicability: ["enterprise-erp", "saas-integration", "prototype"]
+owners: []
+reviewers: []
+links:
+  upstream_policy_ref: "shared/policies/upstream_policy.yaml"
+  baccm_completeness_ref: "shared/policies/baccm_completeness.yaml"
+  iteration_policy_ref: "shared/policies/upstream_iteration_policy.yaml"
+  constitution_ref: "memory/constitution.md"
+  amendment_ref: "memory/constitution_amendments/XVI_layered_requirement_architecture.md"
+created_at: "YYYY-MM-DD"
+updated_at: "YYYY-MM-DD"
+
+# Condition / Variation 本体 (Layered Requirements Modeling 条件モデル)
+conditions: []
+# 例:
+# - id: "CND-001"
+#   expression: "顧客クラス = '与信限度超過' AND 受注金額 > 1000000"
+#   variations:
+#     - { case: "与信超過 + 高額", outcome: "営業部長承認待ち" }
+#     - { case: "与信内 OR 低額",  outcome: "自動承認" }
+#   linked_usecase_ids: ["BUC-001"]
+#   linked_information_ids: ["INF-001"]
+#   business_rule_source: ""
+
+decision_tables: []              # DMN 形式の決定表 (任意)
+
+attributions:
+  - { source: "BABOK v3 (IIBA)", role: "framework backbone (KA7 / Technique 10.9 / 10.17)", license: "fair-use, names and section refs only" }
+  - { source: "Layered Requirements Modeling ((concept reference, no proprietary brand))", role: "condition / variation model concept", license: "fair-use, model name only" }

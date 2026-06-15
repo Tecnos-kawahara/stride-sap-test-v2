@@ -1,0 +1,188 @@
+# Shared Contract Template - Enterprise SDD Extension
+# Version: 1.0.0
+# Purpose: Define contracts shared across multiple teams/features
+# Location: shared/contracts/api/<contract_name>.yaml or shared/contracts/events/<contract_name>.yaml
+
+shared_contract:
+  meta:
+    contract_id: "SC-API-XXX"  # SC-(API|EVT|FILE)-[A-Z0-9]{3,}
+    name: "{{Shared Contract Name}}"
+    version: "1.0.0"
+    status: "draft"  # draft | proposed | approved | deprecated | sunset
+    created_at: "YYYY-MM-DD"
+    updated_at: "YYYY-MM-DD"
+    description: |
+      {{Contract description}}
+
+  # オーナーシップ
+  ownership:
+    owner_team: "TEAM-A"
+    owner_feature: "FEAT-XXX"
+    maintainers:
+      - name: "{{Maintainer Name}}"
+        email: "{{maintainer@example.com}}"
+        role: "primary"
+      - name: "{{Backup Maintainer}}"
+        email: "{{backup@example.com}}"
+        role: "backup"
+    approval_required_from:
+      - role: "ARCH_BOARD"
+        reason: "Cross-team impact requires Architecture Board approval"
+      - role: "EPIC_LEAD"
+        reason: "Epic-level coordination required"
+        condition: "if epic_id is defined"
+
+  # 消費者情報
+  consumers:
+    - team_id: "TEAM-B"
+      features: ["FEAT-YYY"]
+      usage: "{{How this team uses the contract}}"
+      criticality: "high"  # high | medium | low
+      registered_at: "YYYY-MM-DD"
+      contact: "{{team-b-lead@example.com}}"
+      version_used: "1.0.0"
+
+    - team_id: "TEAM-C"
+      features: ["FEAT-ZZZ"]
+      usage: "{{How this team uses the contract}}"
+      criticality: "medium"
+      registered_at: "YYYY-MM-DD"
+      contact: "{{team-c-lead@example.com}}"
+      version_used: "1.0.0"
+
+  # 契約定義
+  contract_definition:
+    type: "openapi"  # openapi | asyncapi | jsonschema | protobuf | avro
+    schema_version: "3.1.0"
+    schema_path: "shared/contracts/api/{{contract_name}}.yaml"
+    specification:
+      # OpenAPI/AsyncAPI specification goes here or reference external file
+      # For large specs, use: $ref: "./{{contract_name}}_spec.yaml"
+      openapi: "3.1.0"
+      info:
+        title: "{{API Title}}"
+        version: "1.0.0"
+      paths:
+        /example:
+          get:
+            summary: "Example endpoint"
+            responses:
+              "200":
+                description: "Success"
+
+  # 互換性ポリシー
+  compatibility:
+    breaking_change_policy: "semver"  # semver | calver | custom
+    deprecation_notice_days: 90
+    sunset_notice_days: 180
+    backward_compatible_versions: 2
+    migration_support:
+      documentation_required: true
+      migration_guide_path: "docs/migrations/"
+      tooling_support: false
+
+  # バージョン履歴
+  version_history:
+    - version: "1.0.0"
+      date: "YYYY-MM-DD"
+      change_type: "initial"
+      changes:
+        - "Initial release"
+      ccp_ref: null
+      migration_required: false
+
+  # テスト要件
+  testing:
+    contract_test_ownership: "provider"  # provider | consumer | both
+    contract_test_location: "specs/{{owner_feature}}/tests/contract/"
+    consumer_driven_contracts:
+      enabled: true
+      pact_broker_url: "{{pact_broker_url or null}}"
+      local_verification: true
+    test_requirements:
+      - type: "contract_test"
+        coverage: "100%"
+        owner: "provider"
+      - type: "integration_test"
+        coverage: "critical_paths"
+        owner: "both"
+
+  # SLA定義
+  sla:
+    availability:
+      target: "99.9%"
+      measurement_window: "monthly"
+    latency:
+      p50: "50ms"
+      p95: "150ms"
+      p99: "300ms"
+    rate_limit:
+      requests_per_minute: 1000
+      burst_limit: 100
+    error_budget:
+      monthly_error_rate: "0.1%"
+
+  # 変更管理
+  change_control:
+    requires_consumer_notification: true
+    requires_impact_assessment: true
+    ccp_required_for:
+      - "breaking_change"
+      - "deprecation"
+      - "sunset"
+    approval_workflow:
+      breaking_change:
+        - "consumer_acknowledgment"
+        - "ARCH_BOARD_approval"
+      non_breaking_change:
+        - "owner_team_approval"
+      deprecation:
+        - "consumer_notification"
+        - "ARCH_BOARD_approval"
+
+  # 変更ログ
+  change_log:
+    - version: "1.0.0"
+      date: "YYYY-MM-DD"
+      author: "{{Author}}"
+      changes:
+        - "Initial contract definition"
+      impact_assessment: "N/A - Initial release"
+      ccp_ref: null
+
+  # 監視・アラート
+  monitoring:
+    health_check_endpoint: "/health"
+    metrics_endpoint: "/metrics"
+    alerts:
+      - condition: "error_rate > 1%"
+        severity: "warning"
+        notify: ["owner_team"]
+      - condition: "error_rate > 5%"
+        severity: "critical"
+        notify: ["owner_team", "consumers", "ARCH_BOARD"]
+      - condition: "latency_p99 > 500ms"
+        severity: "warning"
+        notify: ["owner_team"]
+
+  # セキュリティ
+  security:
+    authentication:
+      required: true
+      methods: ["api_key", "oauth2"]
+    authorization:
+      model: "rbac"  # rbac | abac | none
+      scopes:
+        - "read"
+        - "write"
+    data_classification: "internal"  # public | internal | confidential | regulated
+    encryption:
+      in_transit: true
+      at_rest: "{{if applicable}}"
+
+  # ドキュメント
+  documentation:
+    api_docs_url: "{{API documentation URL}}"
+    integration_guide: "docs/integration/{{contract_name}}.md"
+    changelog_url: "docs/changelog/{{contract_name}}.md"
+    support_channel: "#{{support-channel}}"

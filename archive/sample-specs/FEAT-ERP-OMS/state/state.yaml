@@ -1,0 +1,165 @@
+# State - mcframe受注管理アドオン
+# Feature: FEAT-ERP-OMS
+# SSoT for feature lifecycle tracking
+
+feature: FEAT-ERP-OMS
+epic_ref: EPIC-SAMPLE
+current_gate: Final
+autonomy_bias: balanced
+coverage_tier: standard
+
+work_items:
+  - wi_id: WI-ERP-SAMPLE-001
+    title: "受注登録画面のUI改善"
+    status: done
+    mode: autopilot
+    complexity: low
+    risk_flags: ["ui_only"]
+    assigned_to: "@yamada"
+    completed_at: "2026-02-10"
+    ops_ready: true
+
+  - wi_id: WI-ERP-SAMPLE-002
+    title: "権限チェックロジック追加"
+    status: pending
+    mode: validate
+    complexity: high
+    risk_flags: ["authz", "audit_log"]
+    assigned_to: "@yamada"
+    blocked_by: []
+    ops_ready: false
+
+run_index:
+  WI-ERP-SAMPLE-001: RUN-001
+  WI-ERP-SAMPLE-002: null
+
+# Epic Milestones (v4.4)
+milestones:
+  - id: EM-01
+    name: "受注登録基盤完了"
+    target_date: "2026-02-10"
+    status: completed
+    completion_pct: 100
+    work_items: ["WI-ERP-SAMPLE-001"]
+
+  - id: EM-02
+    name: "権限・承認・監査完了"
+    target_date: "2026-03-01"
+    status: on_track
+    completion_pct: 0
+    work_items: ["WI-ERP-SAMPLE-002"]
+
+  - id: EM-03
+    name: "Epic統合完了・リリース"
+    target_date: "2026-03-15"
+    status: pending
+    completion_pct: 0
+    work_items: ["WI-ERP-SAMPLE-001", "WI-ERP-SAMPLE-002"]
+
+# Risk Register (v4.4)
+risks:
+  - risk_id: ER-001
+    description: "mcframe API月次締め応答遅延"
+    probability: high
+    impact: medium
+    status: mitigating
+    owner: TEAM-SALES
+
+  - risk_id: ER-002
+    description: "権限チェック複雑さ→セキュリティ"
+    probability: medium
+    impact: high
+    status: open
+    owner: TEAM-SALES
+
+  - risk_id: ER-003
+    description: "監査ログ欠落→コンプライアンス"
+    probability: low
+    impact: high
+    status: open
+    owner: TEAM-SALES
+
+# Dependencies (v4.4)
+dependencies:
+  - dep_id: DEP-001
+    from: FEAT-ERP-OMS
+    to: mcframe-core
+    type: blocking
+    status: adopted
+    interface_ref: SC-API-MCFRAME
+
+# GitHub Projects Mapping (v4.4 enhanced)
+github_projects:
+  project_id: "PVT_kwDODxCmtc4BPMem"
+  project_number: 2
+  project_title: "Tecnos-STRIDE SDD Board"
+
+  # Issue Types
+  issue_types:
+    - { sdd_type: "epic", template: "ISSUE_TEMPLATE/epic.md", prefix: "[EPIC]" }
+    - { sdd_type: "milestone", template: "ISSUE_TEMPLATE/milestone.md", prefix: "[MS]" }
+    - { sdd_type: "work_item", template: "ISSUE_TEMPLATE/work-item.md", prefix: "[WI]" }
+    - { sdd_type: "risk", template: "ISSUE_TEMPLATE/risk.md", prefix: "[RISK]" }
+
+  # Label Mapping
+  labels:
+    - { sdd_concept: "coverage_tier", github_label: "tier:standard" }
+    - { sdd_concept: "mode:autopilot", github_label: "mode:autopilot" }
+    - { sdd_concept: "mode:validate", github_label: "mode:validate" }
+    - { sdd_concept: "risk:authz", github_label: "risk:authz" }
+    - { sdd_concept: "risk:audit_log", github_label: "risk:audit_log" }
+    - { sdd_concept: "risk:ui_only", github_label: "risk:ui_only" }
+
+  # Gate Milestone Mapping
+  milestones:
+    - { sdd_gate: "Gate1", github_milestone: "Gate 1: Design Review" }
+    - { sdd_gate: "Gate2", github_milestone: "Gate 2: BPMN Review" }
+    - { sdd_gate: "Gate3", github_milestone: "Gate 3: Spec Review" }
+    - { sdd_gate: "Gate4", github_milestone: "Gate 4: Plan Review" }
+    - { sdd_gate: "Gate5", github_milestone: "Gate 5: Tasking Review" }
+    - { sdd_gate: "Final", github_milestone: "Final: Evidence Review" }
+
+  # Epic Milestone Mapping
+  epic_milestones:
+    - { epic_milestone: "EM-01", github_milestone: "EM-01: 受注登録基盤完了", target_date: "2026-02-10" }
+    - { epic_milestone: "EM-02", github_milestone: "EM-02: 権限・承認・監査完了", target_date: "2026-03-01" }
+    - { epic_milestone: "EM-03", github_milestone: "EM-03: Epic統合完了・リリース", target_date: "2026-03-15" }
+
+  # PM Dashboard Views
+  views:
+    - name: "Epic Overview"
+      type: table
+      filter: "label:epic,work-item"
+      description: "PM俯瞰ビュー: Epic + WI一覧"
+    - name: "Kanban Board"
+      type: board
+      filter: "label:work-item"
+      columns: ["Backlog", "In Progress", "Review", "Done"]
+      description: "WI進捗カンバン"
+    - name: "Risk Heatmap"
+      type: table
+      filter: "label:risk,blocker"
+      sort: "impact DESC"
+      description: "リスク・ブロッカー一覧"
+    - name: "Milestone Timeline"
+      type: roadmap
+      filter: "label:milestone"
+      description: "マイルストーン時系列"
+    - name: "Ops Readiness"
+      type: table
+      filter: "label:work-item"
+      description: "リリース準備状況"
+    - name: "Process Metrics"
+      type: table
+      filter: "label:work-item"
+      sort: "Delay Risk ASC"
+      description: "Gate滞留時間・遅延リスク分析"
+
+  # Artifact Links (PM navigation)
+  pm_artifacts:
+    dashboard: "epics/EPIC-SAMPLE/PM_DASHBOARD.md"
+    progress_report: "epics/EPIC-SAMPLE/EPIC_PROGRESS_REPORT.md"
+    dependency_manifest: "epics/EPIC-SAMPLE/DEPENDENCY_MANIFEST.yaml"
+    ops_pack_registry: "epics/EPIC-SAMPLE/OPS_PACK_REGISTRY.yaml"
+
+  setup_guide: "sdd-templates/templates/github-projects/setup-guide.md"

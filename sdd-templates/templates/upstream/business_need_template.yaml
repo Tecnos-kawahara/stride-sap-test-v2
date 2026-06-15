@@ -1,0 +1,39 @@
+---
+# Template: business_need.yaml
+# Phase: phase_0_discovery
+# BABOK Source: KA6 Strategy Analysis / 6.1 Analyze Current State / 6.2 Define Future State
+# Layered Requirements Modeling Source: n/a
+# Inspired by: value-driven discovery method 価値分析モデル (philosophical inspiration)
+# Rule-0: 正本は YAML フロントマター + 下記 YAML ブロック
+---
+
+artifact: "business_need.yaml"
+template_id: "TPL-UP-BNE-001"
+feature_id: "FEAT-XXX"
+upstream_artifact_id: "BNE-XXX"
+title: "Business Need - <Feature Name>"
+version: "{{TEMPLATE_VERSION}}"
+status: "draft"
+phase: "phase_0_discovery"
+profile_applicability: ["enterprise-erp", "saas-integration", "prototype"]
+owners: []
+reviewers: []
+links:
+  upstream_policy_ref: "shared/policies/upstream_policy.yaml"
+  baccm_completeness_ref: "shared/policies/baccm_completeness.yaml"
+  iteration_policy_ref: "shared/policies/upstream_iteration_policy.yaml"
+  constitution_ref: "memory/constitution.md"
+  amendment_ref: "memory/constitution_amendments/XV_baccm_completeness.md"
+created_at: "YYYY-MM-DD"
+updated_at: "YYYY-MM-DD"
+
+# Business Need 本体 (BACCM Need 軸の起点)
+problem_statement: ""        # 解決すべき問題 (現状の痛み・損失)
+opportunity_statement: ""    # 活用すべき機会 (価値増分の可能性)
+current_state: ""            # 現在の状態
+desired_state: ""            # 望ましい未来状態
+trigger_events: []           # この need が顕在化したきっかけ
+related_needs: []            # 連鎖する他の need (id 参照)
+
+attributions:
+  - { source: "BABOK v3 (IIBA)", role: "framework backbone (KA6)", license: "fair-use, names and section refs only" }

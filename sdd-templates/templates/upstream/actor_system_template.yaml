@@ -1,0 +1,51 @@
+---
+# Template: actor_system.yaml
+# Phase: phase_0_5_context_modelling
+# BABOK Source: KA7 Requirements Analysis and Design Definition / 7.1 Specify and Model Requirements
+# Layered Requirements Modeling Source: アクター・外部システム図 (Actor / External System Diagram)
+# Inspired by: n/a
+# Rule-0: 正本は YAML フロントマター + 下記 YAML ブロック
+---
+
+artifact: "actor_system.yaml"
+template_id: "TPL-UP-ACS-001"
+feature_id: "FEAT-XXX"
+upstream_artifact_id: "ACS-XXX"
+title: "Actor / External System Map - <Feature Name>"
+version: "{{TEMPLATE_VERSION}}"
+status: "draft"
+phase: "phase_0_5_context_modelling"
+profile_applicability: ["enterprise-erp", "saas-integration", "prototype"]
+owners: []
+reviewers: []
+links:
+  upstream_policy_ref: "shared/policies/upstream_policy.yaml"
+  baccm_completeness_ref: "shared/policies/baccm_completeness.yaml"
+  iteration_policy_ref: "shared/policies/upstream_iteration_policy.yaml"
+  constitution_ref: "memory/constitution.md"
+  amendment_ref: "memory/constitution_amendments/XVI_layered_requirement_architecture.md"
+created_at: "YYYY-MM-DD"
+updated_at: "YYYY-MM-DD"
+
+# Actor / System 本体 (Layered Requirements Modeling System layer)
+actors: []
+# 例:
+# - id: "ACT-001"
+#   name: "営業部担当"
+#   kind: "human"              # human | system | external
+#   role: "受注登録"
+#   stakeholder_ref: "SH-001"
+
+systems: []
+# 例:
+# - id: "SYS-001"
+#   name: "SAP S/4HANA"
+#   category: "ERP"
+#   ownership: "internal"      # internal | external | partner
+#   interfaces: ["OData", "IDoc"]
+
+interactions: []                # アクター ↔ システムの関与関係概要
+
+attributions:
+  - { source: "BABOK v3 (IIBA)", role: "framework backbone (KA7.1)", license: "fair-use, names and section refs only" }
+  - { source: "Layered Requirements Modeling ((concept reference, no proprietary brand))", role: "actor / external system diagram concept", license: "fair-use, diagram name only" }

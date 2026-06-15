@@ -1,0 +1,26 @@
+# SAP Extension Pack v2 — authz_matrix_template.yaml
+# 参照仕様: 05_テンプレート設計.md §B-6
+# SAP 権限マトリクス
+
+version: "1.0.0"
+authorization:
+  objects:
+    - name: ""                        # 権限オブジェクト名
+      class: ""                       # 権限クラス
+      fields:
+        - name: ""
+          values: []                  # 許可値
+      description: ""
+  roles:
+    - role_name: ""
+      description: ""
+      objects:
+        - object_ref: ""             # objects[].name への参照
+          field_values:
+            - field: ""
+              value: ""
+  check_points:
+    - location: ""                    # チェック実行箇所
+      object_ref: ""
+      timing: ""                      # before_display | before_change | before_execute
+      on_fail: ""                     # abort | hide_data | read_only

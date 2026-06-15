@@ -1,0 +1,11 @@
+openapi: "3.1.0"
+info:
+  title: "Web-EDI受注受付 API"
+  version: "0.1.0"
+paths:
+  /web-edi/orders:
+    post:
+      summary: "Submit Web-EDI order"
+      responses:
+        "200":
+          description: "OK"

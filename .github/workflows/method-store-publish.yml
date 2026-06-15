@@ -1,0 +1,247 @@
+name: Method Store Publish
+
+# 9-step pipeline for FEAT-METHODSTOREPUBLISHING (Tecnos-STRIDE Feature ②).
+# Trigger: tag push matching release/v*.* (auto-created by `stride method publish`).
+# All untrusted inputs are surfaced via env: to avoid script injection (R-PLAN-004).
+
+on:
+  push:
+    tags:
+      - 'release/v*'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "publish target (edge | staging | stable)"
+        required: true
+        default: "staging"
+      version:
+        description: "release semver (e.g. 6.1.0)"
+        required: true
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+  pull-requests: write
+
+env:
+  REGISTRY: ghcr.io/tecnos-japan-cbp/sdd-method-store
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  validate:
+    name: "Step 1 - strict validate gate"
+    runs-on: ubuntu-latest
+    outputs:
+      target: ${{ steps.params.outputs.target }}
+      version: ${{ steps.params.outputs.version }}
+      sha7: ${{ steps.params.outputs.sha7 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Resolve params
+        id: params
+        env:
+          INPUT_TARGET: ${{ github.event.inputs.target }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          GITHUB_REF_VAR: ${{ github.ref }}
+          GITHUB_SHA_VAR: ${{ github.sha }}
+        run: |
+          set -eu
+          target="${INPUT_TARGET:-staging}"
+          version="$INPUT_VERSION"
+          if [ -z "$version" ]; then
+            version="${GITHUB_REF_VAR#refs/tags/release/v}"
+          fi
+          # F2 follow-up #19.5 (2026-05-08): version input validation。
+          # newline / shell metachar が混入すると後段 $GITHUB_OUTPUT を破壊する。
+          # SemVer 形式 (X.Y.Z + optional -prerelease) のみ受理する。
+          if ! printf '%s' "$version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$'; then
+            echo "::error::version='$version' is not valid SemVer (expect X.Y.Z[-prerelease])"
+            exit 1
+          fi
+          sha7="${GITHUB_SHA_VAR:0:7}"
+          # F2 follow-up #19.2 (2026-05-08): rc.N hardcode 撤廃、git tag history から自動算出。
+          # 同 version の staging を再 publish した時に v{version}-rc.1 を上書きせず、
+          # rc.2 / rc.3 ... と単調増加させる (cosign signature の immutability 維持)。
+          if [ "$target" = "staging" ]; then
+            existing_count=$(git tag --list "release/v${version}-rc.*" | wc -l | tr -d ' ')
+            rc_n=$((existing_count + 1))
+          else
+            rc_n=1
+          fi
+          echo "target=$target" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "sha7=$sha7" >> "$GITHUB_OUTPUT"
+          echo "rc=$rc_n" >> "$GITHUB_OUTPUT"
+      - name: stride method validate --strict
+        run: |
+          export PYTHONPATH="${PWD}/sdd-templates/tools"
+          python -m method_publish.validate --strict --root .
+
+  snapshot_build:
+    name: "Step 2 - snapshot build"
+    needs: validate
+    runs-on: ubuntu-latest
+    env:
+      TARGET: ${{ needs.validate.outputs.target }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: snapshot_builder
+        run: |
+          export PYTHONPATH="${PWD}/sdd-templates/tools"
+          python -m method_publish.snapshot_builder \
+            --root . --channel "$TARGET" --output-dir /tmp/method-snapshot
+      - uses: actions/upload-artifact@v4
+        with:
+          name: method-snapshot
+          path: /tmp/method-snapshot
+          retention-days: 14
+
+  cosign_sign_and_push:
+    name: "Steps 3-4 - cosign sign + ghcr.io push"
+    needs: [validate, snapshot_build]
+    runs-on: ubuntu-latest
+    env:
+      TARGET: ${{ needs.validate.outputs.target }}
+      VERSION: ${{ needs.validate.outputs.version }}
+      SHA7: ${{ needs.validate.outputs.sha7 }}
+      RC: ${{ needs.validate.outputs.rc }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: method-snapshot
+          path: /tmp/method-snapshot
+      - uses: sigstore/cosign-installer@v3
+      - name: oras install
+        run: |
+          curl -sSfL https://github.com/oras-project/oras/releases/download/v1.2.0/oras_1.2.0_linux_amd64.tar.gz \
+            | tar -xz -C /tmp
+          sudo mv /tmp/oras /usr/local/bin/oras
+      - name: ghcr.io login
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: echo "$GH_TOKEN" | oras login ghcr.io -u "$ACTOR" --password-stdin
+      - name: oci_publisher push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # F2 follow-up #19.2 (2026-05-08): --rc は params step で git tag history から
+          # 自動算出 ($RC)、hardcoded 1 を撤廃 (silent overwrite 防止)
+          export PYTHONPATH="${PWD}/sdd-templates/tools"
+          python -m method_publish.oci_publisher \
+            --artifact /tmp/method-snapshot/artifact.tar \
+            --manifest /tmp/method-snapshot/manifest.json \
+            --channel "$TARGET" \
+            --semver "$VERSION" \
+            --rc "$RC" \
+            --commit-sha7 "$SHA7" \
+            --registry "$REGISTRY"
+      - name: cosign keyless sign
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          # rc.N は params step で計算済の $RC を使用 (#19.2 fix)
+          export PYTHONPATH="${PWD}/sdd-templates/tools"
+          if [ "$TARGET" = "staging" ]; then
+            tag="v${VERSION}-rc.${RC}"
+          elif [ "$TARGET" = "edge" ]; then
+            tag="edge-${SHA7}"
+          else
+            tag="v${VERSION}"
+          fi
+          python -m method_publish.cosign_signer --image-ref "$REGISTRY:$tag"
+
+  channel_branch:
+    name: "Step 5 - channel branch"
+    needs: [validate, cosign_sign_and_push]
+    runs-on: ubuntu-latest
+    env:
+      TARGET: ${{ needs.validate.outputs.target }}
+    steps:
+      - name: Branch on target
+        run: |
+          echo "target=$TARGET"
+          if [ "$TARGET" = "stable" ]; then
+            echo "Stable: proceed to Method Board PR review (Step 6/7)."
+          else
+            echo "Edge/Staging: proceed to smoke test (Step 6)."
+          fi
+
+  smoke_or_pr_review:
+    name: "Step 6/7 - smoke test or auto PR + Method Board approval"
+    needs: [validate, channel_branch]
+    runs-on: ubuntu-latest
+    env:
+      TARGET: ${{ needs.validate.outputs.target }}
+      VERSION: ${{ needs.validate.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Stable - auto RELEASE_NOTES + auto PR
+        if: ${{ needs.validate.outputs.target == 'stable' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          export PYTHONPATH="${PWD}/sdd-templates/tools"
+          mkdir -p "releases/v$VERSION"
+          python -m method_publish.release_notes_generator \
+            --root . --version "v$VERSION" \
+            --previous-stable stable \
+            --output "releases/v$VERSION/RELEASE_NOTES.md"
+          cp sdd-templates/templates/method_approval_template.md "releases/v$VERSION/METHOD_APPROVAL.md"
+          python -m ci_helpers.gitops_pr_creator \
+            --title "release(stable): v$VERSION" \
+            --body "releases/v$VERSION/RELEASE_NOTES.md" \
+            --base main \
+            --head "releases/v$VERSION"
+      - name: Staging - smoke test placeholder
+        if: ${{ needs.validate.outputs.target != 'stable' }}
+        run: echo "Smoke test placeholder - replace with project-specific suite."
+
+  go_live:
+    name: "Step 8 - go live"
+    needs: [validate, smoke_or_pr_review]
+    runs-on: ubuntu-latest
+    env:
+      TARGET: ${{ needs.validate.outputs.target }}
+      VERSION: ${{ needs.validate.outputs.version }}
+    steps:
+      - name: Acknowledge live state
+        run: echo "${TARGET} v${VERSION} live."
+
+  notify:
+    name: "Step 9 - Slack notify"
+    needs: [validate, go_live]
+    runs-on: ubuntu-latest
+    env:
+      TARGET: ${{ needs.validate.outputs.target }}
+      VERSION: ${{ needs.validate.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: slack_notifier
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_METHOD_BOARD_WEBHOOK }}
+        run: |
+          export PYTHONPATH="${PWD}/sdd-templates/tools"
+          MSG="Method Store $TARGET v$VERSION published successfully."
+          python -m ci_helpers.slack_notifier --message "$MSG" --channel '#method-board'

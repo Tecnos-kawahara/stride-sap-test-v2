@@ -1,0 +1,73 @@
+# Approval Matrix Test Fixture
+# DO NOT EDIT: This file is a test fixture for approval_router.py integration tests.
+
+approval_matrix:
+  roles:
+    - role_id: "PM"
+      level: "project"
+      can_approve:
+        - gate_type: "basic_design"
+          coverage_tiers: ["standard", "experimental"]
+        - gate_type: "spec"
+          coverage_tiers: ["standard"]
+        - gate_type: "plan"
+          coverage_tiers: ["standard"]
+        - gate_type: "tasks"
+          coverage_tiers: ["standard"]
+        - gate_type: "final"
+          coverage_tiers: ["standard"]
+          requires_co_approval: ["TECH_LEAD"]
+
+    - role_id: "TECH_LEAD"
+      level: "team"
+      can_approve:
+        - gate_type: "basic_design"
+          coverage_tiers: ["standard", "experimental"]
+        - gate_type: "bpmn"
+          coverage_tiers: ["standard", "experimental"]
+        - gate_type: "spec"
+          coverage_tiers: ["experimental"]
+        - gate_type: "plan"
+          coverage_tiers: ["experimental"]
+        - gate_type: "tasks"
+          coverage_tiers: ["experimental"]
+        - gate_type: "final"
+          coverage_tiers: ["experimental"]
+
+    - role_id: "ARCH_BOARD"
+      level: "organization"
+      can_approve:
+        - gate_type: "basic_design"
+          coverage_tiers: ["critical"]
+        - gate_type: "bpmn"
+          coverage_tiers: ["critical"]
+        - gate_type: "spec"
+          coverage_tiers: ["critical"]
+        - gate_type: "plan"
+          coverage_tiers: ["critical"]
+        - gate_type: "tasks"
+          coverage_tiers: ["critical"]
+        - gate_type: "final"
+          coverage_tiers: ["critical"]
+
+  escalation_rules:
+    - rule_id: "ESC-001"
+      condition: "cross_team_dependency == true"
+      escalate_to: "ARCH_BOARD"
+      reason: "Cross-team依存はARCH_BOARD承認が必要"
+      mandatory: true
+    - rule_id: "ESC-002"
+      condition: "shared_contract_change == true"
+      escalate_to: "ARCH_BOARD"
+      reason: "共有契約変更はARCH_BOARD承認が必要"
+      mandatory: true
+
+  parallel_processing:
+    enabled: true
+    rules:
+      - rule_id: "PAR-001"
+        gate_type: "spec"
+        can_parallel_with: ["plan"]
+        condition: "same_team AND coverage_tier in ['standard', 'experimental']"
+
+# Test Fixture - DO NOT MODIFY

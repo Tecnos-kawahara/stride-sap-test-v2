@@ -1,0 +1,4 @@
+-r sdd-templates/requirements.txt
+pytest>=7.0
+pytest-cov>=4.0
+cosmic-ray>=8.3

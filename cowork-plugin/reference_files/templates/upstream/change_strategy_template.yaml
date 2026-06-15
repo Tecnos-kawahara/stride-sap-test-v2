@@ -1,0 +1,41 @@
+---
+# Template: change_strategy.yaml
+# Phase: phase_0_discovery
+# BABOK Source: KA6 Strategy Analysis / 6.4 Define Change Strategy
+# Layered Requirements Modeling Source: n/a
+# Inspired by: value-driven discovery method 変革ロードマップ (philosophical inspiration)
+# Rule-0: 正本は YAML フロントマター + 下記 YAML ブロック
+---
+
+artifact: "change_strategy.yaml"
+template_id: "TPL-UP-CHS-001"
+feature_id: "FEAT-XXX"
+upstream_artifact_id: "CHS-XXX"
+title: "Change Strategy - <Feature Name>"
+version: "{{TEMPLATE_VERSION}}"
+status: "draft"
+phase: "phase_0_discovery"
+profile_applicability: ["enterprise-erp", "saas-integration", "prototype"]
+owners: []
+reviewers: []
+links:
+  upstream_policy_ref: "shared/policies/upstream_policy.yaml"
+  baccm_completeness_ref: "shared/policies/baccm_completeness.yaml"
+  iteration_policy_ref: "shared/policies/upstream_iteration_policy.yaml"
+  constitution_ref: "memory/constitution.md"
+  amendment_ref: "memory/constitution_amendments/XV_baccm_completeness.md"
+created_at: "YYYY-MM-DD"
+updated_at: "YYYY-MM-DD"
+
+# Change Strategy 本体 (BACCM Change + Solution 軸)
+transition_states: []          # 中間状態の連鎖 (現状 → ... → 目標) — Change 軸
+solution_scope: ""             # 解決手段の範囲 — Solution 軸
+solution_options: []           # 検討した代替案
+chosen_approach: ""            # 採用した進め方
+rollout_phases: []             # 段階的展開計画
+success_criteria: []           # 成功判定基準 (KPI / 完了条件)
+exit_criteria: []              # 中止判定基準 (撤退ライン)
+
+attributions:
+  - { source: "BABOK v3 (IIBA)", role: "framework backbone (KA6.4)", license: "fair-use, names and section refs only" }
+  - { source: "value-driven discovery (philosophical foundation)", role: "transformation roadmap inspiration", license: "fair-use, model name only" }

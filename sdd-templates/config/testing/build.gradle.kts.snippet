@@ -1,0 +1,194 @@
+// =============================================================================
+// SDD Template - Java/Gradle Testing Configuration Snippet
+// Version: 5.3.3-tecnos-stride
+//
+// Usage:
+//   1. Merge this into your existing build.gradle.kts
+//   2. Replace xxx_feature_name with actual feature name
+//   3. Adjust paths and versions as needed
+// =============================================================================
+
+plugins {
+    java
+    jacoco
+    id("com.github.spotbugs") version "6.0.7"
+    id("checkstyle")
+    id("pmd")
+    id("org.owasp.dependencycheck") version "9.0.9"
+    id("com.tngtech.archunit") version "0.23.1"
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+repositories {
+    mavenCentral()
+}
+
+// --- Dependencies ---
+
+dependencies {
+    // Testing
+    testImplementation(platform("org.junit:junit-bom:5.10.2"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("org.assertj:assertj-core:3.25.3")
+    testImplementation("org.mockito:mockito-core:5.10.0")
+    testImplementation("org.mockito:mockito-junit-jupiter:5.10.0")
+
+    // Testcontainers (Integration Tests)
+    testImplementation(platform("org.testcontainers:testcontainers-bom:1.19.5"))
+    testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:postgresql")  // or mysql, mongodb, etc.
+
+    // ArchUnit (Architecture Tests)
+    testImplementation("com.tngtech.archunit:archunit-junit5:1.2.1")
+
+    // SpotBugs annotations
+    compileOnly("com.github.spotbugs:spotbugs-annotations:4.8.3")
+}
+
+// --- Test Configuration ---
+
+tasks.test {
+    useJUnitPlatform()
+    testLogging {
+        events("passed", "skipped", "failed")
+    }
+    // SDD-compliant test path
+    // テストファイルは specs/xxx_feature_name/tests/java/ に配置
+}
+
+// --- Source Sets (SDD-compliant paths) ---
+
+sourceSets {
+    test {
+        java {
+            // Replace xxx_feature_name with your feature name
+            srcDir("specs/xxx_feature_name/tests/java/unit")
+        }
+    }
+
+    // Integration tests as separate source set
+    create("integrationTest") {
+        java {
+            srcDir("specs/xxx_feature_name/tests/java/integration")
+        }
+        compileClasspath += sourceSets.main.get().output + sourceSets.test.get().output
+        runtimeClasspath += sourceSets.main.get().output + sourceSets.test.get().output
+    }
+
+    // Architecture tests
+    create("archTest") {
+        java {
+            srcDir("specs/xxx_feature_name/tests/java/arch")
+        }
+        compileClasspath += sourceSets.main.get().output
+        runtimeClasspath += sourceSets.main.get().output
+    }
+}
+
+// --- Integration Test Task ---
+
+val integrationTest by tasks.registering(Test::class) {
+    description = "Runs integration tests."
+    group = "verification"
+    testClassesDirs = sourceSets["integrationTest"].output.classesDirs
+    classpath = sourceSets["integrationTest"].runtimeClasspath
+    useJUnitPlatform()
+
+    // Run after unit tests
+    shouldRunAfter(tasks.test)
+}
+
+// --- Architecture Test Task ---
+
+val archTest by tasks.registering(Test::class) {
+    description = "Runs architecture tests with ArchUnit."
+    group = "verification"
+    testClassesDirs = sourceSets["archTest"].output.classesDirs
+    classpath = sourceSets["archTest"].runtimeClasspath
+    useJUnitPlatform()
+}
+
+// --- JaCoCo Coverage ---
+
+jacoco {
+    toolVersion = "0.8.11"
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+        // SDD-compliant output path
+        html.outputLocation.set(file("specs/xxx_feature_name/tests/reports/coverage"))
+    }
+}
+
+tasks.jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                // Layer-3: Code Coverage targets
+                minimum = "0.80".toBigDecimal()  // 80% line coverage
+            }
+        }
+        rule {
+            limit {
+                counter = "BRANCH"
+                minimum = "0.70".toBigDecimal()  // 70% branch coverage
+            }
+        }
+    }
+}
+
+// --- SpotBugs ---
+
+spotbugs {
+    ignoreFailures.set(false)
+    effort.set(com.github.spotbugs.snom.Effort.MAX)
+    reportLevel.set(com.github.spotbugs.snom.Confidence.MEDIUM)
+}
+
+tasks.withType<com.github.spotbugs.snom.SpotBugsTask>().configureEach {
+    reports.create("html") { required.set(true) }
+    reports.create("xml") { required.set(false) }
+}
+
+// --- Checkstyle ---
+
+checkstyle {
+    toolVersion = "10.13.0"
+    configFile = file("config/checkstyle/checkstyle.xml")
+    isIgnoreFailures = false
+}
+
+// --- PMD ---
+
+pmd {
+    toolVersion = "7.0.0"
+    isIgnoreFailures = false
+    ruleSets = listOf(
+        "category/java/bestpractices.xml",
+        "category/java/errorprone.xml",
+        "category/java/security.xml"
+    )
+}
+
+// --- OWASP Dependency Check ---
+
+dependencyCheck {
+    failBuildOnCVSS = 7.0f
+    suppressionFile = "config/owasp/suppressions.xml"
+    formats = listOf("HTML", "JSON")
+    outputDirectory = "specs/xxx_feature_name/tests/reports/owasp"
+}
+
+// --- Check Task includes all verification ---
+
+tasks.check {
+    dependsOn(integrationTest, archTest, tasks.jacocoTestCoverageVerification)
+}

@@ -1,0 +1,5 @@
+# bpmn_lint.py は Python 3.7+ stdlib のみで動作する。
+# 外部依存なし。`pip install -r requirements.txt` は不要 (このファイルは記録用)。
+#
+# 使用 stdlib モジュール:
+#   argparse, re, sys, xml.etree.ElementTree, pathlib, typing

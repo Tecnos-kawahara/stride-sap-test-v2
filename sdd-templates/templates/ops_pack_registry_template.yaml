@@ -1,0 +1,191 @@
+# ops_pack_registry.yaml - Ops readiness tracking for Epic features
+#
+# Purpose:
+#   Centralized registry for operational readiness artifacts across all features
+#   and teams in an Epic. Tracks transport plans, rollback procedures,
+#   hypercare plans, ops review status, and ERP integration readiness.
+#
+# ID Conventions (from constitution.md):
+#   epic_id: "^EPIC-[A-Z]{3,}$"
+#   feature_id: "^FEAT-(?:[A-Z]{2,4}-)?[A-Z0-9]{3,}$"
+#   team_id: "^TEAM-[A-Z]{1,3}$"
+#
+# Usage:
+#   This registry lives at shared/ops_pack_registry.yaml within an Epic's directory.
+#   Updated as features complete their Execute phase and prepare for go-live.
+#   Ops review must pass before Final Gate approval.
+
+ops_pack_registry:
+  meta:
+    epic_id: "{{EPIC_ID}}"
+    title: "Ops Pack Registry"
+    version: "1.0.0"
+    created_at: "{{DATE}}"
+    updated_at: "{{DATE}}"
+    maintainer: "{{Epic Lead Name}}"
+
+  # Registry entries - one per work item that requires ops readiness
+  entries:
+    - wi_id: "WI-ERP-{{FEATURE_ID}}-001"
+      feature_id: "{{FEATURE_ID}}"
+      team_id: "{{TEAM_ID}}"
+      title: "{{WI Title}}"
+
+      # Transport plan - how changes are deployed to production
+      transport:
+        has_transport_plan: false
+        transport_type: "standard"         # standard | manual | automated | none
+        #   standard: Normal ERP transport chain (DEV -> QAS -> PRD)
+        #   manual: Requires manual deployment steps
+        #   automated: CI/CD pipeline handles deployment
+        #   none: No transport needed (e.g., config-only change)
+        transport_path: ""                 # Path to transport plan document
+        transport_objects:
+          - type: "{{object_type}}"        # e.g., "customizing", "abap_class", "migration_script"
+            name: "{{object_name}}"
+            transport_request: ""          # Transport request number if applicable
+        verified: false                    # Transport tested in QAS environment
+        notes: ""
+
+      # Rollback plan - how to revert changes if deployment fails
+      rollback:
+        has_rollback_plan: false
+        rollback_type: "full"              # full | partial | none
+        #   full: Complete rollback possible to previous state
+        #   partial: Some changes can be reverted, manual steps for others
+        #   none: Rollback not possible (document workaround)
+        rollback_path: ""                  # Path to rollback plan document
+        rollback_steps:
+          - step: 1
+            description: "{{Rollback step description}}"
+            owner: "{{Person responsible}}"
+            estimated_duration: "{{e.g., 30min}}"
+        rollback_tested: false             # Rollback procedure tested
+        max_rollback_window: ""            # e.g., "24h" - time after deployment when rollback is feasible
+        data_loss_risk: "none"             # none | minimal | significant
+        notes: ""
+
+      # Hypercare plan - post-deployment monitoring and support
+      hypercare:
+        has_hypercare_plan: false
+        hypercare_duration: ""             # e.g., "2 weeks"
+        hypercare_path: ""                 # Path to hypercare plan document
+        monitoring:
+          dashboards:
+            - name: "{{Dashboard name}}"
+              url: "{{Dashboard URL}}"
+          alerts:
+            - name: "{{Alert name}}"
+              threshold: "{{Threshold description}}"
+              notification_channel: "{{e.g., Slack channel, email}}"
+          health_checks:
+            - name: "{{Health check name}}"
+              endpoint: "{{Endpoint or check description}}"
+              frequency: "{{e.g., every 5min}}"
+        support_rotation:
+          - name: "{{Person}}"
+            team_id: "{{TEAM_ID}}"
+            shift: "{{e.g., business_hours, after_hours}}"
+        escalation_contacts:
+          - level: 1
+            contact: "{{Team Lead}}"
+            response_time: "{{e.g., 15min}}"
+          - level: 2
+            contact: "{{Epic Lead}}"
+            response_time: "{{e.g., 30min}}"
+        notes: ""
+
+      # Ops review status
+      ops_review:
+        status: "not_started"              # not_started | in_progress | approved | rejected | waived
+        reviewer: "{{Ops Reviewer}}"
+        review_date: ""                    # YYYY-MM-DD
+        findings:
+          - finding_id: "OPS-F-001"
+            severity: "medium"             # low | medium | high | critical
+            description: "{{Finding description}}"
+            resolution: ""
+            resolved: false
+        approval_conditions: []            # Conditions that must be met for approval
+        waiver_reason: ""                  # If status is "waived", explain why
+
+      # ERP integration specifics
+      erp_integration:
+        has_erp_integration: false
+        integration_type: ""               # inbound | outbound | bidirectional | none
+        erp_modules_affected:
+          - "{{e.g., FI, CO, MM, SD}}"
+        interface_refs:
+          - "{{CT-XXX or SC-XXX}}"         # Contract IDs for ERP interfaces
+        data_migration_required: false
+        data_migration_plan_path: ""       # Path to migration plan
+        cutover_steps:
+          - step: 1
+            description: "{{Cutover step}}"
+            owner: "{{Person}}"
+            duration: "{{e.g., 2h}}"
+            rollback_possible: true
+        erp_test_client: ""                # ERP test client/environment ID
+        notes: ""
+
+      # Overall readiness
+      readiness:
+        ops_ready: false                   # All ops artifacts complete and reviewed
+        go_live_approved: false            # Approved for go-live
+        go_live_date: ""                   # YYYY-MM-DD scheduled go-live
+        notes: ""
+
+  # Epic-level ops summary (auto-computed by tooling)
+  summary:
+    total_entries: 0
+    by_ops_review_status:
+      not_started: 0
+      in_progress: 0
+      approved: 0
+      rejected: 0
+      waived: 0
+    transport_coverage:
+      has_plan: 0
+      verified: 0
+      missing: 0
+    rollback_coverage:
+      has_plan: 0
+      tested: 0
+      missing: 0
+    hypercare_coverage:
+      has_plan: 0
+      missing: 0
+    erp_integration_count: 0
+    data_migration_count: 0
+    all_ops_ready: false                   # true when all entries have ops_ready=true
+    all_go_live_approved: false            # true when all entries have go_live_approved=true
+
+  # Go-live checklist (epic-level)
+  go_live_checklist:
+    - item: "All ops reviews approved or waived"
+      status: false
+    - item: "All transport plans verified in QAS"
+      status: false
+    - item: "All rollback procedures tested"
+      status: false
+    - item: "Hypercare rotation confirmed"
+      status: false
+    - item: "Monitoring dashboards and alerts configured"
+      status: false
+    - item: "ERP cutover plan reviewed and approved"
+      status: false
+    - item: "Communication plan distributed to stakeholders"
+      status: false
+    - item: "Fallback environment available"
+      status: false
+
+  # Go-live schedule
+  go_live_schedule:
+    planned_date: "YYYY-MM-DD"
+    go_no_go_decision_date: "YYYY-MM-DD"  # Decision meeting date
+    decision_maker: "{{Sponsor or Epic Lead}}"
+    cutover_window:
+      start: "YYYY-MM-DD HH:MM"
+      end: "YYYY-MM-DD HH:MM"
+      timezone: "Asia/Tokyo"
+    rollback_deadline: "YYYY-MM-DD HH:MM" # Point of no return

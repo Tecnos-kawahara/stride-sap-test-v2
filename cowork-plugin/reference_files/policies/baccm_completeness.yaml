@@ -1,0 +1,56 @@
+# BACCM Completeness Policy — Tecnos-STRIDE Upstream Extension (Phase A)
+#
+# BABOK v3 §2.1 の Business Analysis Core Concept Model (BACCM) 6 軸を
+# Discovery 完成度ゲート (Gate 0) として機械検証可能に定義する。
+# 各軸は 1 つ以上の source_artifact によって支えられ、source_artifact ごとに
+# 必須キー (required_keys) または最小件数 (required_min_count) を宣言する。
+#
+# Phase A: policy 定義のみ。自動判定ロジック (baccm_evaluator) は Phase B。
+
+version: "0.1.0-phase-a"
+status: "draft"
+
+# BACCM 6 軸の定義
+baccm_axes:
+  change:
+    description: "現状から将来状態への意図的変化 (BABOK §2.1 Change)"
+    source_artifacts:
+      - { artifact: value_canvas.yaml,    template: value_canvas_template.yaml,    required_keys: ["from_state", "to_state"] }
+      - { artifact: change_strategy.yaml, template: change_strategy_template.yaml, required_keys: ["transition_states"] }
+
+  need:
+    description: "対処すべき問題または活用すべき機会 (BABOK §2.1 Need)"
+    source_artifacts:
+      - { artifact: business_need.yaml, template: business_need_template.yaml, required_keys: ["problem_statement", "opportunity_statement"] }
+
+  solution:
+    description: "ニーズを満たす具体的な方法 (BABOK §2.1 Solution)"
+    source_artifacts:
+      - { artifact: change_strategy.yaml, template: change_strategy_template.yaml, required_keys: ["solution_scope"] }
+      - { artifact: goal_tree.yaml,       template: goal_tree_template.yaml,       required_keys: ["root_goal"] }
+
+  stakeholder:
+    description: "変化に関係する個人または集団 (BABOK §2.1 Stakeholder)"
+    source_artifacts:
+      - { artifact: stakeholder_map.yaml, template: stakeholder_map_template.yaml, required_min_count: { key: "stakeholders", count: 3 } }
+
+  value:
+    description: "提供される正味の便益 (BABOK §2.1 Value)"
+    source_artifacts:
+      - { artifact: value_canvas.yaml, template: value_canvas_template.yaml, required_keys: ["potential_value", "anti_value"] }
+
+  context:
+    description: "変化を取り巻く内外の環境 (BABOK §2.1 Context)"
+    source_artifacts:
+      - { artifact: context_map.yaml, template: context_map_template.yaml, required_keys: ["internal_context", "external_context"] }
+
+# 完全性スコアリング
+# Gate 0 通過には全 6 軸が PASS であること (partial_credit_allowed: false で部分点なし)
+completeness_scoring:
+  algorithm: "all_axes_pass_required"
+  threshold_for_gate_0: 100
+  partial_credit_allowed: false
+  rationale: "BACCM 6 軸は概念上独立であり、いずれか欠ければ上流の整合性が破綻する。Phase 1 着手前の機械的安全弁として 100% 必須とする"
+
+attributions:
+  - { source: "BABOK v3 (IIBA)", role: "BACCM definition source (§2.1)", license: "fair-use, axis names and concept refs only" }

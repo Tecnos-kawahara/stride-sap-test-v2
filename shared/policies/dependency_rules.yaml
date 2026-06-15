@@ -1,0 +1,224 @@
+# Dependency Rules Policy - Enterprise SDD Extension
+# Version: 1.0.0
+# Purpose: Define cross-team dependency management rules
+
+dependency_rules:
+  meta:
+    version: "1.0.0"
+    effective_date: "2026-01-20"
+    description: |
+      チーム間依存関係の管理ルール。
+      契約変更、依存宣言、サイクル検出、影響分析のルールを定義。
+
+  # 依存関係の種類
+  dependency_types:
+    runtime:
+      description: "実行時に必要な依存（API呼び出し等）"
+      criticality: "high"
+      fallback_required: true
+      timeout_required: true
+    build:
+      description: "ビルド時に必要な依存（共有ライブラリ等）"
+      criticality: "medium"
+      fallback_required: false
+      timeout_required: false
+    test:
+      description: "テスト時のみ必要な依存（モック、スタブ等）"
+      criticality: "low"
+      fallback_required: false
+      timeout_required: false
+    data:
+      description: "データ依存（共有スキーマ、マスタデータ等）"
+      criticality: "high"
+      fallback_required: false
+      timeout_required: false
+
+  # 契約変更ルール
+  contract_change_rules:
+    breaking_change:
+      definition: |
+        後方互換性のない変更：
+        - エンドポイント削除
+        - 必須フィールド追加
+        - レスポンス構造変更
+        - 認証方式変更
+      requirements:
+        ccp_required: true
+        consumer_notification_days: 30
+        deprecation_period_days: 90
+        migration_support_required: true
+        parallel_version_support: true
+      approval:
+        required_approvers:
+          - "all_consumers"
+          - "ARCH_BOARD"
+        quorum: "all"
+
+    non_breaking_change:
+      definition: |
+        後方互換性のある変更：
+        - オプショナルフィールド追加
+        - 新エンドポイント追加
+        - パフォーマンス改善
+      requirements:
+        ccp_required: false
+        consumer_notification_days: 7
+        deprecation_period_days: 0
+        migration_support_required: false
+        parallel_version_support: false
+      approval:
+        required_approvers:
+          - "owner_team"
+        quorum: "any"
+
+    deprecation:
+      definition: "既存機能の廃止予告"
+      requirements:
+        ccp_required: true
+        consumer_notification_days: 90
+        deprecation_period_days: 180
+        migration_support_required: true
+        parallel_version_support: true
+      approval:
+        required_approvers:
+          - "all_consumers"
+          - "ARCH_BOARD"
+        quorum: "all"
+
+  # 依存宣言ルール
+  dependency_declaration_rules:
+    mandatory_fields:
+      - "contract_ref"
+      - "version_constraint"
+      - "dependency_type"
+      - "criticality"
+    optional_fields:
+      - "fallback_behavior"
+      - "timeout_ms"
+      - "retry_policy"
+      - "circuit_breaker"
+    validation:
+      version_constraint_format: "semver"
+      contract_ref_must_exist: true
+      owner_team_must_exist: true
+
+  # サイクル検出ルール
+  cycle_detection:
+    enabled: true
+    max_depth: 10
+    allow_soft_cycles: false
+    soft_cycle_definition: |
+      非同期イベントを介した間接的なサイクル。
+      runtime依存ではなくevent依存の場合のみ許容される可能性がある。
+    on_cycle_detected:
+      action: "error"
+      notification:
+        - "all_teams_in_cycle"
+        - "ARCH_BOARD"
+
+  # 影響分析ルール
+  impact_analysis:
+    auto_generate: true
+    include_transitive: true
+    max_transitive_depth: 5
+    impact_levels:
+      high:
+        criteria:
+          - "runtime dependency"
+          - "criticality == high"
+          - "no fallback defined"
+        action: "block_until_acknowledged"
+      medium:
+        criteria:
+          - "runtime dependency"
+          - "criticality == medium"
+          - "fallback defined"
+        action: "notify_and_continue"
+      low:
+        criteria:
+          - "test dependency"
+          - "build dependency"
+        action: "log_only"
+
+  # 統合テストルール
+  integration_test_rules:
+    cross_team_test_required:
+      condition: "runtime dependency AND criticality in [high, medium]"
+      owner: "provider_team"
+      schedule: "nightly"
+      environment: "staging"
+    contract_test_required:
+      condition: "any runtime dependency"
+      owner: "provider_team"
+      type: "pact"
+    consumer_driven_contract:
+      enabled: true
+      pact_broker_required: false
+      local_verification_allowed: true
+
+  # バージョン管理ルール
+  versioning:
+    strategy: "semver"
+    rules:
+      major:
+        triggers:
+          - "breaking change"
+          - "removal of feature"
+        approval_required: true
+      minor:
+        triggers:
+          - "new feature"
+          - "non-breaking enhancement"
+        approval_required: false
+      patch:
+        triggers:
+          - "bug fix"
+          - "documentation update"
+        approval_required: false
+    backward_compatibility:
+      versions_to_support: 2
+      sunset_notice_days: 90
+
+  # 通知ルール
+  notification:
+    channels:
+      - type: "file"
+        path: "enterprise/notifications/pending_notifications.yaml"
+        auto_update: true
+      - type: "git_commit"
+        message_prefix: "[CONTRACT-CHANGE]"
+    events:
+      contract_change_proposed:
+        notify: ["consumer_teams", "ARCH_BOARD"]
+        urgency: "normal"
+      breaking_change_approved:
+        notify: ["consumer_teams"]
+        urgency: "high"
+      deprecation_announced:
+        notify: ["consumer_teams"]
+        urgency: "normal"
+      migration_deadline_approaching:
+        notify: ["consumer_teams"]
+        urgency: "high"
+        days_before: [30, 14, 7, 1]
+
+  # 例外処理
+  exceptions:
+    emergency_change:
+      description: "緊急のセキュリティ修正等"
+      requirements:
+        ccp_required: false
+        post_hoc_documentation_required: true
+        post_hoc_notification_required: true
+      approval:
+        required_approvers:
+          - "ARCH_BOARD"
+        fast_track: true
+    internal_only:
+      description: "内部ツール間の依存"
+      requirements:
+        ccp_required: false
+        consumer_notification_days: 3
+      approval:
+        required_approvers:
+          - "owner_team"

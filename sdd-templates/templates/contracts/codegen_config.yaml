@@ -1,0 +1,43 @@
+# Code Generation Configuration - OpenAPI → TypeScript Types
+# Template for configuring contract-to-type generation.
+#
+# Usage:
+#   npx openapi-typescript contracts/openapi.yaml -o src/types/api.d.ts
+#   npx openapi-typescript contracts/openapi.yaml -o src/types/api.d.ts --immutable-types
+#
+# This config is used by spec_drift_detector.py to validate
+# that contracts/ and src/ stay in sync.
+
+codegen:
+  tool: "openapi-typescript"      # openapi-typescript | openapi-generator | orval
+  version: "^7.0.0"
+
+  # Input: OpenAPI spec files
+  inputs:
+    - path: "contracts/openapi.yaml"
+      output: "src/types/api.d.ts"
+    # Add more contract files as needed:
+    # - path: "contracts/admin.yaml"
+    #   output: "src/types/admin.d.ts"
+
+  # Output options
+  options:
+    immutable_types: true           # Generate readonly types
+    export_type: "named"            # named | default
+    path_params_as_types: true      # Use path params as template literal types
+
+  # Validation
+  validation:
+    run_on_ci: true                 # Run codegen check in CI
+    fail_on_diff: true              # Fail CI if generated types are outdated
+    command: "npx openapi-typescript contracts/openapi.yaml -o src/types/api.d.ts && git diff --exit-code src/types/"
+
+# Drift detection integration
+drift_detection:
+  enabled: true
+  contracts_dir: "contracts/"
+  source_dir: "src/"
+  exclude_patterns:
+    - "*.test.ts"
+    - "*.spec.ts"
+    - "__mocks__/**"

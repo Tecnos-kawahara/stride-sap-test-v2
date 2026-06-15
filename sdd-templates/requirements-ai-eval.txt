@@ -1,0 +1,5 @@
+# Optional: Multi-Model Evaluator dependencies
+# Install: pip install -r sdd-templates/requirements-ai-eval.txt
+openai>=1.0
+google-genai>=1.0
+google-cloud-aiplatform>=1.60

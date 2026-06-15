@@ -1,0 +1,2228 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+    xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+    xmlns:modeler="http://camunda.org/schema/modeler/1.0"
+    id="Definitions_actual_cost_calc"
+    targetNamespace="http://tecnos.co.jp/sdd/actual_cost_calculation"
+    exporter="Tecnos-STRIDE BPMN generator" exporterVersion="1.0.0"
+    modeler:executionPlatform="Camunda Cloud"
+    modeler:executionPlatformVersion="8.8.0">
+
+  <bpmn:collaboration id="Collaboration_COSTCALC">
+    <bpmn:documentation>月次原価計算プロセスの全体コラボレーション。4 レーン (ICT推進部 / 財務部・経理センター / CK本部 / ××工場) で構成。</bpmn:documentation>
+    <bpmn:participant id="Participant_COSTCALC" name="月次原価計算プロセス" processRef="BPMN-PROC-COSTCALC" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="BPMN-PROC-COSTCALC" name="月次実際原価計算プロセス" isExecutable="true">
+    <bpmn:documentation>月次の実際原価計算プロセス全体フロー（Camunda 8 BPMN 2.0）。
+本フローは「03-313_業務フロー定義書_実際原価計算_ver0.01.xlsx」の業務フロー「実際原価計算」シートを基に作成。
+
+【プロセス構成】
+Phase 1 ①マスタ作成・取込    : 当月新規発生の品目情報を mcframe に登録
+Phase 2 ②見積原価・標準原価の登録 : 価格改定品目の標準原価を更新
+Phase 3-1 ③-1 生産データ作成・取込 : 工程/投入/購買等の実績データを mcframe に取込
+Phase 3-2 ③-2 実際原価計算 (仮実行) : 月末在庫数の確認と振替調整
+Phase 4 ④費用データ取込       : OBIC給与・固定資産等から月次費用データ作成
+Phase 5 ⑤実際原価計算実行     : 当月の実際原価計算を実行
+Phase 6 ⑥原価確定             : 当月原価計算結果の確定
+Phase 7 ⑦実際原価分析         : 各種レポートで原価分析
+Phase 8 ⑧実値棚卸             : 月末実地棚卸 (前提条件なし／独立)
+
+【関与レーン】
+- ICT推進部           : マスタ登録、システム連携、エラー時の窓口
+- 財務部・経理センター : 費用データ取込、原価分析
+- CK本部 (購買管理課)  : 原価計算実行、ファイル取込み、エラー対応
+- ××工場・××工場     : 実績収集、現場ファイル作成
+
+【開始条件】月次原価計算開始日 (月初)
+【完了条件】当月原価計算結果確定 + 実地棚卸完了
+正本参照: 03-313_業務フロー定義書_実際原価計算_ver0.01.xlsx
+</bpmn:documentation>
+
+    <bpmn:laneSet id="LaneSet_COSTCALC">
+      <bpmn:lane id="LANE_ICT" name="ICT推進部">
+        <bpmn:flowNodeRef>BPMN-EVT-START</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-001</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-GW-001</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-008</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-009</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-010</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-011</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-012</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-013</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-GW-002</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-014</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-015</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-016</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-029</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="LANE_FIN" name="財務部・経理センター">
+        <bpmn:flowNodeRef>BPMN-TASK-068</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-071</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-074</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-075</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-076</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-086</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-087</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-088</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="LANE_CK" name="CK本部">
+        <bpmn:flowNodeRef>BPMN-TASK-002</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-003</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-018</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-020</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-021</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-022</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-023</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-024</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-025</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-026</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-027</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-GW-004</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-028</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-030</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-031</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-032</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-033</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-034</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-035</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-036</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-037</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-038</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-040</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-041</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-042</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-044</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-045</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-046</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-048</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-049</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-050</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-055</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-056</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-057</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-058</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-059</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-060</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-061</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-GW-005</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-062</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-063</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-064</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-GW-006</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-065</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-GW-007</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-066</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-GW-008</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-067</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-GW-009</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-077</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-078</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-079</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-080</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-GW-010</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-GW-011</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-081</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-082</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-083</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-084</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-085</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-089</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-090</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-EVT-END</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="LANE_FAC" name="××工場・××工場">
+        <bpmn:flowNodeRef>BPMN-TASK-004</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-005</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-006</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-007</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-017</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-GW-003</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-019</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-039</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-043</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-047</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-051</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-052</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-053</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-054</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-069</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-070</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-072</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-073</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="BPMN-EVT-START" name="月次原価計算
+開始">
+      <bpmn:documentation>月初に当月分の実際原価計算プロセスを起動する。</bpmn:documentation>
+      <bpmn:outgoing>BPMN-FLOW-001</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="BPMN-TASK-001" name="品目情報の更新">
+      <bpmn:documentation>当月、新規に発生した製品/中間品/原料/資材の品目情報を更新する。
+商品開発G(商品戦略本部開発G)で新商品情報を作成し、mcframe登録用の品目マスタを整備する。
+・商品コードは商品企画にて付番し、「mcframe品目マスタ登録依頼書」へ記入する
+・既存の原料/資材/中間品は既存コードを付番、新規はCK本部へ依頼</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-001</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-002</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="BPMN-GW-001" name="新規分類コード
+発番有無" default="BPMN-FLOW-CODE-NO">
+      <bpmn:documentation>新規品目に対して新たな分類コード発番が必要かを判定する。
+あり → 分類コード決定 (CK本部購買課)
+なし → 購買品品目情報の作成 (CK本部) へ</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-002</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-CODE-YES</bpmn:outgoing>
+      <bpmn:outgoing>BPMN-FLOW-CODE-NO</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="BPMN-TASK-002" name="品目分類コードの決定">
+      <bpmn:documentation>CK本部購買課が新製品発生時に新規分類コードを追加する場合、分類コードリストを作成する。
+品目マスタファイルを外部マスタフォルダに保存する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-CODE-YES</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-003</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-003" name="購買品品目情報の作成">
+      <bpmn:documentation>購買部門にて新規材料・資材および中間品のコード発番を行い、「mcframe品目マスタ登録依頼書」へ記入し整備する。
+・原料・資材：購買単位
+・中間品：分類</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-CODE-NO</bpmn:incoming>
+      <bpmn:incoming>BPMN-FLOW-003</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-004</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-004" name="品目マスタファイルの作成">
+      <bpmn:documentation>mcframe品目マスタ登録依頼書の内容を整備する (投入単位、出来高単位、換算値)。
+新製品/新中間品がまとめ工程対象品目の場合、工場にて配賦係数を記入する。
+外部マスタデータフォルダーに格納する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-004</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-005</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-005" name="材料・具材マスタの作成">
+      <bpmn:documentation>工場で新製品製造に利用した品目情報から材料・具材マスタを作成する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-005</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-006</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-006" name="品目マスタの実績収集
+フォーマットへの連携">
+      <bpmn:documentation>新商品を製造するための品目情報を工程ごとに分離させ、各部で利用している製造実績・投入実績エクセルの「品目マスタ」シートに転記する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-006</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-007</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-007" name="実績収集の実施">
+      <bpmn:documentation>最新化された製造実績・投入実績エクセルで、製造の実績収集を実施する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-007</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-008</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-008" name="品目単位マスタ
+ファイルの作成">
+      <bpmn:documentation>1. LOMANで当月新規に発生した品目単位情報を出力 (品目単位マスタ)。
+2. 工場で新製品製造に利用した品目情報を外部マスタデータフォルダーに格納 (mcframe品目マスタ登録依頼書)。
+3. 品目マスタ・投入シートを作成。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-008</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-009</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-009" name="分類コードリスト
+ファイルの取込み">
+      <bpmn:documentation>分類コードリストファイルに追加された分類コードを「品目分類マスタ登録(MABCP0340)」画面から取込み登録する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-009</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-010</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-010" name="品目マスタ
+ファイルの取込み">
+      <bpmn:documentation>品目マスタファイルを「品目マスタ一覧登録(MABCP0390)」画面から取込みする。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-010</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-011</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-011" name="品目単位マスタ
+ファイルの取込み">
+      <bpmn:documentation>品目単位マスタファイルを「品目単位マスタ登録(MABCP0330)」画面から取込みする。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-011</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-012</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-012" name="品目の使用開始">
+      <bpmn:documentation>リリース登録(MABCP0400)を行い、品目が使用できる状態にする。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-012</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-013</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-013" name="品目情報を原価へコピー">
+      <bpmn:documentation>品目情報をSCMから原価側に追加取込み (MGBDP0500 原価品目情報登録) する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-013</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-014</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="BPMN-GW-002" name="標準原価
+変更の有無" default="BPMN-FLOW-STD-NO">
+      <bpmn:documentation>原材料の価格改定が発生したかを判定する。
+あり → 標準単価確定解除 → 見積原価・標準原価作成
+なし → そのまま標準原価情報ファイル取込みへ</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-014</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-STD-YES</bpmn:outgoing>
+      <bpmn:outgoing>BPMN-FLOW-STD-NO</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="BPMN-TASK-014" name="標準単価確定の解除">
+      <bpmn:documentation>標準原価確定を解除して新しい価格の取込みを可能にする (MGBEP0110 標準単価確定)。
+価格改定情報はCK本部購買管理課が各部署や工場から取り纏める。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-STD-YES</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-015</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-015" name="見積原価・標準原価の作成">
+      <bpmn:documentation>当月の実績原価計算実施後に発生した製品の見積原価、および原材料の標準原価をエクセルに記入する (標準原価情報)。
+価格改定のあった原材料も作成する。
+外部データフォルダーに格納する。
+※多部門連携: 財務部・CK本部購買管理課・工場でmcframe品目マスタ登録依頼書/単価改定情報を確認・フィードバックする。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-015</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-016</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-016" name="標準原価情報
+ファイルの取込み">
+      <bpmn:documentation>標準原価情報ファイルを「原価品目指値登録(MGBDP0620)」画面から取込みする。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-STD-NO</bpmn:incoming>
+      <bpmn:incoming>BPMN-FLOW-016</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-017</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-017" name="実績収集ファイルの集計">
+      <bpmn:documentation>××工場の各々の製造工程で入力された製造実績、および投入実績のエクセルファイルを各工場の工程実績ファイルフォルダーに格納する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-017</bpmn:incoming>
+      <bpmn:incoming>BPMN-FLOW-030</bpmn:incoming>
+      <bpmn:incoming>BPMN-FLOW-FIX-YES</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-018</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="BPMN-GW-003" name="材料具材マスタ
+のフォーマット" default="BPMN-FLOW-RECIPE-COMMON">
+      <bpmn:documentation>対象品目の材料・具材マスタが個別フォーマットか共通フォーマットかを判定する。
+個別 (製麺・パントースト) → CK本部にて手作業でレシピ情報作成
+共通 → そのまま工程実績連携ファイル作成へ</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-018</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-RECIPE-INDIV</bpmn:outgoing>
+      <bpmn:outgoing>BPMN-FLOW-RECIPE-COMMON</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="BPMN-TASK-018" name="レシピ情報
+(個別フォーマット) の作成">
+      <bpmn:documentation>××工場の「製麺」「パントースト」はAccess(工程実績編集アプリ)でレシピ情報を抽出できないため、CK本部で手作業で作成する。
+投入実績データの材料・具材マスタのフォーマットを参考に標準レシピ取込用データに編集する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-RECIPE-INDIV</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-019</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-019" name="工程実績連携
+ファイルの作成">
+      <bpmn:documentation>工程実績ファイルから工程実績連携ファイル(製造実績/投入実績/作業実績)を作成し、指定フォルダーへ格納する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-RECIPE-COMMON</bpmn:incoming>
+      <bpmn:incoming>BPMN-FLOW-019</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-020</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-020" name="レシピ情報
+ファイルの取込み">
+      <bpmn:documentation>投入実績エクセルから作成されたレシピ情報をもとに作成し、外部マスタデータフォルダーに格納する。
+レシピ情報ファイルを実績データ分解ツールに取込みする。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-020</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-021</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-021" name="レシピ情報
+ファイルの作成">
+      <bpmn:documentation>実績データ分解ツールを実行し、レシピ情報から標準レシピ登録に必要なファイルを作成する:
+1.原価品目詳細 / 2.原価品目工程 / 3.原価BOM / 4.標準レシピ変更リスト</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-021</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-022</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-022" name="標準レシピ確定の解除">
+      <bpmn:documentation>標準レシピ変更リストをもとに標準原価確定 (MGBEP0110) を解除する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-022</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-023</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-023" name="原価品目詳細
+ファイルの取込み">
+      <bpmn:documentation>原価品目詳細ファイルを「原価品目詳細登録(MGBDP0510)」画面から取込みする。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-023</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-024</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-024" name="原価品目工程
+ファイルの取込み">
+      <bpmn:documentation>原価品目工程ファイルを「原価品目工程登録(MGBDP0560)」画面から取込みする。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-024</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-025</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-025" name="原価BOM
+ファイルの取込み">
+      <bpmn:documentation>原価BOMファイルを「原価BOM一覧登録(MGBDP0530)」画面から取込みする。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-025</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-026</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-026" name="標準原価計算の実行">
+      <bpmn:documentation>標準原価情報を登録した品目を、品目指定で標準原価計算 (MGBDP0010) する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-026</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-027</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-027" name="標準原価エラー確認">
+      <bpmn:documentation>原価計算実行時のエラー発生有無を「原価計算結果確認(MGBDP0030)」で確認する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-027</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-028</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="BPMN-GW-004" name="標準原価
+確認結果エラー" default="BPMN-FLOW-STDERR-NO">
+      <bpmn:documentation>エラー有無を判定する。
+あり → エラー内容分析 → エラー対応 → 先頭(Phase 3-1)へ再実行
+なし → 標準原価の確定へ</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-028</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-STDERR-YES</bpmn:outgoing>
+      <bpmn:outgoing>BPMN-FLOW-STDERR-NO</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="BPMN-TASK-028" name="標準原価エラー内容の分析">
+      <bpmn:documentation>原価計算のログ (MGBDP0050 原価計算ログ照会) を参照してエラー内容を把握する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-STDERR-YES</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-029</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-029" name="標準原価エラー対応">
+      <bpmn:documentation>エラー原因の修正を行う。
+・マスタに関するエラーの場合、ICT推進部に連携する
+・計算結果に関するエラーの場合、標準原価情報を確認する
+マニュアルに該当がなければテクノスに連絡する。
+★修正後に Phase 3-1 先頭より再実行</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-029</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-030</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-030" name="標準原価の確定">
+      <bpmn:documentation>計算された標準原価を確定 (MGBEP0110 標準単価確定) する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-STDERR-NO</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-031</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-031" name="工程実績連携
+ファイルの取込み">
+      <bpmn:documentation>工程実績連携ファイル(製造実績/投入実績/作業実績)を実績データ分解ツールに取込みする。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-031</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-032</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-032" name="生産実績データの作成">
+      <bpmn:documentation>実績データ分解ツールを実行し、当月の実績原価計算実施後からの生産実績データを作成する:
+1.品目製造指図情報 / 2.指図工程情報 / 3.製造実績情報 / 4.投入実績情報 / 5.指図工数実績情報 / 6.購買実績情報
+mcframe取込用実績ファイルフォルダーに格納する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-032</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-033</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-033" name="品目製造指図情報
+ファイルの取込み">
+      <bpmn:documentation>品目製造指図情報ファイルを「品目製造指図情報一覧(MGBBP0030)」画面から取込みする。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-033</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-034</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-034" name="指図工程情報
+ファイルの取込み">
+      <bpmn:documentation>指図工程情報ファイルを「指図工程情報一覧(MGBBP0040)」画面から取込みする。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-034</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-035</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-035" name="製造実績情報
+ファイルの取込み">
+      <bpmn:documentation>製造実績情報ファイルを「製造実績ＩＦ一覧(MGBBP0300)」画面から取込みする。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-035</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-036</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-036" name="投入実績情報
+ファイルの取込み">
+      <bpmn:documentation>投入実績情報ファイルを「投入実績ＩＦ一覧(MGBBP0320)」画面から取込みする。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-036</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-037</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-037" name="指図工数実績情報
+ファイルの取込み">
+      <bpmn:documentation>指図工数実績情報ファイルを「指図工数実績ＩＦ一覧(MGBBP0330)」画面から取込みする。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-037</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-038</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-038" name="購買実績情報
+ファイルの取込み">
+      <bpmn:documentation>購買実績情報ファイルを「購買実績ＩＦ一覧(MGBBP0310)」画面から取込みする。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-038</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-039</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-039" name="工場間移動実績
+ファイルの作成">
+      <bpmn:documentation>工場間移動実績ファイルを作成し、mcframe取込用実績ファイルフォルダーに格納する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-039</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-040</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-040" name="工場間移動実績
+ファイルの取込み">
+      <bpmn:documentation>工場間移動実績ファイルを実績データ分解ツールに取込みする。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-040</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-041</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-041" name="入出庫実績情報
+(工場間移動実績) の作成">
+      <bpmn:documentation>実績データ分解ツールにより、入出庫実績情報(工場間移動実績)ファイルを作成する。
+要件定義書「実績データの定義」に従った処理が実行される。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-041</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-042</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-042" name="入出庫実績情報
+(工場間移動実績) の取込み">
+      <bpmn:documentation>入出庫実績情報(工場間移動実績)ファイルを「入出庫実績ＩＦ一覧(MGBBP0360)」画面から取込みする。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-042</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-043</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-043" name="廃棄実績ファイルの作成">
+      <bpmn:documentation>廃棄実績ファイルを作成し、mcframe取込用実績ファイルフォルダーに格納する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-043</bpmn:incoming>
+      <bpmn:incoming>BPMN-FLOW-COST-INCLUDE</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-044</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-044" name="廃棄実績ファイルの取込み">
+      <bpmn:documentation>廃棄実績ファイルを実績データ分解ツールに取込みする。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-044</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-045</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-045" name="入出庫実績情報
+(廃棄実績) の作成">
+      <bpmn:documentation>実績データ分解ツールにより、入出庫実績情報(廃棄実績)ファイルを作成する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-045</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-046</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-046" name="入出庫実績情報
+(廃棄実績) の取込み">
+      <bpmn:documentation>入出庫実績情報(廃棄実績)ファイルを「入出庫実績ＩＦ一覧(MGBBP0360)」画面から取込みする。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-046</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-047</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-047" name="食堂等への払出実績
+ファイルの作成">
+      <bpmn:documentation>食堂等への払出実績ファイルを作成し、mcframe取込用実績ファイルフォルダーに格納する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-047</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-048</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-048" name="食堂等への払出実績
+ファイルの取込み">
+      <bpmn:documentation>食堂等への払出実績ファイルを実績データ分解ツールに取込みする。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-048</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-049</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-049" name="入出庫実績情報
+(食堂等払出) の作成">
+      <bpmn:documentation>実績データ分解ツールにより、入出庫実績情報(食堂等への払出実績)ファイルを作成する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-049</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-050</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-050" name="入出庫実績情報
+(食堂等払出) の取込み">
+      <bpmn:documentation>入出庫実績情報(食堂等への払出実績)ファイルを「入出庫実績ＩＦ一覧(MGBBP0360)」画面から取込みする。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-050</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-051</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-051" name="原価実績データの作成
+(投入実績用)">
+      <bpmn:documentation>投入実績情報を取得するために、原価実績データを作成する (MGBBP0020 原価実績データ作成)。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-051</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-052</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-052" name="投入実績情報の取得">
+      <bpmn:documentation>「投入実績一覧照会(MGBBP0120)」画面の「集計・グラフ」から投入実績情報をダウンロードし、mcframe取込用実績ファイルフォルダーに格納する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-052</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-053</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-053" name="棚卸実績ファイルの作成">
+      <bpmn:documentation>棚卸実績ファイルを作成し、mcframe取込用実績ファイルフォルダーに格納する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-053</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-054</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-054" name="棚卸差異実績
+ファイルの作成">
+      <bpmn:documentation>棚差用実績データファイルを用いて、投入実績ファイルと棚卸実績ファイルの情報から、棚卸差異実績ファイルを作成する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-054</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-055</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-055" name="棚卸差異実績
+ファイルの取込み">
+      <bpmn:documentation>棚卸差異実績ファイルを実績データ分解ツールに取込みする。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-055</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-056</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-056" name="入出庫実績情報
+(棚卸差異実績) の作成">
+      <bpmn:documentation>実績データ分解ツールにより、入出庫実績情報(棚卸差異実績)ファイルを作成する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-056</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-057</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-057" name="入出庫実績情報
+(棚卸差異実績) の取込み">
+      <bpmn:documentation>入出庫実績情報(棚卸差異実績)ファイルを「入出庫実績ＩＦ一覧(MGBBP0360)」画面から取込みする。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-057</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-058</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-058" name="原価実績データの作成">
+      <bpmn:documentation>生産データから原価実績データを作成する (MGBBP0020 原価実績データ作成)。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-058</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-059</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-059" name="実際原価計算 (仮実行)">
+      <bpmn:documentation>実際原価計算を実行 (MGBDP0010) する。
+※目的：月末在庫数の確認のため</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-059</bpmn:incoming>
+      <bpmn:incoming>BPMN-FLOW-063</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-060</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-060" name="仮実行エラー確認">
+      <bpmn:documentation>原価計算結果 (MGBDP0030) からエラーや未配賦の異常がないかを確認する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-060</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-061</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-061" name="仮実行エラー内容の分析">
+      <bpmn:documentation>ログ情報 (MGBDP0050 原価計算ログ照会) からエラー詳細内容を確認する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-061</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-062</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="BPMN-GW-005" name="仮実行
+確認結果エラー" default="BPMN-FLOW-TRIALERR-NO">
+      <bpmn:documentation>仮実行のエラー有無を判定する。
+あり → エラー対応 → Phase 3-2 先頭へ再実行
+なし → 月末在庫確認へ</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-062</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-TRIALERR-YES</bpmn:outgoing>
+      <bpmn:outgoing>BPMN-FLOW-TRIALERR-NO</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="BPMN-TASK-062" name="仮実行エラー対応の実施">
+      <bpmn:documentation>エラー原因 (マスタ/実績連携データ/会計連携データ) の修正をする。
+エラーは対象方法マニュアル参照。マニュアルに該当がなければテクノスに連絡する。
+★修正後に Phase 3-2 先頭より再実行</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-TRIALERR-YES</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-063</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-063" name="月末在庫確認">
+      <bpmn:documentation>月末在庫を「受払原価一覧照会(MGBFP0150)」で確認する (検索条件：月末在庫ON)。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-TRIALERR-NO</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-064</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-064" name="前月末在庫との比較">
+      <bpmn:documentation>前月末の棚卸在庫表と受払原価一覧照会の月末在庫を比較する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-064</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-065</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="BPMN-GW-006" name="実棚比較
+結果" default="BPMN-FLOW-STOCK-OK">
+      <bpmn:documentation>前月末との差が大きいか誤差範囲かを判定する。
+差が大きい → 実績データ調査
+誤差範囲 → 月末在庫調整判断へ</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-065</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-STOCK-DIFF</bpmn:outgoing>
+      <bpmn:outgoing>BPMN-FLOW-STOCK-OK</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="BPMN-TASK-065" name="実績データ調査・修正対象判定">
+      <bpmn:documentation>実績データの調査結果で、間違いや漏れがあれば実績データを修正する。
+間違いや漏れがなければ、実棚数に合わせて棚卸データによる投入実績に振替調整する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-STOCK-DIFF</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-066</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="BPMN-GW-007" name="実績修正の要否" default="BPMN-FLOW-FIX-NO">
+      <bpmn:documentation>実績データ修正が必要か判定する。
+要 → Phase 3-1 先頭より再実行
+不要 → 棚卸差異登録 (Phase 3-1 棚卸差異処理) へ戻り → 月末在庫調整判断へ</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-066</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-FIX-YES</bpmn:outgoing>
+      <bpmn:outgoing>BPMN-FLOW-FIX-NO</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="BPMN-TASK-066" name="入出庫実績 (棚卸) 作成">
+      <bpmn:documentation>実棚数に合わせ、棚卸データによる投入実績への振替調整 (棚卸差異登録) を行う。
+※Phase 3-1 棚卸差異処理 (Task 54-57) と同等の作業を実施</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-FIX-NO</bpmn:incoming>
+      <bpmn:incoming>BPMN-FLOW-COST-EXCLUDE</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-067</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="BPMN-GW-008" name="月末在庫調整
+判断" default="BPMN-FLOW-ADJ-NO">
+      <bpmn:documentation>終売品の月末在庫が０であるか確認する。
+要 (０でない) → 廃棄登録 (入出庫実績(廃棄)作成) → 製造原価判定
+不要 (０) → Phase 4 へ</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-STOCK-OK</bpmn:incoming>
+      <bpmn:incoming>BPMN-FLOW-067</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-ADJ-YES</bpmn:outgoing>
+      <bpmn:outgoing>BPMN-FLOW-ADJ-NO</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="BPMN-TASK-067" name="入出庫実績 (廃棄) 作成">
+      <bpmn:documentation>終売品の月末在庫が０でない場合、入出庫実績(廃棄)を作成する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-ADJ-YES</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-068</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="BPMN-GW-009" name="製造原価への
+含有判定" default="BPMN-FLOW-COST-EXCLUDE">
+      <bpmn:documentation>廃棄実績を製造原価に含めるか判定する。
+含む → Phase 3-1 先頭 (廃棄実績ファイル作成) より再実行
+含まない → 棚卸差異登録 (棚卸差異処理) より再実行 → Phase 4 へ</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-068</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-COST-INCLUDE</bpmn:outgoing>
+      <bpmn:outgoing>BPMN-FLOW-COST-EXCLUDE</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="BPMN-TASK-068" name="工場の人件費系の計上">
+      <bpmn:documentation>OBIC(既存システムObic7)の給与データを基に人件費情報(製造給料/手当/超過勤務手当/臨時職員給/通勤費等)を企業経理システムへ連携する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-ADJ-NO</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-069</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-069" name="工場の燃料費系の計上">
+      <bpmn:documentation>各費目ごとに①製造原価/物流原価/間接費に分解し、②製造原価については各部門(または原価工程)に付け替える。
+※計上ルールは別紙計上ルールまとめ参照</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-069</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-070</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-070" name="工場の固定資産系の計上">
+      <bpmn:documentation>工場の固定資産の当月中の登録・除却を申請する。
+申請内容に従い、企業経理システムの固定資産登録モジュールにて固定資産名・減価償却額・費用負担部門(工程)を管理する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-070</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-071</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-071" name="CK本部の間接部門の計上">
+      <bpmn:documentation>OBIC(既存システムObic7)の給与データを基にCK本部間接部門の人件費情報を企業経理システムへ連携する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-071</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-072</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-072" name="工場の修繕費・
+その他系の計上">
+      <bpmn:documentation>修繕費・製造一時費用については、支払伝票に勘定科目および費用負担部門(工程)を記載の上、財務部・事務センター向けに送付する。
+財務部・事務センターは支払伝票に基づき企業経理システムに経費情報を登録する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-072</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-073</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-073" name="工場間配送費の計上">
+      <bpmn:documentation>製造原価について、各部門(または原価工程)に付け替える。
+※計上ルールは別紙計上ルールまとめ参照</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-073</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-074</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-074" name="月次費用データ
+ファイルの作成">
+      <bpmn:documentation>月次費用データファイルをmcframeフォーマットで作成し、会計データフォルダーに格納する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-074</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-075</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-075" name="月次費用データ
+ファイルの取込み">
+      <bpmn:documentation>月次費用データファイルを「配賦費用実績ＩＦ一覧(MGBGP0040)」画面から取込みする。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-075</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-076</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-076" name="月次費用データ
+取込み確認">
+      <bpmn:documentation>月次費用データファイル取込みの結果を「配賦費用実績一覧照会(MGBGP0020)」(一次処理前のデータ)から参照して確認する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-076</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-077</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-077" name="実際原価計算">
+      <bpmn:documentation>実際原価計算を実行 (MGBDP0010 原価計算実行) する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-077</bpmn:incoming>
+      <bpmn:incoming>BPMN-FLOW-082</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-078</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-078" name="実績エラー確認">
+      <bpmn:documentation>原価計算結果 (MGBDP0030) からエラーや未配賦の異常がないかを確認する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-078</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-079</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-079" name="実績エラー内容の分析">
+      <bpmn:documentation>ログ情報 (MGBDP0050 原価計算ログ照会) からエラー詳細内容を確認する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-079</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-080</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-080" name="未配賦の確認">
+      <bpmn:documentation>「未配賦金額一覧(MGBDP0210)」で未配賦フラグの有無を確認する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-080</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-081</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="BPMN-GW-010" name="未配賦フラグの有無" default="BPMN-FLOW-UNALLOC-NO">
+      <bpmn:documentation>未配賦フラグの有無を判定する。
+あり → エラー対応 (原因修正)
+なし → 確認結果エラー判定へ</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-081</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-UNALLOC-YES</bpmn:outgoing>
+      <bpmn:outgoing>BPMN-FLOW-UNALLOC-NO</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="BPMN-GW-011" name="実績
+確認結果エラー" default="BPMN-FLOW-ACTERR-NO">
+      <bpmn:documentation>実績原価計算のエラー有無を判定する。
+あり → エラー対応 → Phase 5 先頭へ再実行
+なし → Phase 6 (原価確定) へ</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-UNALLOC-NO</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-ACTERR-YES</bpmn:outgoing>
+      <bpmn:outgoing>BPMN-FLOW-ACTERR-NO</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="BPMN-TASK-081" name="実績エラー対応の実施">
+      <bpmn:documentation>エラー原因 (マスタ/実績連携データ/会計連携データ) の修正をする。
+エラーは対象方法マニュアル参照。マニュアルに該当がなければテクノスに連絡する。
+★修正後に Phase 5 先頭より再実行</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-UNALLOC-YES</bpmn:incoming>
+      <bpmn:incoming>BPMN-FLOW-ACTERR-YES</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-082</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-082" name="実際原価計算の確定">
+      <bpmn:documentation>当月原価計算結果を確定する (MGBDP0040 原価計算結果確定)。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-ACTERR-NO</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-083</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-083" name="月初在庫調整">
+      <bpmn:documentation>当月原価計算結果を確定後、作成される月初在庫を調整する (MGBBP0210 月初在庫登録)。
+原料、資材についての月初在庫を削除する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-083</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-084</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-084" name="原価分析">
+      <bpmn:documentation>原価計算結果照会画面 (MGBDP0030) にて各種の分析を行う。
+確定した実際原価計算の原価計算NOのデータを対象に分析する。
+※財務部は原価実績分析の各メニューを必要に応じて確認する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-084</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-085</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-085" name="製品階層別
+製造原価の把握">
+      <bpmn:documentation>製品の階層別製造原価を把握する (MGBFP0020 完成原価一覧照会)。
+外部で処理してレポートを見る場合は、画面からダウンロードして確認する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-085</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-086</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-086" name="部門・製品の階層別
+製造原価の把握">
+      <bpmn:documentation>工場における部門、製品の階層別製造原価(発生原価)を把握する。
+(MGBFP0210 部門製造原価一覧照会、MGBFP0070 工程原価一覧照会)
+外部で処理してレポートを見る場合は、画面からダウンロードして確認する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-086</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-087</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-087" name="見積原価と実際原価の
+差異分析">
+      <bpmn:documentation>製品の見積原価と実際原価の差異分析を行う (MGBFP0130 製造原価差異一覧照会)。
+外部で処理してレポートを見る場合は、画面からダウンロードして確認する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-087</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-088</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-088" name="投入数量差異の把握">
+      <bpmn:documentation>投入数量差異を把握する (MGBFP0140 製造原価差異内訳照会)。
+外部で処理してレポートを見る場合は、画面からダウンロードして確認する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-088</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-089</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-089" name="製品の工程別
+製造原価の把握">
+      <bpmn:documentation>製品の工程別製造原価を把握する (MGBFP0020 完成原価一覧照会、MGBFP0200 原価内訳照会、MGBFP0070 工程原価一覧照会、MGBFP0080 工数原価一覧照会)。
+外部で処理してレポートを見る場合は、画面からダウンロードして確認する。</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-089</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-090</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="BPMN-TASK-090" name="実地棚卸">
+      <bpmn:documentation>あらかじめ決定した中間品、原料、資材について月末に実地棚卸を行う (月末棚卸表作成)。
+※前提条件：なし (Phase 8 は独立して実施)</bpmn:documentation>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+      </bpmn:extensionElements>
+      <bpmn:incoming>BPMN-FLOW-090</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-091</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="BPMN-EVT-END" name="月次原価計算
+完了">
+      <bpmn:documentation>当月の実際原価計算プロセスが完了する。</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-091</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="BPMN-FLOW-001" sourceRef="BPMN-EVT-START" targetRef="BPMN-TASK-001">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-002" sourceRef="BPMN-TASK-001" targetRef="BPMN-GW-001">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-CODE-YES" sourceRef="BPMN-GW-001" targetRef="BPMN-TASK-002" name="あり">
+      <bpmn:documentation>新規分類コード発番が必要 → CK本部購買課で分類コード決定</bpmn:documentation>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">= newClassCodeRequired = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-CODE-NO" sourceRef="BPMN-GW-001" targetRef="BPMN-TASK-003" name="なし (default)">
+      <bpmn:documentation>新規分類コードは不要 → そのまま購買品品目情報の作成へ</bpmn:documentation>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-003" sourceRef="BPMN-TASK-002" targetRef="BPMN-TASK-003">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-004" sourceRef="BPMN-TASK-003" targetRef="BPMN-TASK-004">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-005" sourceRef="BPMN-TASK-004" targetRef="BPMN-TASK-005">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-006" sourceRef="BPMN-TASK-005" targetRef="BPMN-TASK-006">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-007" sourceRef="BPMN-TASK-006" targetRef="BPMN-TASK-007">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-008" sourceRef="BPMN-TASK-007" targetRef="BPMN-TASK-008">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-009" sourceRef="BPMN-TASK-008" targetRef="BPMN-TASK-009">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-010" sourceRef="BPMN-TASK-009" targetRef="BPMN-TASK-010">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-011" sourceRef="BPMN-TASK-010" targetRef="BPMN-TASK-011">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-012" sourceRef="BPMN-TASK-011" targetRef="BPMN-TASK-012">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-013" sourceRef="BPMN-TASK-012" targetRef="BPMN-TASK-013">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-014" sourceRef="BPMN-TASK-013" targetRef="BPMN-GW-002">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-STD-YES" sourceRef="BPMN-GW-002" targetRef="BPMN-TASK-014" name="あり">
+      <bpmn:documentation>価格改定あり → 標準単価確定解除へ</bpmn:documentation>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">= priceRevisionExists = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-STD-NO" sourceRef="BPMN-GW-002" targetRef="BPMN-TASK-016" name="なし (default)">
+      <bpmn:documentation>価格改定なし → 標準原価情報ファイル取込みへ</bpmn:documentation>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-015" sourceRef="BPMN-TASK-014" targetRef="BPMN-TASK-015">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-016" sourceRef="BPMN-TASK-015" targetRef="BPMN-TASK-016">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-017" sourceRef="BPMN-TASK-016" targetRef="BPMN-TASK-017">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-018" sourceRef="BPMN-TASK-017" targetRef="BPMN-GW-003">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-RECIPE-INDIV" sourceRef="BPMN-GW-003" targetRef="BPMN-TASK-018" name="個別フォーマット">
+      <bpmn:documentation>製麺・パントーストなど個別フォーマット → CK本部で手作業作成</bpmn:documentation>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">= recipeFormat = "individual"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-RECIPE-COMMON" sourceRef="BPMN-GW-003" targetRef="BPMN-TASK-019" name="共通フォーマット (default)">
+      <bpmn:documentation>共通フォーマット → 工程実績連携ファイル作成へ</bpmn:documentation>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-019" sourceRef="BPMN-TASK-018" targetRef="BPMN-TASK-019">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-020" sourceRef="BPMN-TASK-019" targetRef="BPMN-TASK-020">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-021" sourceRef="BPMN-TASK-020" targetRef="BPMN-TASK-021">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-022" sourceRef="BPMN-TASK-021" targetRef="BPMN-TASK-022">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-023" sourceRef="BPMN-TASK-022" targetRef="BPMN-TASK-023">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-024" sourceRef="BPMN-TASK-023" targetRef="BPMN-TASK-024">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-025" sourceRef="BPMN-TASK-024" targetRef="BPMN-TASK-025">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-026" sourceRef="BPMN-TASK-025" targetRef="BPMN-TASK-026">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-027" sourceRef="BPMN-TASK-026" targetRef="BPMN-TASK-027">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-028" sourceRef="BPMN-TASK-027" targetRef="BPMN-GW-004">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-STDERR-YES" sourceRef="BPMN-GW-004" targetRef="BPMN-TASK-028" name="あり">
+      <bpmn:documentation>エラーあり → 内容分析 → 対応 → Phase 3-1 先頭へ再実行</bpmn:documentation>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">= standardCostError = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-STDERR-NO" sourceRef="BPMN-GW-004" targetRef="BPMN-TASK-030" name="なし (default)">
+      <bpmn:documentation>エラーなし → 標準原価の確定へ</bpmn:documentation>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-029" sourceRef="BPMN-TASK-028" targetRef="BPMN-TASK-029">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-030" sourceRef="BPMN-TASK-029" targetRef="BPMN-TASK-017">
+      <bpmn:documentation>★修正後に Phase 3-1 先頭 (実績収集ファイルの集計) より再実行</bpmn:documentation>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-031" sourceRef="BPMN-TASK-030" targetRef="BPMN-TASK-031">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-032" sourceRef="BPMN-TASK-031" targetRef="BPMN-TASK-032">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-033" sourceRef="BPMN-TASK-032" targetRef="BPMN-TASK-033">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-034" sourceRef="BPMN-TASK-033" targetRef="BPMN-TASK-034">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-035" sourceRef="BPMN-TASK-034" targetRef="BPMN-TASK-035">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-036" sourceRef="BPMN-TASK-035" targetRef="BPMN-TASK-036">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-037" sourceRef="BPMN-TASK-036" targetRef="BPMN-TASK-037">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-038" sourceRef="BPMN-TASK-037" targetRef="BPMN-TASK-038">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-039" sourceRef="BPMN-TASK-038" targetRef="BPMN-TASK-039">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-040" sourceRef="BPMN-TASK-039" targetRef="BPMN-TASK-040">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-041" sourceRef="BPMN-TASK-040" targetRef="BPMN-TASK-041">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-042" sourceRef="BPMN-TASK-041" targetRef="BPMN-TASK-042">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-043" sourceRef="BPMN-TASK-042" targetRef="BPMN-TASK-043">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-044" sourceRef="BPMN-TASK-043" targetRef="BPMN-TASK-044">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-045" sourceRef="BPMN-TASK-044" targetRef="BPMN-TASK-045">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-046" sourceRef="BPMN-TASK-045" targetRef="BPMN-TASK-046">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-047" sourceRef="BPMN-TASK-046" targetRef="BPMN-TASK-047">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-048" sourceRef="BPMN-TASK-047" targetRef="BPMN-TASK-048">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-049" sourceRef="BPMN-TASK-048" targetRef="BPMN-TASK-049">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-050" sourceRef="BPMN-TASK-049" targetRef="BPMN-TASK-050">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-051" sourceRef="BPMN-TASK-050" targetRef="BPMN-TASK-051">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-052" sourceRef="BPMN-TASK-051" targetRef="BPMN-TASK-052">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-053" sourceRef="BPMN-TASK-052" targetRef="BPMN-TASK-053">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-054" sourceRef="BPMN-TASK-053" targetRef="BPMN-TASK-054">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-055" sourceRef="BPMN-TASK-054" targetRef="BPMN-TASK-055">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-056" sourceRef="BPMN-TASK-055" targetRef="BPMN-TASK-056">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-057" sourceRef="BPMN-TASK-056" targetRef="BPMN-TASK-057">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-058" sourceRef="BPMN-TASK-057" targetRef="BPMN-TASK-058">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-059" sourceRef="BPMN-TASK-058" targetRef="BPMN-TASK-059">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-060" sourceRef="BPMN-TASK-059" targetRef="BPMN-TASK-060">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-061" sourceRef="BPMN-TASK-060" targetRef="BPMN-TASK-061">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-062" sourceRef="BPMN-TASK-061" targetRef="BPMN-GW-005">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-TRIALERR-YES" sourceRef="BPMN-GW-005" targetRef="BPMN-TASK-062" name="あり">
+      <bpmn:documentation>仮実行エラーあり → 対応 → Phase 3-2 先頭へ再実行</bpmn:documentation>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">= trialCostError = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-TRIALERR-NO" sourceRef="BPMN-GW-005" targetRef="BPMN-TASK-063" name="なし (default)">
+      <bpmn:documentation>仮実行エラーなし → 月末在庫確認へ</bpmn:documentation>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-063" sourceRef="BPMN-TASK-062" targetRef="BPMN-TASK-059">
+      <bpmn:documentation>★修正後に Phase 3-2 先頭 (実際原価計算 仮実行) より再実行</bpmn:documentation>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-064" sourceRef="BPMN-TASK-063" targetRef="BPMN-TASK-064">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-065" sourceRef="BPMN-TASK-064" targetRef="BPMN-GW-006">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-STOCK-DIFF" sourceRef="BPMN-GW-006" targetRef="BPMN-TASK-065" name="差が大きい">
+      <bpmn:documentation>前月末在庫との差が大きい → 実績データ調査</bpmn:documentation>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">= stockDifferenceLarge = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-STOCK-OK" sourceRef="BPMN-GW-006" targetRef="BPMN-GW-008" name="誤差の範囲 (default)">
+      <bpmn:documentation>誤差範囲 → 月末在庫調整判断へ</bpmn:documentation>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-066" sourceRef="BPMN-TASK-065" targetRef="BPMN-GW-007">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-FIX-YES" sourceRef="BPMN-GW-007" targetRef="BPMN-TASK-017" name="要">
+      <bpmn:documentation>実績修正要 → Phase 3-1 先頭 (実績収集ファイルの集計) より再実行</bpmn:documentation>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">= actualDataFixRequired = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-FIX-NO" sourceRef="BPMN-GW-007" targetRef="BPMN-TASK-066" name="不要 (default)">
+      <bpmn:documentation>実績修正不要 → 棚卸差異登録 (入出庫実績(棚卸)作成)</bpmn:documentation>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-067" sourceRef="BPMN-TASK-066" targetRef="BPMN-GW-008">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-ADJ-YES" sourceRef="BPMN-GW-008" targetRef="BPMN-TASK-067" name="要">
+      <bpmn:documentation>終売品の月末在庫が０でない → 入出庫実績(廃棄)作成</bpmn:documentation>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">= adjustmentRequired = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-ADJ-NO" sourceRef="BPMN-GW-008" targetRef="BPMN-TASK-068" name="不要 (default)">
+      <bpmn:documentation>調整不要 → Phase 4 (費用データ取込) へ</bpmn:documentation>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-068" sourceRef="BPMN-TASK-067" targetRef="BPMN-GW-009">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-COST-INCLUDE" sourceRef="BPMN-GW-009" targetRef="BPMN-TASK-043" name="含む">
+      <bpmn:documentation>製造原価に含む → Phase 3-1 廃棄実績ファイル作成より再実行</bpmn:documentation>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">= includeInCost = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-COST-EXCLUDE" sourceRef="BPMN-GW-009" targetRef="BPMN-TASK-066" name="含まない (default)">
+      <bpmn:documentation>製造原価に含まない → 棚卸差異登録 (入出庫実績(棚卸)作成)</bpmn:documentation>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-069" sourceRef="BPMN-TASK-068" targetRef="BPMN-TASK-069">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-070" sourceRef="BPMN-TASK-069" targetRef="BPMN-TASK-070">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-071" sourceRef="BPMN-TASK-070" targetRef="BPMN-TASK-071">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-072" sourceRef="BPMN-TASK-071" targetRef="BPMN-TASK-072">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-073" sourceRef="BPMN-TASK-072" targetRef="BPMN-TASK-073">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-074" sourceRef="BPMN-TASK-073" targetRef="BPMN-TASK-074">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-075" sourceRef="BPMN-TASK-074" targetRef="BPMN-TASK-075">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-076" sourceRef="BPMN-TASK-075" targetRef="BPMN-TASK-076">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-077" sourceRef="BPMN-TASK-076" targetRef="BPMN-TASK-077">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-078" sourceRef="BPMN-TASK-077" targetRef="BPMN-TASK-078">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-079" sourceRef="BPMN-TASK-078" targetRef="BPMN-TASK-079">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-080" sourceRef="BPMN-TASK-079" targetRef="BPMN-TASK-080">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-081" sourceRef="BPMN-TASK-080" targetRef="BPMN-GW-010">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-UNALLOC-YES" sourceRef="BPMN-GW-010" targetRef="BPMN-TASK-081" name="あり">
+      <bpmn:documentation>未配賦フラグあり → エラー対応</bpmn:documentation>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">= unallocatedFlagExists = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-UNALLOC-NO" sourceRef="BPMN-GW-010" targetRef="BPMN-GW-011" name="なし (default)">
+      <bpmn:documentation>未配賦フラグなし → 確認結果エラー判定へ</bpmn:documentation>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-ACTERR-YES" sourceRef="BPMN-GW-011" targetRef="BPMN-TASK-081" name="あり">
+      <bpmn:documentation>エラーあり → 対応 → Phase 5 先頭へ再実行</bpmn:documentation>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">= actualCostError = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-ACTERR-NO" sourceRef="BPMN-GW-011" targetRef="BPMN-TASK-082" name="なし (default)">
+      <bpmn:documentation>エラーなし → Phase 6 (原価確定) へ</bpmn:documentation>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-082" sourceRef="BPMN-TASK-081" targetRef="BPMN-TASK-077">
+      <bpmn:documentation>★修正後に Phase 5 先頭 (実際原価計算) より再実行</bpmn:documentation>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-083" sourceRef="BPMN-TASK-082" targetRef="BPMN-TASK-083">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-084" sourceRef="BPMN-TASK-083" targetRef="BPMN-TASK-084">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-085" sourceRef="BPMN-TASK-084" targetRef="BPMN-TASK-085">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-086" sourceRef="BPMN-TASK-085" targetRef="BPMN-TASK-086">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-087" sourceRef="BPMN-TASK-086" targetRef="BPMN-TASK-087">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-088" sourceRef="BPMN-TASK-087" targetRef="BPMN-TASK-088">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-089" sourceRef="BPMN-TASK-088" targetRef="BPMN-TASK-089">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-090" sourceRef="BPMN-TASK-089" targetRef="BPMN-TASK-090">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-091" sourceRef="BPMN-TASK-090" targetRef="BPMN-EVT-END">
+    </bpmn:sequenceFlow>
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_COSTCALC">
+
+      <bpmndi:BPMNShape id="Shape_Participant" bpmnElement="Participant_COSTCALC" isHorizontal="false">
+        <dc:Bounds x="80" y="80" width="1200" height="11470" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_LANE_ICT" bpmnElement="LANE_ICT" isHorizontal="false">
+        <dc:Bounds x="80" y="110" width="300" height="11440" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_LANE_FIN" bpmnElement="LANE_FIN" isHorizontal="false">
+        <dc:Bounds x="380" y="110" width="300" height="11440" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_LANE_CK" bpmnElement="LANE_CK" isHorizontal="false">
+        <dc:Bounds x="680" y="110" width="300" height="11440" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_LANE_FAC" bpmnElement="LANE_FAC" isHorizontal="false">
+        <dc:Bounds x="980" y="110" width="300" height="11440" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_BPMN-EVT-START" bpmnElement="BPMN-EVT-START">
+        <dc:Bounds x="212" y="122" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="182" y="163" width="100" height="30" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-001" bpmnElement="BPMN-TASK-001">
+        <dc:Bounds x="130" y="210" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-GW-001" bpmnElement="BPMN-GW-001" isMarkerVisible="true">
+        <dc:Bounds x="205" y="335" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="175" y="390" width="100" height="30" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-002" bpmnElement="BPMN-TASK-002">
+        <dc:Bounds x="730" y="430" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-003" bpmnElement="BPMN-TASK-003">
+        <dc:Bounds x="730" y="540" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-004" bpmnElement="BPMN-TASK-004">
+        <dc:Bounds x="1030" y="650" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-005" bpmnElement="BPMN-TASK-005">
+        <dc:Bounds x="1030" y="760" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-006" bpmnElement="BPMN-TASK-006">
+        <dc:Bounds x="1030" y="870" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-007" bpmnElement="BPMN-TASK-007">
+        <dc:Bounds x="1030" y="980" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-008" bpmnElement="BPMN-TASK-008">
+        <dc:Bounds x="130" y="1090" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-009" bpmnElement="BPMN-TASK-009">
+        <dc:Bounds x="130" y="1200" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-010" bpmnElement="BPMN-TASK-010">
+        <dc:Bounds x="130" y="1310" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-011" bpmnElement="BPMN-TASK-011">
+        <dc:Bounds x="130" y="1420" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-012" bpmnElement="BPMN-TASK-012">
+        <dc:Bounds x="130" y="1530" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-013" bpmnElement="BPMN-TASK-013">
+        <dc:Bounds x="130" y="1640" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-GW-002" bpmnElement="BPMN-GW-002" isMarkerVisible="true">
+        <dc:Bounds x="205" y="1765" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="175" y="1820" width="100" height="30" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-014" bpmnElement="BPMN-TASK-014">
+        <dc:Bounds x="130" y="1860" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-015" bpmnElement="BPMN-TASK-015">
+        <dc:Bounds x="130" y="1970" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-016" bpmnElement="BPMN-TASK-016">
+        <dc:Bounds x="130" y="2080" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-017" bpmnElement="BPMN-TASK-017">
+        <dc:Bounds x="1030" y="2190" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-GW-003" bpmnElement="BPMN-GW-003" isMarkerVisible="true">
+        <dc:Bounds x="1105" y="2315" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1075" y="2370" width="100" height="30" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-018" bpmnElement="BPMN-TASK-018">
+        <dc:Bounds x="730" y="2410" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-019" bpmnElement="BPMN-TASK-019">
+        <dc:Bounds x="1030" y="2520" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-020" bpmnElement="BPMN-TASK-020">
+        <dc:Bounds x="730" y="2630" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-021" bpmnElement="BPMN-TASK-021">
+        <dc:Bounds x="730" y="2740" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-022" bpmnElement="BPMN-TASK-022">
+        <dc:Bounds x="730" y="2850" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-023" bpmnElement="BPMN-TASK-023">
+        <dc:Bounds x="730" y="2960" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-024" bpmnElement="BPMN-TASK-024">
+        <dc:Bounds x="730" y="3070" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-025" bpmnElement="BPMN-TASK-025">
+        <dc:Bounds x="730" y="3180" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-026" bpmnElement="BPMN-TASK-026">
+        <dc:Bounds x="730" y="3290" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-027" bpmnElement="BPMN-TASK-027">
+        <dc:Bounds x="730" y="3400" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-GW-004" bpmnElement="BPMN-GW-004" isMarkerVisible="true">
+        <dc:Bounds x="805" y="3525" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="775" y="3580" width="100" height="30" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-028" bpmnElement="BPMN-TASK-028">
+        <dc:Bounds x="730" y="3620" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-029" bpmnElement="BPMN-TASK-029">
+        <dc:Bounds x="130" y="3730" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-030" bpmnElement="BPMN-TASK-030">
+        <dc:Bounds x="730" y="3840" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-031" bpmnElement="BPMN-TASK-031">
+        <dc:Bounds x="730" y="3950" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-032" bpmnElement="BPMN-TASK-032">
+        <dc:Bounds x="730" y="4060" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-033" bpmnElement="BPMN-TASK-033">
+        <dc:Bounds x="730" y="4170" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-034" bpmnElement="BPMN-TASK-034">
+        <dc:Bounds x="730" y="4280" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-035" bpmnElement="BPMN-TASK-035">
+        <dc:Bounds x="730" y="4390" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-036" bpmnElement="BPMN-TASK-036">
+        <dc:Bounds x="730" y="4500" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-037" bpmnElement="BPMN-TASK-037">
+        <dc:Bounds x="730" y="4610" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-038" bpmnElement="BPMN-TASK-038">
+        <dc:Bounds x="730" y="4720" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-039" bpmnElement="BPMN-TASK-039">
+        <dc:Bounds x="1030" y="4830" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-040" bpmnElement="BPMN-TASK-040">
+        <dc:Bounds x="730" y="4940" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-041" bpmnElement="BPMN-TASK-041">
+        <dc:Bounds x="730" y="5050" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-042" bpmnElement="BPMN-TASK-042">
+        <dc:Bounds x="730" y="5160" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-043" bpmnElement="BPMN-TASK-043">
+        <dc:Bounds x="1030" y="5270" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-044" bpmnElement="BPMN-TASK-044">
+        <dc:Bounds x="730" y="5380" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-045" bpmnElement="BPMN-TASK-045">
+        <dc:Bounds x="730" y="5490" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-046" bpmnElement="BPMN-TASK-046">
+        <dc:Bounds x="730" y="5600" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-047" bpmnElement="BPMN-TASK-047">
+        <dc:Bounds x="1030" y="5710" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-048" bpmnElement="BPMN-TASK-048">
+        <dc:Bounds x="730" y="5820" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-049" bpmnElement="BPMN-TASK-049">
+        <dc:Bounds x="730" y="5930" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-050" bpmnElement="BPMN-TASK-050">
+        <dc:Bounds x="730" y="6040" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-051" bpmnElement="BPMN-TASK-051">
+        <dc:Bounds x="1030" y="6150" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-052" bpmnElement="BPMN-TASK-052">
+        <dc:Bounds x="1030" y="6260" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-053" bpmnElement="BPMN-TASK-053">
+        <dc:Bounds x="1030" y="6370" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-054" bpmnElement="BPMN-TASK-054">
+        <dc:Bounds x="1030" y="6480" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-055" bpmnElement="BPMN-TASK-055">
+        <dc:Bounds x="730" y="6590" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-056" bpmnElement="BPMN-TASK-056">
+        <dc:Bounds x="730" y="6700" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-057" bpmnElement="BPMN-TASK-057">
+        <dc:Bounds x="730" y="6810" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-058" bpmnElement="BPMN-TASK-058">
+        <dc:Bounds x="730" y="6920" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-059" bpmnElement="BPMN-TASK-059">
+        <dc:Bounds x="730" y="7030" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-060" bpmnElement="BPMN-TASK-060">
+        <dc:Bounds x="730" y="7140" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-061" bpmnElement="BPMN-TASK-061">
+        <dc:Bounds x="730" y="7250" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-GW-005" bpmnElement="BPMN-GW-005" isMarkerVisible="true">
+        <dc:Bounds x="805" y="7375" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="775" y="7430" width="100" height="30" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-062" bpmnElement="BPMN-TASK-062">
+        <dc:Bounds x="730" y="7470" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-063" bpmnElement="BPMN-TASK-063">
+        <dc:Bounds x="730" y="7580" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-064" bpmnElement="BPMN-TASK-064">
+        <dc:Bounds x="730" y="7690" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-GW-006" bpmnElement="BPMN-GW-006" isMarkerVisible="true">
+        <dc:Bounds x="805" y="7815" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="775" y="7870" width="100" height="30" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-065" bpmnElement="BPMN-TASK-065">
+        <dc:Bounds x="730" y="7910" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-GW-007" bpmnElement="BPMN-GW-007" isMarkerVisible="true">
+        <dc:Bounds x="805" y="8035" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="775" y="8090" width="100" height="30" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-066" bpmnElement="BPMN-TASK-066">
+        <dc:Bounds x="730" y="8130" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-GW-008" bpmnElement="BPMN-GW-008" isMarkerVisible="true">
+        <dc:Bounds x="805" y="8255" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="775" y="8310" width="100" height="30" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-067" bpmnElement="BPMN-TASK-067">
+        <dc:Bounds x="730" y="8350" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-GW-009" bpmnElement="BPMN-GW-009" isMarkerVisible="true">
+        <dc:Bounds x="805" y="8475" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="775" y="8530" width="100" height="30" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-068" bpmnElement="BPMN-TASK-068">
+        <dc:Bounds x="430" y="8570" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-069" bpmnElement="BPMN-TASK-069">
+        <dc:Bounds x="1030" y="8680" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-070" bpmnElement="BPMN-TASK-070">
+        <dc:Bounds x="1030" y="8790" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-071" bpmnElement="BPMN-TASK-071">
+        <dc:Bounds x="430" y="8900" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-072" bpmnElement="BPMN-TASK-072">
+        <dc:Bounds x="1030" y="9010" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-073" bpmnElement="BPMN-TASK-073">
+        <dc:Bounds x="1030" y="9120" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-074" bpmnElement="BPMN-TASK-074">
+        <dc:Bounds x="430" y="9230" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-075" bpmnElement="BPMN-TASK-075">
+        <dc:Bounds x="430" y="9340" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-076" bpmnElement="BPMN-TASK-076">
+        <dc:Bounds x="430" y="9450" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-077" bpmnElement="BPMN-TASK-077">
+        <dc:Bounds x="730" y="9560" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-078" bpmnElement="BPMN-TASK-078">
+        <dc:Bounds x="730" y="9670" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-079" bpmnElement="BPMN-TASK-079">
+        <dc:Bounds x="730" y="9780" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-080" bpmnElement="BPMN-TASK-080">
+        <dc:Bounds x="730" y="9890" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-GW-010" bpmnElement="BPMN-GW-010" isMarkerVisible="true">
+        <dc:Bounds x="805" y="10015" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="775" y="10070" width="100" height="30" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-GW-011" bpmnElement="BPMN-GW-011" isMarkerVisible="true">
+        <dc:Bounds x="805" y="10125" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="775" y="10180" width="100" height="30" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-081" bpmnElement="BPMN-TASK-081">
+        <dc:Bounds x="730" y="10220" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-082" bpmnElement="BPMN-TASK-082">
+        <dc:Bounds x="730" y="10330" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-083" bpmnElement="BPMN-TASK-083">
+        <dc:Bounds x="730" y="10440" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-084" bpmnElement="BPMN-TASK-084">
+        <dc:Bounds x="730" y="10550" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-085" bpmnElement="BPMN-TASK-085">
+        <dc:Bounds x="730" y="10660" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-086" bpmnElement="BPMN-TASK-086">
+        <dc:Bounds x="430" y="10770" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-087" bpmnElement="BPMN-TASK-087">
+        <dc:Bounds x="430" y="10880" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-088" bpmnElement="BPMN-TASK-088">
+        <dc:Bounds x="430" y="10990" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-089" bpmnElement="BPMN-TASK-089">
+        <dc:Bounds x="730" y="11100" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-TASK-090" bpmnElement="BPMN-TASK-090">
+        <dc:Bounds x="730" y="11210" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_BPMN-EVT-END" bpmnElement="BPMN-EVT-END">
+        <dc:Bounds x="812" y="11342" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="782" y="11383" width="100" height="30" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-001" bpmnElement="BPMN-FLOW-001">
+        <di:waypoint x="230" y="158" />
+        <di:waypoint x="230" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-002" bpmnElement="BPMN-FLOW-002">
+        <di:waypoint x="230" y="290" />
+        <di:waypoint x="230" y="335" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-CODE-YES" bpmnElement="BPMN-FLOW-CODE-YES">
+        <di:waypoint x="230" y="385" />
+        <di:waypoint x="230" y="415" />
+        <di:waypoint x="830" y="415" />
+        <di:waypoint x="830" y="430" />
+        <bpmndi:BPMNLabel><dc:Bounds x="500" y="405" width="80" height="20" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-CODE-NO" bpmnElement="BPMN-FLOW-CODE-NO">
+        <di:waypoint x="230" y="385" />
+        <di:waypoint x="230" y="470" />
+        <di:waypoint x="830" y="470" />
+        <di:waypoint x="830" y="540" />
+        <bpmndi:BPMNLabel><dc:Bounds x="500" y="460" width="80" height="20" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-003" bpmnElement="BPMN-FLOW-003">
+        <di:waypoint x="830" y="510" />
+        <di:waypoint x="830" y="540" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-004" bpmnElement="BPMN-FLOW-004">
+        <di:waypoint x="830" y="620" />
+        <di:waypoint x="830" y="635" />
+        <di:waypoint x="1130" y="635" />
+        <di:waypoint x="1130" y="650" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-005" bpmnElement="BPMN-FLOW-005">
+        <di:waypoint x="1130" y="730" />
+        <di:waypoint x="1130" y="760" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-006" bpmnElement="BPMN-FLOW-006">
+        <di:waypoint x="1130" y="840" />
+        <di:waypoint x="1130" y="870" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-007" bpmnElement="BPMN-FLOW-007">
+        <di:waypoint x="1130" y="950" />
+        <di:waypoint x="1130" y="980" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-008" bpmnElement="BPMN-FLOW-008">
+        <di:waypoint x="1130" y="1060" />
+        <di:waypoint x="1130" y="1075" />
+        <di:waypoint x="230" y="1075" />
+        <di:waypoint x="230" y="1090" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-009" bpmnElement="BPMN-FLOW-009">
+        <di:waypoint x="230" y="1170" />
+        <di:waypoint x="230" y="1200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-010" bpmnElement="BPMN-FLOW-010">
+        <di:waypoint x="230" y="1280" />
+        <di:waypoint x="230" y="1310" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-011" bpmnElement="BPMN-FLOW-011">
+        <di:waypoint x="230" y="1390" />
+        <di:waypoint x="230" y="1420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-012" bpmnElement="BPMN-FLOW-012">
+        <di:waypoint x="230" y="1500" />
+        <di:waypoint x="230" y="1530" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-013" bpmnElement="BPMN-FLOW-013">
+        <di:waypoint x="230" y="1610" />
+        <di:waypoint x="230" y="1640" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-014" bpmnElement="BPMN-FLOW-014">
+        <di:waypoint x="230" y="1720" />
+        <di:waypoint x="230" y="1765" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-STD-YES" bpmnElement="BPMN-FLOW-STD-YES">
+        <di:waypoint x="230" y="1815" />
+        <di:waypoint x="230" y="1860" />
+        <bpmndi:BPMNLabel><dc:Bounds x="200" y="1827" width="80" height="20" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-STD-NO" bpmnElement="BPMN-FLOW-STD-NO">
+        <di:waypoint x="230" y="1815" />
+        <di:waypoint x="230" y="2080" />
+        <bpmndi:BPMNLabel><dc:Bounds x="200" y="1937" width="80" height="20" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-015" bpmnElement="BPMN-FLOW-015">
+        <di:waypoint x="230" y="1940" />
+        <di:waypoint x="230" y="1970" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-016" bpmnElement="BPMN-FLOW-016">
+        <di:waypoint x="230" y="2050" />
+        <di:waypoint x="230" y="2080" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-017" bpmnElement="BPMN-FLOW-017">
+        <di:waypoint x="230" y="2160" />
+        <di:waypoint x="230" y="2175" />
+        <di:waypoint x="1130" y="2175" />
+        <di:waypoint x="1130" y="2190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-018" bpmnElement="BPMN-FLOW-018">
+        <di:waypoint x="1130" y="2270" />
+        <di:waypoint x="1130" y="2315" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-RECIPE-INDIV" bpmnElement="BPMN-FLOW-RECIPE-INDIV">
+        <di:waypoint x="1130" y="2365" />
+        <di:waypoint x="1130" y="2395" />
+        <di:waypoint x="830" y="2395" />
+        <di:waypoint x="830" y="2410" />
+        <bpmndi:BPMNLabel><dc:Bounds x="950" y="2385" width="80" height="20" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-RECIPE-COMMON" bpmnElement="BPMN-FLOW-RECIPE-COMMON">
+        <di:waypoint x="1130" y="2365" />
+        <di:waypoint x="1130" y="2520" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1100" y="2432" width="80" height="20" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-019" bpmnElement="BPMN-FLOW-019">
+        <di:waypoint x="830" y="2490" />
+        <di:waypoint x="830" y="2505" />
+        <di:waypoint x="1130" y="2505" />
+        <di:waypoint x="1130" y="2520" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-020" bpmnElement="BPMN-FLOW-020">
+        <di:waypoint x="1130" y="2600" />
+        <di:waypoint x="1130" y="2615" />
+        <di:waypoint x="830" y="2615" />
+        <di:waypoint x="830" y="2630" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-021" bpmnElement="BPMN-FLOW-021">
+        <di:waypoint x="830" y="2710" />
+        <di:waypoint x="830" y="2740" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-022" bpmnElement="BPMN-FLOW-022">
+        <di:waypoint x="830" y="2820" />
+        <di:waypoint x="830" y="2850" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-023" bpmnElement="BPMN-FLOW-023">
+        <di:waypoint x="830" y="2930" />
+        <di:waypoint x="830" y="2960" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-024" bpmnElement="BPMN-FLOW-024">
+        <di:waypoint x="830" y="3040" />
+        <di:waypoint x="830" y="3070" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-025" bpmnElement="BPMN-FLOW-025">
+        <di:waypoint x="830" y="3150" />
+        <di:waypoint x="830" y="3180" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-026" bpmnElement="BPMN-FLOW-026">
+        <di:waypoint x="830" y="3260" />
+        <di:waypoint x="830" y="3290" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-027" bpmnElement="BPMN-FLOW-027">
+        <di:waypoint x="830" y="3370" />
+        <di:waypoint x="830" y="3400" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-028" bpmnElement="BPMN-FLOW-028">
+        <di:waypoint x="830" y="3480" />
+        <di:waypoint x="830" y="3525" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-STDERR-YES" bpmnElement="BPMN-FLOW-STDERR-YES">
+        <di:waypoint x="830" y="3575" />
+        <di:waypoint x="830" y="3620" />
+        <bpmndi:BPMNLabel><dc:Bounds x="800" y="3587" width="80" height="20" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-STDERR-NO" bpmnElement="BPMN-FLOW-STDERR-NO">
+        <di:waypoint x="830" y="3575" />
+        <di:waypoint x="830" y="3840" />
+        <bpmndi:BPMNLabel><dc:Bounds x="800" y="3697" width="80" height="20" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-029" bpmnElement="BPMN-FLOW-029">
+        <di:waypoint x="830" y="3700" />
+        <di:waypoint x="830" y="3715" />
+        <di:waypoint x="230" y="3715" />
+        <di:waypoint x="230" y="3730" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-030" bpmnElement="BPMN-FLOW-030">
+        <di:waypoint x="230" y="3730" />
+        <di:waypoint x="230" y="3000" />
+        <di:waypoint x="1130" y="3000" />
+        <di:waypoint x="1130" y="2270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-031" bpmnElement="BPMN-FLOW-031">
+        <di:waypoint x="830" y="3920" />
+        <di:waypoint x="830" y="3950" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-032" bpmnElement="BPMN-FLOW-032">
+        <di:waypoint x="830" y="4030" />
+        <di:waypoint x="830" y="4060" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-033" bpmnElement="BPMN-FLOW-033">
+        <di:waypoint x="830" y="4140" />
+        <di:waypoint x="830" y="4170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-034" bpmnElement="BPMN-FLOW-034">
+        <di:waypoint x="830" y="4250" />
+        <di:waypoint x="830" y="4280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-035" bpmnElement="BPMN-FLOW-035">
+        <di:waypoint x="830" y="4360" />
+        <di:waypoint x="830" y="4390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-036" bpmnElement="BPMN-FLOW-036">
+        <di:waypoint x="830" y="4470" />
+        <di:waypoint x="830" y="4500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-037" bpmnElement="BPMN-FLOW-037">
+        <di:waypoint x="830" y="4580" />
+        <di:waypoint x="830" y="4610" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-038" bpmnElement="BPMN-FLOW-038">
+        <di:waypoint x="830" y="4690" />
+        <di:waypoint x="830" y="4720" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-039" bpmnElement="BPMN-FLOW-039">
+        <di:waypoint x="830" y="4800" />
+        <di:waypoint x="830" y="4815" />
+        <di:waypoint x="1130" y="4815" />
+        <di:waypoint x="1130" y="4830" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-040" bpmnElement="BPMN-FLOW-040">
+        <di:waypoint x="1130" y="4910" />
+        <di:waypoint x="1130" y="4925" />
+        <di:waypoint x="830" y="4925" />
+        <di:waypoint x="830" y="4940" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-041" bpmnElement="BPMN-FLOW-041">
+        <di:waypoint x="830" y="5020" />
+        <di:waypoint x="830" y="5050" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-042" bpmnElement="BPMN-FLOW-042">
+        <di:waypoint x="830" y="5130" />
+        <di:waypoint x="830" y="5160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-043" bpmnElement="BPMN-FLOW-043">
+        <di:waypoint x="830" y="5240" />
+        <di:waypoint x="830" y="5255" />
+        <di:waypoint x="1130" y="5255" />
+        <di:waypoint x="1130" y="5270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-044" bpmnElement="BPMN-FLOW-044">
+        <di:waypoint x="1130" y="5350" />
+        <di:waypoint x="1130" y="5365" />
+        <di:waypoint x="830" y="5365" />
+        <di:waypoint x="830" y="5380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-045" bpmnElement="BPMN-FLOW-045">
+        <di:waypoint x="830" y="5460" />
+        <di:waypoint x="830" y="5490" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-046" bpmnElement="BPMN-FLOW-046">
+        <di:waypoint x="830" y="5570" />
+        <di:waypoint x="830" y="5600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-047" bpmnElement="BPMN-FLOW-047">
+        <di:waypoint x="830" y="5680" />
+        <di:waypoint x="830" y="5695" />
+        <di:waypoint x="1130" y="5695" />
+        <di:waypoint x="1130" y="5710" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-048" bpmnElement="BPMN-FLOW-048">
+        <di:waypoint x="1130" y="5790" />
+        <di:waypoint x="1130" y="5805" />
+        <di:waypoint x="830" y="5805" />
+        <di:waypoint x="830" y="5820" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-049" bpmnElement="BPMN-FLOW-049">
+        <di:waypoint x="830" y="5900" />
+        <di:waypoint x="830" y="5930" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-050" bpmnElement="BPMN-FLOW-050">
+        <di:waypoint x="830" y="6010" />
+        <di:waypoint x="830" y="6040" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-051" bpmnElement="BPMN-FLOW-051">
+        <di:waypoint x="830" y="6120" />
+        <di:waypoint x="830" y="6135" />
+        <di:waypoint x="1130" y="6135" />
+        <di:waypoint x="1130" y="6150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-052" bpmnElement="BPMN-FLOW-052">
+        <di:waypoint x="1130" y="6230" />
+        <di:waypoint x="1130" y="6260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-053" bpmnElement="BPMN-FLOW-053">
+        <di:waypoint x="1130" y="6340" />
+        <di:waypoint x="1130" y="6370" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-054" bpmnElement="BPMN-FLOW-054">
+        <di:waypoint x="1130" y="6450" />
+        <di:waypoint x="1130" y="6480" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-055" bpmnElement="BPMN-FLOW-055">
+        <di:waypoint x="1130" y="6560" />
+        <di:waypoint x="1130" y="6575" />
+        <di:waypoint x="830" y="6575" />
+        <di:waypoint x="830" y="6590" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-056" bpmnElement="BPMN-FLOW-056">
+        <di:waypoint x="830" y="6670" />
+        <di:waypoint x="830" y="6700" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-057" bpmnElement="BPMN-FLOW-057">
+        <di:waypoint x="830" y="6780" />
+        <di:waypoint x="830" y="6810" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-058" bpmnElement="BPMN-FLOW-058">
+        <di:waypoint x="830" y="6890" />
+        <di:waypoint x="830" y="6920" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-059" bpmnElement="BPMN-FLOW-059">
+        <di:waypoint x="830" y="7000" />
+        <di:waypoint x="830" y="7030" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-060" bpmnElement="BPMN-FLOW-060">
+        <di:waypoint x="830" y="7110" />
+        <di:waypoint x="830" y="7140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-061" bpmnElement="BPMN-FLOW-061">
+        <di:waypoint x="830" y="7220" />
+        <di:waypoint x="830" y="7250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-062" bpmnElement="BPMN-FLOW-062">
+        <di:waypoint x="830" y="7330" />
+        <di:waypoint x="830" y="7375" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-TRIALERR-YES" bpmnElement="BPMN-FLOW-TRIALERR-YES">
+        <di:waypoint x="830" y="7425" />
+        <di:waypoint x="830" y="7470" />
+        <bpmndi:BPMNLabel><dc:Bounds x="800" y="7437" width="80" height="20" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-TRIALERR-NO" bpmnElement="BPMN-FLOW-TRIALERR-NO">
+        <di:waypoint x="830" y="7425" />
+        <di:waypoint x="830" y="7580" />
+        <bpmndi:BPMNLabel><dc:Bounds x="800" y="7492" width="80" height="20" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-063" bpmnElement="BPMN-FLOW-063">
+        <di:waypoint x="830" y="7470" />
+        <di:waypoint x="830" y="7110" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-064" bpmnElement="BPMN-FLOW-064">
+        <di:waypoint x="830" y="7660" />
+        <di:waypoint x="830" y="7690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-065" bpmnElement="BPMN-FLOW-065">
+        <di:waypoint x="830" y="7770" />
+        <di:waypoint x="830" y="7815" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-STOCK-DIFF" bpmnElement="BPMN-FLOW-STOCK-DIFF">
+        <di:waypoint x="830" y="7865" />
+        <di:waypoint x="830" y="7910" />
+        <bpmndi:BPMNLabel><dc:Bounds x="800" y="7877" width="80" height="20" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-STOCK-OK" bpmnElement="BPMN-FLOW-STOCK-OK">
+        <di:waypoint x="830" y="7865" />
+        <di:waypoint x="830" y="8255" />
+        <bpmndi:BPMNLabel><dc:Bounds x="800" y="8050" width="80" height="20" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-066" bpmnElement="BPMN-FLOW-066">
+        <di:waypoint x="830" y="7990" />
+        <di:waypoint x="830" y="8035" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-FIX-YES" bpmnElement="BPMN-FLOW-FIX-YES">
+        <di:waypoint x="830" y="8035" />
+        <di:waypoint x="830" y="5145" />
+        <di:waypoint x="1130" y="5145" />
+        <di:waypoint x="1130" y="2270" />
+        <bpmndi:BPMNLabel><dc:Bounds x="950" y="5135" width="80" height="20" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-FIX-NO" bpmnElement="BPMN-FLOW-FIX-NO">
+        <di:waypoint x="830" y="8085" />
+        <di:waypoint x="830" y="8130" />
+        <bpmndi:BPMNLabel><dc:Bounds x="800" y="8097" width="80" height="20" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-067" bpmnElement="BPMN-FLOW-067">
+        <di:waypoint x="830" y="8210" />
+        <di:waypoint x="830" y="8255" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-ADJ-YES" bpmnElement="BPMN-FLOW-ADJ-YES">
+        <di:waypoint x="830" y="8305" />
+        <di:waypoint x="830" y="8350" />
+        <bpmndi:BPMNLabel><dc:Bounds x="800" y="8317" width="80" height="20" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-ADJ-NO" bpmnElement="BPMN-FLOW-ADJ-NO">
+        <di:waypoint x="830" y="8305" />
+        <di:waypoint x="830" y="8445" />
+        <di:waypoint x="530" y="8445" />
+        <di:waypoint x="530" y="8570" />
+        <bpmndi:BPMNLabel><dc:Bounds x="650" y="8435" width="80" height="20" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-068" bpmnElement="BPMN-FLOW-068">
+        <di:waypoint x="830" y="8430" />
+        <di:waypoint x="830" y="8475" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-COST-INCLUDE" bpmnElement="BPMN-FLOW-COST-INCLUDE">
+        <di:waypoint x="830" y="8475" />
+        <di:waypoint x="830" y="6905" />
+        <di:waypoint x="1130" y="6905" />
+        <di:waypoint x="1130" y="5350" />
+        <bpmndi:BPMNLabel><dc:Bounds x="950" y="6895" width="80" height="20" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-COST-EXCLUDE" bpmnElement="BPMN-FLOW-COST-EXCLUDE">
+        <di:waypoint x="830" y="8475" />
+        <di:waypoint x="830" y="8210" />
+        <bpmndi:BPMNLabel><dc:Bounds x="800" y="8332" width="80" height="20" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-069" bpmnElement="BPMN-FLOW-069">
+        <di:waypoint x="530" y="8650" />
+        <di:waypoint x="530" y="8665" />
+        <di:waypoint x="1130" y="8665" />
+        <di:waypoint x="1130" y="8680" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-070" bpmnElement="BPMN-FLOW-070">
+        <di:waypoint x="1130" y="8760" />
+        <di:waypoint x="1130" y="8790" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-071" bpmnElement="BPMN-FLOW-071">
+        <di:waypoint x="1130" y="8870" />
+        <di:waypoint x="1130" y="8885" />
+        <di:waypoint x="530" y="8885" />
+        <di:waypoint x="530" y="8900" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-072" bpmnElement="BPMN-FLOW-072">
+        <di:waypoint x="530" y="8980" />
+        <di:waypoint x="530" y="8995" />
+        <di:waypoint x="1130" y="8995" />
+        <di:waypoint x="1130" y="9010" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-073" bpmnElement="BPMN-FLOW-073">
+        <di:waypoint x="1130" y="9090" />
+        <di:waypoint x="1130" y="9120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-074" bpmnElement="BPMN-FLOW-074">
+        <di:waypoint x="1130" y="9200" />
+        <di:waypoint x="1130" y="9215" />
+        <di:waypoint x="530" y="9215" />
+        <di:waypoint x="530" y="9230" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-075" bpmnElement="BPMN-FLOW-075">
+        <di:waypoint x="530" y="9310" />
+        <di:waypoint x="530" y="9340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-076" bpmnElement="BPMN-FLOW-076">
+        <di:waypoint x="530" y="9420" />
+        <di:waypoint x="530" y="9450" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-077" bpmnElement="BPMN-FLOW-077">
+        <di:waypoint x="530" y="9530" />
+        <di:waypoint x="530" y="9545" />
+        <di:waypoint x="830" y="9545" />
+        <di:waypoint x="830" y="9560" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-078" bpmnElement="BPMN-FLOW-078">
+        <di:waypoint x="830" y="9640" />
+        <di:waypoint x="830" y="9670" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-079" bpmnElement="BPMN-FLOW-079">
+        <di:waypoint x="830" y="9750" />
+        <di:waypoint x="830" y="9780" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-080" bpmnElement="BPMN-FLOW-080">
+        <di:waypoint x="830" y="9860" />
+        <di:waypoint x="830" y="9890" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-081" bpmnElement="BPMN-FLOW-081">
+        <di:waypoint x="830" y="9970" />
+        <di:waypoint x="830" y="10015" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-UNALLOC-YES" bpmnElement="BPMN-FLOW-UNALLOC-YES">
+        <di:waypoint x="830" y="10065" />
+        <di:waypoint x="830" y="10220" />
+        <bpmndi:BPMNLabel><dc:Bounds x="800" y="10132" width="80" height="20" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-UNALLOC-NO" bpmnElement="BPMN-FLOW-UNALLOC-NO">
+        <di:waypoint x="830" y="10065" />
+        <di:waypoint x="830" y="10125" />
+        <bpmndi:BPMNLabel><dc:Bounds x="800" y="10085" width="80" height="20" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-ACTERR-YES" bpmnElement="BPMN-FLOW-ACTERR-YES">
+        <di:waypoint x="830" y="10175" />
+        <di:waypoint x="830" y="10220" />
+        <bpmndi:BPMNLabel><dc:Bounds x="800" y="10187" width="80" height="20" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-ACTERR-NO" bpmnElement="BPMN-FLOW-ACTERR-NO">
+        <di:waypoint x="830" y="10175" />
+        <di:waypoint x="830" y="10330" />
+        <bpmndi:BPMNLabel><dc:Bounds x="800" y="10242" width="80" height="20" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-082" bpmnElement="BPMN-FLOW-082">
+        <di:waypoint x="830" y="10220" />
+        <di:waypoint x="830" y="9640" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-083" bpmnElement="BPMN-FLOW-083">
+        <di:waypoint x="830" y="10410" />
+        <di:waypoint x="830" y="10440" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-084" bpmnElement="BPMN-FLOW-084">
+        <di:waypoint x="830" y="10520" />
+        <di:waypoint x="830" y="10550" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-085" bpmnElement="BPMN-FLOW-085">
+        <di:waypoint x="830" y="10630" />
+        <di:waypoint x="830" y="10660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-086" bpmnElement="BPMN-FLOW-086">
+        <di:waypoint x="830" y="10740" />
+        <di:waypoint x="830" y="10755" />
+        <di:waypoint x="530" y="10755" />
+        <di:waypoint x="530" y="10770" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-087" bpmnElement="BPMN-FLOW-087">
+        <di:waypoint x="530" y="10850" />
+        <di:waypoint x="530" y="10880" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-088" bpmnElement="BPMN-FLOW-088">
+        <di:waypoint x="530" y="10960" />
+        <di:waypoint x="530" y="10990" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-089" bpmnElement="BPMN-FLOW-089">
+        <di:waypoint x="530" y="11070" />
+        <di:waypoint x="530" y="11085" />
+        <di:waypoint x="830" y="11085" />
+        <di:waypoint x="830" y="11100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-090" bpmnElement="BPMN-FLOW-090">
+        <di:waypoint x="830" y="11180" />
+        <di:waypoint x="830" y="11210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_BPMN-FLOW-091" bpmnElement="BPMN-FLOW-091">
+        <di:waypoint x="830" y="11290" />
+        <di:waypoint x="830" y="11342" />
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

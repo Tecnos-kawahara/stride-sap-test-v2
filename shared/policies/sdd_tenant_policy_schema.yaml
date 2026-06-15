@@ -1,0 +1,115 @@
+# sdd_tenant_policy schema (CT-FILE-03) — SSoT for tenant Method receipt policy.
+# Owner: Tecnos PMO + Architect (Tecnos-STRIDE side).
+# Consumer: Feature ③ — cbp-core master-admin DB sdd_tenant_policy table.
+# Backward compatibility: N-1 mandatory (v1 → v2 must ship migration helper).
+# Schema version: 1.0 / JSON Schema Draft 2020-12.
+
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://tecnos.co.jp/sdd/contracts/sdd-tenant-policy-schema.json"
+title: "SDD Tenant Policy"
+description: >
+  Per-tenant Method receipt policy. Used by CBP master-admin (Feature ③) to
+  evaluate Method publish events against tenant declarations.
+type: "object"
+required: ["schema_version", "tenant_id", "channel", "auto_upgrade"]
+additionalProperties: false
+properties:
+  schema_version:
+    type: "string"
+    pattern: "^[0-9]+\\.[0-9]+(\\.[0-9]+)?$"
+    description: "Schema's own semver (v1 → v2 backward-compatible)"
+
+  tenant_id:
+    type: "string"
+    format: "uuid"
+    description: "CBP tenant id (master-admin DB primary key)"
+
+  channel:
+    type: "string"
+    enum: ["edge", "staging", "stable"]
+    default: "stable"
+    description: "Method receipt channel"
+
+  auto_upgrade:
+    type: "string"
+    enum: ["none", "patch", "minor"]
+    default: "minor"
+    description: "Method auto-upgrade policy (none=pin, patch=vX.Y.Z+1 only, minor=vX.Y+1.0 max)"
+
+  pin:
+    type: "string"
+    pattern: "^(~|\\^|>=|<=|>|<)?[0-9]+(\\.(?:[0-9]+|x|\\*)){0,2}(-[a-zA-Z0-9.-]+)?$"
+    description: "Optional semver constraint (e.g., '6.x' / '6.0.5' / '~6.1.0' / '^6.0.0' / '6.1.0-rc.1')"
+
+  upgrade_window:
+    type: "object"
+    description: "Optional window in which auto-upgrade is allowed."
+    properties:
+      cron:
+        type: "string"
+      timezone:
+        type: "string"
+    required: ["cron"]
+
+  notifications:
+    type: "object"
+    description: "Optional Method receipt event notification targets."
+    properties:
+      slack_webhook:
+        type: "string"
+        format: "uri"
+      email:
+        type: "string"
+        format: "email"
+      notify_on:
+        type: "array"
+        items:
+          type: "string"
+          enum: ["upgrade_available", "upgraded", "rollback", "skipped_due_to_pin"]
+        default: ["upgrade_available", "upgraded", "rollback"]
+
+  metadata:
+    type: "object"
+    description: "Optional tenant identification helpers."
+    properties:
+      tenant_name: { type: "string" }
+      contact_email: { type: "string", format: "email" }
+      plan: { type: "string", enum: ["trial", "standard", "enterprise"] }
+      created_at: { type: "string", format: "date-time" }
+      updated_at: { type: "string", format: "date-time" }
+
+# ---- Examples (consumed by validator unit tests) ----
+examples:
+  - schema_version: "1.0"
+    tenant_id: "550e8400-e29b-41d4-a716-446655440000"
+    channel: "stable"
+    auto_upgrade: "minor"
+    pin: "6.x"
+    upgrade_window:
+      cron: "0 2 * * SUN"
+      timezone: "Asia/Tokyo"
+    notifications:
+      slack_webhook: "https://hooks.slack.com/services/REDACTED"
+      notify_on: ["upgrade_available", "upgraded", "rollback"]
+    metadata:
+      tenant_name: "Customer A"
+      plan: "standard"
+      created_at: "2026-04-01T00:00:00Z"
+  - schema_version: "1.0"
+    tenant_id: "660e8400-e29b-41d4-a716-446655440001"
+    channel: "stable"
+    auto_upgrade: "none"
+    pin: "6.0.5"
+    notifications:
+      email: "ops@customer-b.example.com"
+      notify_on: ["upgrade_available"]
+    metadata:
+      tenant_name: "Customer B (Enterprise)"
+      plan: "enterprise"
+  - schema_version: "1.0"
+    tenant_id: "770e8400-e29b-41d4-a716-446655440002"
+    channel: "staging"
+    auto_upgrade: "minor"
+    metadata:
+      tenant_name: "Trial Customer"
+      plan: "trial"

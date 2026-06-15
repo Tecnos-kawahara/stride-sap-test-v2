@@ -1,0 +1,28 @@
+# state/state.yaml - Work Item 状態の単一真実源 (SSoT)
+#
+# 正統スキーマ (v1.2.4-tecnos):
+#   work_items は配列形式で、各要素は wi_id, status, mode を持つ dict
+#   ※ work_items_status (dict 形式) は非推奨
+#
+# lint (erp_addon_exec_tracking.py) はこのスキーマを検証します
+# GitHub Projects 逆同期 (sync_projects_to_stride.py) もこのスキーマに従います
+
+feature: FEAT-ERP-{{DOMAIN}}-{{NNN}}
+current_gate: Gate5
+autonomy_bias: balanced  # autonomous | balanced | controlled — set at project init
+
+# Profile (v5.4) — basic_design.profile との同期キャッシュ（flat schema, top-level）
+# SSoT は basic_design.md の basic_design.profile。ここは再読込を避けるためのキャッシュ。
+# enterprise-erp | saas-integration | prototype。workspace.* へのネスト禁止。
+# 不整合時は stride-lint が PROFILE_MISMATCH を出す。
+profile: enterprise-erp
+
+# Work Items 配列 (正統スキーマ)
+# status: pending | in_progress | done
+# mode: autopilot | confirm | validate
+work_items:
+  # - wi_id: WI-ERP-XXX-001
+  #   status: pending
+  #   mode: autopilot
+
+run_index: {}

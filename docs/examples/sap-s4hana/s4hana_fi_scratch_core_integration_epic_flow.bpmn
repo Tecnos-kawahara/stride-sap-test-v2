@@ -1,0 +1,527 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+    xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    xmlns:modeler="http://camunda.org/schema/modeler/1.0"
+    id="Definitions_S4HANA_FI_ScratchCore"
+    targetNamespace="http://tecnos.co.jp/sdd/docs/s4hana-fi-scratch-core"
+    exporter="Camunda Modeler"
+    exporterVersion="5.20.0"
+    modeler:executionPlatform="Camunda Cloud"
+    modeler:executionPlatformVersion="8.8.0">
+
+  <bpmn:collaboration id="Collaboration_S4HANA_FI_ScratchCore">
+    <bpmn:documentation>S/4HANA を FI 専用で利用し、業務トランザクション SoR をスクラッチ開発の基幹システムに残す場合の連携全体像を俯瞰する。
+スコープ: 会計マスタ差分連携、仕訳イベント連携、会計伝票起票、起票結果返却、入出金明細受領、消込/支払結果返却、月次残高/例外共有
+スコープ外: 販売管理、在庫管理、購買実務、与信、原価計算、固定資産、詳細なワークフロー UI
+正本意図: 業務トランザクションの SoR はスクラッチ基幹、法定帳簿・会計残高・消込結果の SoR は S/4HANA FI</bpmn:documentation>
+
+    <bpmn:participant id="Participant_Core" name="スクラッチ基幹システム" processRef="Process_Core">
+      <bpmn:documentation>販売・契約・請求・支払依頼などの業務トランザクションを保持する主系システム。会計に必要な最小限のマスタ差分と仕訳イベントを S/4HANA FI へ送る (system_of_record: business operations)</bpmn:documentation>
+    </bpmn:participant>
+    <bpmn:participant id="Participant_FI" name="S/4HANA FI" processRef="Process_FI">
+      <bpmn:documentation>総勘定元帳、売掛/買掛、入出金消込、月次残高、会計例外管理を担う会計システム。業務処理は保持せず、会計イベントと入出金結果を正本化する (system_of_record: accounting)</bpmn:documentation>
+    </bpmn:participant>
+    <bpmn:participant id="Participant_Bank" name="銀行・決済サービス" processRef="Process_Bank">
+      <bpmn:documentation>入金着金、支払実行、銀行明細の生成を行う外部決済主体。S/4HANA FI へ入出金明細を返す (external_party: bank/payment provider)</bpmn:documentation>
+    </bpmn:participant>
+    <bpmn:participant id="Participant_Accounting" name="経理部門" processRef="Process_Accounting">
+      <bpmn:documentation>月次残高と例外を確認し、差異原因の切り分けと調整判断を行う業務主体 (internal_team: Accounting)</bpmn:documentation>
+    </bpmn:participant>
+
+    <bpmn:messageFlow id="MsgFlow_CoreToFI_MasterDelta" name="会計マスタ差分連携" sourceRef="Task_Core_SendMasterDelta" targetRef="Task_FI_ReceiveMasterDelta">
+      <bpmn:documentation>スクラッチ基幹から S/4HANA FI へ、会計に必要な最小限のマスタ差分を送る。
+ペイロード: 取引先コード、勘定コード、税区分、部門/セグメント、支払条件、会計統制フラグ
+SLA: 業務マスタ確定後 15 分以内。起票対象イベントの前に到着していること</bpmn:documentation>
+    </bpmn:messageFlow>
+    <bpmn:messageFlow id="MsgFlow_CoreToFI_AccountingEvent" name="会計仕訳イベント連携" sourceRef="Task_Core_SendAccountingEvent" targetRef="Task_FI_ReceiveAccountingEvent">
+      <bpmn:documentation>スクラッチ基幹から S/4HANA FI へ会計仕訳イベントを送る。
+ペイロード: イベントID、業務伝票番号、借方/貸方明細、税情報、取引先、請求/支払期日、連携元タイムスタンプ
+SLA: 業務確定後 5 分以内。少なくとも 1 回配信し、重複排除キーを持つ</bpmn:documentation>
+    </bpmn:messageFlow>
+    <bpmn:messageFlow id="MsgFlow_FIToCore_PostingResult" name="会計起票結果返却" sourceRef="Task_FI_SendPostingResult" targetRef="Task_Core_ReceivePostingResult">
+      <bpmn:documentation>S/4HANA FI からスクラッチ基幹へ起票結果を返す。
+ペイロード: 会計伝票番号、会計年度、起票結果、エラーコード、差戻理由、再送要否
+SLA: 仕訳イベント受領後 10 分以内。異常時は即時返却</bpmn:documentation>
+    </bpmn:messageFlow>
+    <bpmn:messageFlow id="MsgFlow_BankToFI_BankStatement" name="入出金明細送信" sourceRef="Task_Bank_SendBankStatement" targetRef="Task_FI_ReceiveBankStatement">
+      <bpmn:documentation>銀行・決済サービスから S/4HANA FI へ入出金明細を送る。
+ペイロード: 銀行口座、入出金日、金額、手数料、取引先識別子、照合キー、決済ステータス
+SLA: 当日入出金は当日中、少なくとも日次で明細反映</bpmn:documentation>
+    </bpmn:messageFlow>
+    <bpmn:messageFlow id="MsgFlow_FIToCore_ClearingResult" name="消込/支払結果返却" sourceRef="Task_FI_SendClearingResult" targetRef="Task_Core_ReceiveClearingResult">
+      <bpmn:documentation>S/4HANA FI からスクラッチ基幹へ消込/支払結果を返す。
+ペイロード: 対象請求/支払依頼番号、消込結果、入金日/支払日、残高、未消込理由、再確認フラグ
+SLA: 銀行明細反映後 30 分以内。月次締め期間中は優先処理</bpmn:documentation>
+    </bpmn:messageFlow>
+    <bpmn:messageFlow id="MsgFlow_FIToAccounting_CloseReport" name="月次残高・例外レポート" sourceRef="Task_FI_SendCloseReport" targetRef="Task_Accounting_ReceiveCloseReport">
+      <bpmn:documentation>S/4HANA FI から経理部門へ月次残高と例外一覧を共有する。
+ペイロード: GL残高、売掛/買掛年齢表、未消込一覧、起票エラー一覧、連携差異件数、締め対象期間
+SLA: 締め対象日の営業開始時点、または経理実行要求後 15 分以内</bpmn:documentation>
+    </bpmn:messageFlow>
+
+    <bpmn:textAnnotation id="Note_SOR_Boundary">
+      <bpmn:text>SoR 方針: 業務取引・請求・支払依頼はスクラッチ基幹、法定仕訳・残高・消込は S/4HANA FI。</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="Note_Minimal_Master">
+      <bpmn:text>マスタ同期は最小限。会計に不要な業務属性は S/4HANA へ持ち込まない。</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_SOR_Boundary" sourceRef="Note_SOR_Boundary" targetRef="MsgFlow_CoreToFI_AccountingEvent" />
+    <bpmn:association id="Assoc_Minimal_Master" sourceRef="Note_Minimal_Master" targetRef="MsgFlow_CoreToFI_MasterDelta" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="Process_Core" name="スクラッチ基幹システム">
+    <bpmn:documentation>業務トランザクションを確定し、会計に必要な差分とイベントだけを生成する。S/4HANA FI の起票結果と消込結果を受けて業務ステータスを更新する。</bpmn:documentation>
+    <bpmn:startEvent id="Start_Core" name="業務取引確定">
+      <bpmn:outgoing>Flow_Core_001</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Task_Core_RecordTransaction" name="業務取引・請求/支払依頼確定">
+      <bpmn:documentation>目的: 売上、請求、返金、支払依頼などの業務イベントを最終確定する
+入力: 業務伝票、契約条件、請求/支払条件
+出力: 会計連携対象となる業務確定イベント</bpmn:documentation>
+      <bpmn:incoming>Flow_Core_001</bpmn:incoming>
+      <bpmn:outgoing>Flow_Core_002</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sendTask id="Task_Core_SendMasterDelta" name="会計マスタ差分送信">
+      <bpmn:documentation>目的: 起票に必要な取引先/勘定/税関連マスタ差分を S/4HANA FI へ送る
+入力: 業務取引確定イベント、最新マスタ状態
+出力: 会計マスタ差分 (messageFlow 参照)</bpmn:documentation>
+      <bpmn:incoming>Flow_Core_002</bpmn:incoming>
+      <bpmn:outgoing>Flow_Core_003</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:sendTask id="Task_Core_SendAccountingEvent" name="会計仕訳イベント送信">
+      <bpmn:documentation>目的: S/4HANA FI に仕訳起票のための会計イベントを送る
+入力: 業務確定イベント、科目/税情報、取引先情報
+出力: 会計仕訳イベント (messageFlow 参照)</bpmn:documentation>
+      <bpmn:incoming>Flow_Core_003</bpmn:incoming>
+      <bpmn:outgoing>Flow_Core_004</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:receiveTask id="Task_Core_ReceivePostingResult" name="会計起票結果受領">
+      <bpmn:documentation>目的: 起票成功/失敗を受け取り、業務側の次アクションを分岐する
+入力: 会計起票結果 (messageFlow 参照)
+出力: 起票済み状態または差戻理由</bpmn:documentation>
+      <bpmn:incoming>Flow_Core_004</bpmn:incoming>
+      <bpmn:outgoing>Flow_Core_005</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:task id="Task_Core_UpdateBusinessStatus" name="業務ステータス更新">
+      <bpmn:documentation>目的: 会計起票結果を業務伝票へ反映し、再送/保留/完了状態を管理する
+入力: 起票済み状態または差戻理由
+出力: 更新済み業務ステータス</bpmn:documentation>
+      <bpmn:incoming>Flow_Core_005</bpmn:incoming>
+      <bpmn:outgoing>Flow_Core_006</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:receiveTask id="Task_Core_ReceiveClearingResult" name="消込/支払結果受領">
+      <bpmn:documentation>目的: S/4HANA FI の消込/支払結果を受け取り、売掛/買掛の業務状態へ反映する
+入力: 消込/支払結果 (messageFlow 参照)
+出力: 決済済み/未消込/要確認の結果</bpmn:documentation>
+      <bpmn:incoming>Flow_Core_006</bpmn:incoming>
+      <bpmn:outgoing>Flow_Core_007</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:task id="Task_Core_UpdateARAPStatus" name="債権債務状態更新">
+      <bpmn:documentation>目的: 未収・未払、回収済み、支払済みの状態を業務台帳へ反映する
+入力: 決済結果、残高、差異理由
+出力: 業務側の債権債務状態</bpmn:documentation>
+      <bpmn:incoming>Flow_Core_007</bpmn:incoming>
+      <bpmn:outgoing>Flow_Core_008</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End_Core" name="業務会計連携完了">
+      <bpmn:incoming>Flow_Core_008</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Core_001" sourceRef="Start_Core" targetRef="Task_Core_RecordTransaction" />
+    <bpmn:sequenceFlow id="Flow_Core_002" sourceRef="Task_Core_RecordTransaction" targetRef="Task_Core_SendMasterDelta" />
+    <bpmn:sequenceFlow id="Flow_Core_003" sourceRef="Task_Core_SendMasterDelta" targetRef="Task_Core_SendAccountingEvent" />
+    <bpmn:sequenceFlow id="Flow_Core_004" sourceRef="Task_Core_SendAccountingEvent" targetRef="Task_Core_ReceivePostingResult" />
+    <bpmn:sequenceFlow id="Flow_Core_005" sourceRef="Task_Core_ReceivePostingResult" targetRef="Task_Core_UpdateBusinessStatus" />
+    <bpmn:sequenceFlow id="Flow_Core_006" sourceRef="Task_Core_UpdateBusinessStatus" targetRef="Task_Core_ReceiveClearingResult" />
+    <bpmn:sequenceFlow id="Flow_Core_007" sourceRef="Task_Core_ReceiveClearingResult" targetRef="Task_Core_UpdateARAPStatus" />
+    <bpmn:sequenceFlow id="Flow_Core_008" sourceRef="Task_Core_UpdateARAPStatus" targetRef="End_Core" />
+  </bpmn:process>
+
+  <bpmn:process id="Process_FI" name="S/4HANA FI">
+    <bpmn:documentation>会計マスタ差分と仕訳イベントを受け、会計伝票起票、入出金消込、月次残高と例外の集約を担う。業務伝票 SoR は保持しない。</bpmn:documentation>
+    <bpmn:startEvent id="Start_FI" name="会計連携待機">
+      <bpmn:outgoing>Flow_FI_001</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:receiveTask id="Task_FI_ReceiveMasterDelta" name="会計マスタ差分受領">
+      <bpmn:documentation>目的: 起票前に必要な会計マスタの差分を受領する
+入力: 会計マスタ差分 (messageFlow 参照)
+出力: S/4HANA 反映対象マスタ</bpmn:documentation>
+      <bpmn:incoming>Flow_FI_001</bpmn:incoming>
+      <bpmn:outgoing>Flow_FI_002</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:task id="Task_FI_ValidateMasterMapping" name="勘定・取引先マッピング検証">
+      <bpmn:documentation>目的: 仕訳起票前に勘定/取引先/税区分の整合性を確認する
+入力: S/4HANA 反映対象マスタ
+出力: 起票可能なマッピング状態、例外一覧</bpmn:documentation>
+      <bpmn:incoming>Flow_FI_002</bpmn:incoming>
+      <bpmn:outgoing>Flow_FI_003</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:receiveTask id="Task_FI_ReceiveAccountingEvent" name="会計仕訳イベント受領">
+      <bpmn:documentation>目的: スクラッチ基幹からの会計イベントを受け取り、起票対象を確定する
+入力: 会計仕訳イベント (messageFlow 参照)
+出力: 起票対象イベント</bpmn:documentation>
+      <bpmn:incoming>Flow_FI_003</bpmn:incoming>
+      <bpmn:outgoing>Flow_FI_004</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:task id="Task_FI_PostAccountingDocument" name="会計伝票起票">
+      <bpmn:documentation>目的: 総勘定元帳、売掛、買掛へ会計伝票を起票する
+入力: 起票対象イベント、マッピング状態
+出力: 会計伝票番号、起票結果</bpmn:documentation>
+      <bpmn:incoming>Flow_FI_004</bpmn:incoming>
+      <bpmn:outgoing>Flow_FI_005</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sendTask id="Task_FI_SendPostingResult" name="起票結果返却">
+      <bpmn:documentation>目的: スクラッチ基幹へ起票成否を返し、業務側の後続制御を可能にする
+入力: 会計伝票番号、起票結果
+出力: 会計起票結果 (messageFlow 参照)</bpmn:documentation>
+      <bpmn:incoming>Flow_FI_005</bpmn:incoming>
+      <bpmn:outgoing>Flow_FI_006</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:receiveTask id="Task_FI_ReceiveBankStatement" name="入出金明細受領">
+      <bpmn:documentation>目的: 銀行・決済サービスの明細を取り込み、入出金事実を正本化する
+入力: 入出金明細 (messageFlow 参照)
+出力: 消込対象明細</bpmn:documentation>
+      <bpmn:incoming>Flow_FI_006</bpmn:incoming>
+      <bpmn:outgoing>Flow_FI_007</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:task id="Task_FI_ClearOpenItems" name="消込・支払処理">
+      <bpmn:documentation>目的: 売掛金/買掛金の消込、支払結果反映、未消込差異の識別を行う
+入力: 消込対象明細、未決済オープン項目
+出力: 消込結果、残高、要確認差異</bpmn:documentation>
+      <bpmn:incoming>Flow_FI_007</bpmn:incoming>
+      <bpmn:outgoing>Flow_FI_008</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sendTask id="Task_FI_SendClearingResult" name="消込/支払結果返却">
+      <bpmn:documentation>目的: スクラッチ基幹へ決済結果を返し、業務台帳の債権債務状態を同期する
+入力: 消込結果、残高、要確認差異
+出力: 消込/支払結果 (messageFlow 参照)</bpmn:documentation>
+      <bpmn:incoming>Flow_FI_008</bpmn:incoming>
+      <bpmn:outgoing>Flow_FI_009</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:sendTask id="Task_FI_SendCloseReport" name="月次残高・例外レポート送信">
+      <bpmn:documentation>目的: 経理部門へ締め判断に必要な残高と例外を共有する
+入力: GL/売掛/買掛残高、差異一覧、起票エラー、未消込一覧
+出力: 月次残高・例外レポート (messageFlow 参照)</bpmn:documentation>
+      <bpmn:incoming>Flow_FI_009</bpmn:incoming>
+      <bpmn:outgoing>Flow_FI_010</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:endEvent id="End_FI" name="会計締め連携完了">
+      <bpmn:incoming>Flow_FI_010</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_FI_001" sourceRef="Start_FI" targetRef="Task_FI_ReceiveMasterDelta" />
+    <bpmn:sequenceFlow id="Flow_FI_002" sourceRef="Task_FI_ReceiveMasterDelta" targetRef="Task_FI_ValidateMasterMapping" />
+    <bpmn:sequenceFlow id="Flow_FI_003" sourceRef="Task_FI_ValidateMasterMapping" targetRef="Task_FI_ReceiveAccountingEvent" />
+    <bpmn:sequenceFlow id="Flow_FI_004" sourceRef="Task_FI_ReceiveAccountingEvent" targetRef="Task_FI_PostAccountingDocument" />
+    <bpmn:sequenceFlow id="Flow_FI_005" sourceRef="Task_FI_PostAccountingDocument" targetRef="Task_FI_SendPostingResult" />
+    <bpmn:sequenceFlow id="Flow_FI_006" sourceRef="Task_FI_SendPostingResult" targetRef="Task_FI_ReceiveBankStatement" />
+    <bpmn:sequenceFlow id="Flow_FI_007" sourceRef="Task_FI_ReceiveBankStatement" targetRef="Task_FI_ClearOpenItems" />
+    <bpmn:sequenceFlow id="Flow_FI_008" sourceRef="Task_FI_ClearOpenItems" targetRef="Task_FI_SendClearingResult" />
+    <bpmn:sequenceFlow id="Flow_FI_009" sourceRef="Task_FI_SendClearingResult" targetRef="Task_FI_SendCloseReport" />
+    <bpmn:sequenceFlow id="Flow_FI_010" sourceRef="Task_FI_SendCloseReport" targetRef="End_FI" />
+  </bpmn:process>
+
+  <bpmn:process id="Process_Bank" name="銀行・決済サービス">
+    <bpmn:documentation>決済結果そのものを生成し、入出金明細を S/4HANA FI へ返す外部主体。</bpmn:documentation>
+    <bpmn:startEvent id="Start_Bank" name="入出金発生">
+      <bpmn:outgoing>Flow_Bank_001</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Task_Bank_ExecuteSettlement" name="入出金実行">
+      <bpmn:documentation>目的: 入金着金または支払実行を完了させる
+入力: 顧客入金、支払指図、決済依頼
+出力: 入出金実績</bpmn:documentation>
+      <bpmn:incoming>Flow_Bank_001</bpmn:incoming>
+      <bpmn:outgoing>Flow_Bank_002</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sendTask id="Task_Bank_SendBankStatement" name="入出金明細送信">
+      <bpmn:documentation>目的: S/4HANA FI へ銀行明細を返し、消込処理を開始可能にする
+入力: 入出金実績
+出力: 入出金明細 (messageFlow 参照)</bpmn:documentation>
+      <bpmn:incoming>Flow_Bank_002</bpmn:incoming>
+      <bpmn:outgoing>Flow_Bank_003</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:endEvent id="End_Bank" name="銀行明細送信完了">
+      <bpmn:incoming>Flow_Bank_003</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Bank_001" sourceRef="Start_Bank" targetRef="Task_Bank_ExecuteSettlement" />
+    <bpmn:sequenceFlow id="Flow_Bank_002" sourceRef="Task_Bank_ExecuteSettlement" targetRef="Task_Bank_SendBankStatement" />
+    <bpmn:sequenceFlow id="Flow_Bank_003" sourceRef="Task_Bank_SendBankStatement" targetRef="End_Bank" />
+  </bpmn:process>
+
+  <bpmn:process id="Process_Accounting" name="経理部門">
+    <bpmn:documentation>会計残高と例外を確認し、締め判断と差異調査の起点を作る。</bpmn:documentation>
+    <bpmn:startEvent id="Start_Accounting" name="締め確認開始">
+      <bpmn:outgoing>Flow_Accounting_001</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:receiveTask id="Task_Accounting_ReceiveCloseReport" name="月次残高・例外レポート受領">
+      <bpmn:documentation>目的: S/4HANA FI から締めに必要な会計状況を受領する
+入力: 月次残高・例外レポート (messageFlow 参照)
+出力: 照合対象データ</bpmn:documentation>
+      <bpmn:incoming>Flow_Accounting_001</bpmn:incoming>
+      <bpmn:outgoing>Flow_Accounting_002</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:task id="Task_Accounting_ReconcileException" name="差異照合・調整判断">
+      <bpmn:documentation>目的: 未消込・起票エラー・残高差異を確認し、業務/会計のどちらで調整するかを判断する
+入力: 照合対象データ
+出力: 調整判断、差異調査アクション</bpmn:documentation>
+      <bpmn:incoming>Flow_Accounting_002</bpmn:incoming>
+      <bpmn:outgoing>Flow_Accounting_003</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End_Accounting" name="締め判断完了">
+      <bpmn:incoming>Flow_Accounting_003</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Accounting_001" sourceRef="Start_Accounting" targetRef="Task_Accounting_ReceiveCloseReport" />
+    <bpmn:sequenceFlow id="Flow_Accounting_002" sourceRef="Task_Accounting_ReceiveCloseReport" targetRef="Task_Accounting_ReconcileException" />
+    <bpmn:sequenceFlow id="Flow_Accounting_003" sourceRef="Task_Accounting_ReconcileException" targetRef="End_Accounting" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_S4HANA_FI_ScratchCore">
+
+      <bpmndi:BPMNShape id="Participant_Core_di" bpmnElement="Participant_Core" isHorizontal="false">
+        <dc:Bounds x="60" y="60" width="240" height="2140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Participant_FI_di" bpmnElement="Participant_FI" isHorizontal="false">
+        <dc:Bounds x="330" y="60" width="240" height="2140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Participant_Bank_di" bpmnElement="Participant_Bank" isHorizontal="false">
+        <dc:Bounds x="600" y="60" width="240" height="2140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Participant_Accounting_di" bpmnElement="Participant_Accounting" isHorizontal="false">
+        <dc:Bounds x="870" y="60" width="240" height="2140" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Start_Core_di" bpmnElement="Start_Core">
+        <dc:Bounds x="162" y="120" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Core_RecordTransaction_di" bpmnElement="Task_Core_RecordTransaction">
+        <dc:Bounds x="125" y="220" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Core_SendMasterDelta_di" bpmnElement="Task_Core_SendMasterDelta">
+        <dc:Bounds x="125" y="380" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Core_SendAccountingEvent_di" bpmnElement="Task_Core_SendAccountingEvent">
+        <dc:Bounds x="125" y="700" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Core_ReceivePostingResult_di" bpmnElement="Task_Core_ReceivePostingResult">
+        <dc:Bounds x="125" y="980" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Core_UpdateBusinessStatus_di" bpmnElement="Task_Core_UpdateBusinessStatus">
+        <dc:Bounds x="125" y="1140" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Core_ReceiveClearingResult_di" bpmnElement="Task_Core_ReceiveClearingResult">
+        <dc:Bounds x="125" y="1540" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Core_UpdateARAPStatus_di" bpmnElement="Task_Core_UpdateARAPStatus">
+        <dc:Bounds x="125" y="1700" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Core_di" bpmnElement="End_Core">
+        <dc:Bounds x="162" y="1860" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Start_FI_di" bpmnElement="Start_FI">
+        <dc:Bounds x="432" y="300" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_FI_ReceiveMasterDelta_di" bpmnElement="Task_FI_ReceiveMasterDelta">
+        <dc:Bounds x="395" y="380" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_FI_ValidateMasterMapping_di" bpmnElement="Task_FI_ValidateMasterMapping">
+        <dc:Bounds x="395" y="540" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_FI_ReceiveAccountingEvent_di" bpmnElement="Task_FI_ReceiveAccountingEvent">
+        <dc:Bounds x="395" y="700" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_FI_PostAccountingDocument_di" bpmnElement="Task_FI_PostAccountingDocument">
+        <dc:Bounds x="395" y="860" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_FI_SendPostingResult_di" bpmnElement="Task_FI_SendPostingResult">
+        <dc:Bounds x="395" y="980" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_FI_ReceiveBankStatement_di" bpmnElement="Task_FI_ReceiveBankStatement">
+        <dc:Bounds x="395" y="1260" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_FI_ClearOpenItems_di" bpmnElement="Task_FI_ClearOpenItems">
+        <dc:Bounds x="395" y="1420" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_FI_SendClearingResult_di" bpmnElement="Task_FI_SendClearingResult">
+        <dc:Bounds x="395" y="1540" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_FI_SendCloseReport_di" bpmnElement="Task_FI_SendCloseReport">
+        <dc:Bounds x="395" y="1700" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_FI_di" bpmnElement="End_FI">
+        <dc:Bounds x="432" y="1860" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Start_Bank_di" bpmnElement="Start_Bank">
+        <dc:Bounds x="702" y="820" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Bank_ExecuteSettlement_di" bpmnElement="Task_Bank_ExecuteSettlement">
+        <dc:Bounds x="665" y="900" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Bank_SendBankStatement_di" bpmnElement="Task_Bank_SendBankStatement">
+        <dc:Bounds x="665" y="1260" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Bank_di" bpmnElement="End_Bank">
+        <dc:Bounds x="702" y="1420" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Start_Accounting_di" bpmnElement="Start_Accounting">
+        <dc:Bounds x="972" y="1620" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Accounting_ReceiveCloseReport_di" bpmnElement="Task_Accounting_ReceiveCloseReport">
+        <dc:Bounds x="935" y="1700" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Accounting_ReconcileException_di" bpmnElement="Task_Accounting_ReconcileException">
+        <dc:Bounds x="935" y="1860" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Accounting_di" bpmnElement="End_Accounting">
+        <dc:Bounds x="972" y="2020" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Note_SOR_Boundary_di" bpmnElement="Note_SOR_Boundary">
+        <dc:Bounds x="250" y="610" width="240" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Note_Minimal_Master_di" bpmnElement="Note_Minimal_Master">
+        <dc:Bounds x="250" y="300" width="240" height="70" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="Flow_Core_001_di" bpmnElement="Flow_Core_001">
+        <di:waypoint x="180" y="156" />
+        <di:waypoint x="180" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Core_002_di" bpmnElement="Flow_Core_002">
+        <di:waypoint x="180" y="300" />
+        <di:waypoint x="180" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Core_003_di" bpmnElement="Flow_Core_003">
+        <di:waypoint x="180" y="460" />
+        <di:waypoint x="180" y="700" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Core_004_di" bpmnElement="Flow_Core_004">
+        <di:waypoint x="180" y="780" />
+        <di:waypoint x="180" y="980" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Core_005_di" bpmnElement="Flow_Core_005">
+        <di:waypoint x="180" y="1060" />
+        <di:waypoint x="180" y="1140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Core_006_di" bpmnElement="Flow_Core_006">
+        <di:waypoint x="180" y="1220" />
+        <di:waypoint x="180" y="1540" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Core_007_di" bpmnElement="Flow_Core_007">
+        <di:waypoint x="180" y="1620" />
+        <di:waypoint x="180" y="1700" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Core_008_di" bpmnElement="Flow_Core_008">
+        <di:waypoint x="180" y="1780" />
+        <di:waypoint x="180" y="1860" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_FI_001_di" bpmnElement="Flow_FI_001">
+        <di:waypoint x="450" y="336" />
+        <di:waypoint x="450" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_FI_002_di" bpmnElement="Flow_FI_002">
+        <di:waypoint x="450" y="460" />
+        <di:waypoint x="450" y="540" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_FI_003_di" bpmnElement="Flow_FI_003">
+        <di:waypoint x="450" y="620" />
+        <di:waypoint x="450" y="700" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_FI_004_di" bpmnElement="Flow_FI_004">
+        <di:waypoint x="450" y="780" />
+        <di:waypoint x="450" y="860" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_FI_005_di" bpmnElement="Flow_FI_005">
+        <di:waypoint x="450" y="940" />
+        <di:waypoint x="450" y="980" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_FI_006_di" bpmnElement="Flow_FI_006">
+        <di:waypoint x="450" y="1060" />
+        <di:waypoint x="450" y="1260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_FI_007_di" bpmnElement="Flow_FI_007">
+        <di:waypoint x="450" y="1340" />
+        <di:waypoint x="450" y="1420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_FI_008_di" bpmnElement="Flow_FI_008">
+        <di:waypoint x="450" y="1500" />
+        <di:waypoint x="450" y="1540" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_FI_009_di" bpmnElement="Flow_FI_009">
+        <di:waypoint x="450" y="1620" />
+        <di:waypoint x="450" y="1700" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_FI_010_di" bpmnElement="Flow_FI_010">
+        <di:waypoint x="450" y="1780" />
+        <di:waypoint x="450" y="1860" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Bank_001_di" bpmnElement="Flow_Bank_001">
+        <di:waypoint x="720" y="856" />
+        <di:waypoint x="720" y="900" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Bank_002_di" bpmnElement="Flow_Bank_002">
+        <di:waypoint x="720" y="980" />
+        <di:waypoint x="720" y="1260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Bank_003_di" bpmnElement="Flow_Bank_003">
+        <di:waypoint x="720" y="1340" />
+        <di:waypoint x="720" y="1420" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Accounting_001_di" bpmnElement="Flow_Accounting_001">
+        <di:waypoint x="990" y="1656" />
+        <di:waypoint x="990" y="1700" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Accounting_002_di" bpmnElement="Flow_Accounting_002">
+        <di:waypoint x="990" y="1780" />
+        <di:waypoint x="990" y="1860" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Accounting_003_di" bpmnElement="Flow_Accounting_003">
+        <di:waypoint x="990" y="1940" />
+        <di:waypoint x="990" y="2020" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="MsgFlow_CoreToFI_MasterDelta_di" bpmnElement="MsgFlow_CoreToFI_MasterDelta">
+        <di:waypoint x="235" y="420" />
+        <di:waypoint x="395" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MsgFlow_CoreToFI_AccountingEvent_di" bpmnElement="MsgFlow_CoreToFI_AccountingEvent">
+        <di:waypoint x="235" y="740" />
+        <di:waypoint x="395" y="740" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MsgFlow_FIToCore_PostingResult_di" bpmnElement="MsgFlow_FIToCore_PostingResult">
+        <di:waypoint x="395" y="1020" />
+        <di:waypoint x="235" y="1020" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MsgFlow_BankToFI_BankStatement_di" bpmnElement="MsgFlow_BankToFI_BankStatement">
+        <di:waypoint x="665" y="1300" />
+        <di:waypoint x="505" y="1300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MsgFlow_FIToCore_ClearingResult_di" bpmnElement="MsgFlow_FIToCore_ClearingResult">
+        <di:waypoint x="395" y="1580" />
+        <di:waypoint x="235" y="1580" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MsgFlow_FIToAccounting_CloseReport_di" bpmnElement="MsgFlow_FIToAccounting_CloseReport">
+        <di:waypoint x="505" y="1740" />
+        <di:waypoint x="935" y="1740" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Assoc_SOR_Boundary_di" bpmnElement="Assoc_SOR_Boundary">
+        <di:waypoint x="370" y="680" />
+        <di:waypoint x="370" y="740" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Assoc_Minimal_Master_di" bpmnElement="Assoc_Minimal_Master">
+        <di:waypoint x="370" y="370" />
+        <di:waypoint x="370" y="420" />
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

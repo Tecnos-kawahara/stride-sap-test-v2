@@ -1,0 +1,23 @@
+{
+  "_comment": "Add these fields to your root package.json to enable npm workspaces with Turborepo",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "libs/*",
+    "services/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "test:coverage": "turbo run test:coverage",
+    "test:contract": "turbo run test:contract",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "sdd:lint": "sdd-templates/bin/stride lint --all --warn-only"
+  },
+  "devDependencies": {
+    "turbo": "^2",
+    "typescript": "^5"
+  }
+}

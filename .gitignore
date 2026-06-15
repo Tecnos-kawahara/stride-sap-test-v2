@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Test outputs
+.coverage
+coverage_report.yaml
+lint_output.txt
+.pytest_cache/
+.hypothesis/
+.benchmarks/
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+
+# Local runtime/work artifacts (do not publish in template repo)
+.brv/
+.planning/
+.entire/
+# Evaluator runtime reports (generated per-run, not tracked)
+specs/*/state/eval_report_design_*.md
+specs/*/state/evaluator_latest.json
+.swarm/
+.claude-flow/
+.playwright-mcp/
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+/tasks.md
+
+# Screenshots
+*.png
+
+# Prompt/work artifacts (author-specific, not part of template)
+# Completed prompts are archived in archive/prompts/
+prompts/
+
+# Symphony orchestrator work directory
+.symphony/
+.env.local
+
+# v6.0 (2026-04-29): Phase 着手プロンプト等の個人作業ファイル (untracked、gitignored)
+docs/.session-prompts/
+
+# v6.0 (2026-04-30): ByteRover MCP local agent skill cache (個人環境ごとに異なる、template repo に含めない)
+.agents/
+
+# v6.0 (2026-04-30): Phase 別実行プロンプト + bugfix プロンプト (個人セッションごと、Hitoshi さん手元保管)
+docs/Tecnos-STRIDE Upstream Extension_*.md
+docs/bugfix_*.md

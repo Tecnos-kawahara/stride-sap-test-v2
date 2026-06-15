@@ -1,0 +1,56 @@
+# Evidence Pack Category Mapping -- SAP Edition
+# Template ID: TPL-EVID-MAP-SAP-001
+#
+# SAPテストカテゴリを SDD 標準カテゴリにマッピングする。
+# stride-lint は本ファイルを読み取り、evidence_pack_sap.md のテスト結果を
+# 標準カテゴリに集計したうえで AC カバレッジを検証する。
+#
+# 拡張パターン:
+#   evidence_pack.md (標準) + evidence_pack_sap.md (SAP拡張) の2ファイル構成。
+#   本マッピングにより stride-lint は両方を統合的に検証できる。
+
+# SAP プロジェクト判定条件
+# MANIFEST.yaml の detection strategies で SAP プロジェクトを判定する。
+# 以下の条件は stride-lint の後方互換性のために残す。
+detection:
+  condition: "plan.sap_components is defined and non-empty"
+
+# SAP テストカテゴリ -> SDD 標準テストカテゴリ
+category_mapping:
+  abap_unit:
+    maps_to: "unit"
+    description: "ABAP Unit テスト -> 標準 unit カテゴリ"
+
+  cds_test:
+    maps_to: "unit"
+    description: "CDS Test Double テスト -> 標準 unit カテゴリ（ビュー単体テスト）"
+
+  behavior_test:
+    maps_to: "integration"
+    description: "RAP BO Behavior テスト -> 標準 integration カテゴリ（BO統合テスト）"
+
+  authorization_test:
+    maps_to: "integration"
+    description: "権限テスト -> 標準 integration カテゴリ（権限統合テスト）"
+
+  odata_test:
+    maps_to: "contract"
+    description: "OData サービステスト -> 標準 contract カテゴリ（APIコントラクト検証）"
+
+  gui_test:
+    maps_to: "e2e"
+    description: "SAP GUI テスト -> 標準 e2e カテゴリ（画面E2Eテスト）"
+
+  s_evidence:
+    maps_to: "e2e"
+    description: "S3-A1 正式エビデンス -> 標準 e2e カテゴリ（SE16/SE38 画面スクショ）"
+
+# SAP 固有の証跡セクション（標準にはないが SAP 版で必須）
+sap_specific_sections:
+  - sap_object_status
+  - s_evidence
+  - test_green_confirmation
+  - syntax_check_results
+  - activation_results
+  - transport_log
+  - security_verification

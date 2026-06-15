@@ -1,0 +1,415 @@
+# BABOK Technique Library — Tecnos-STRIDE Upstream Extension (Phase A)
+#
+# BABOK v3 §10 の 50 技法を Tecnos-STRIDE Upstream の選択カタログとして登録する。
+# 各技法には独自の 1 行 purpose と、典型的に使われる Phase / artifact を紐付ける。
+# 原典テキストの長文転記は行わない (fair-use, names + section refs only)。
+#
+# Phase A: 静的カタログのみ。AI による技法自動推薦 (technique_picker) は Phase B。
+
+version: "0.1.0-phase-a"
+status: "draft"
+source: "BABOK v3 §10 Techniques (50 techniques)"
+
+attributions:
+  - { source: "BABOK v3 (IIBA)", role: "technique catalogue (§10.1〜10.50)", license: "fair-use, technique names and section refs only" }
+
+techniques:
+  - id: "acceptance_and_evaluation_criteria"
+    name_en: "Acceptance and Evaluation Criteria"
+    name_ja: "受入・評価基準"
+    purpose: "ソリューションが受入可能か / 複数案を比較可能かの判定軸を明示化する"
+    babok_section: "10.1"
+    typical_phase: ["stride_core"]
+    typical_artifacts: ["goal_tree.yaml", "business_usecase.yaml"]
+
+  - id: "backlog_management"
+    name_en: "Backlog Management"
+    name_ja: "バックログ管理"
+    purpose: "残作業・要求・課題を価値順に並べ、定期的に精査・選択する"
+    babok_section: "10.2"
+    typical_phase: ["stride_core"]
+    typical_artifacts: ["change_strategy.yaml"]
+
+  - id: "balanced_scorecard"
+    name_en: "Balanced Scorecard"
+    name_ja: "バランスト・スコアカード"
+    purpose: "財務・顧客・業務プロセス・学習成長の 4 視点で戦略実行を測る"
+    babok_section: "10.3"
+    typical_phase: ["phase_0_discovery"]
+    typical_artifacts: ["value_canvas.yaml", "goal_tree.yaml"]
+
+  - id: "benchmarking_and_market_analysis"
+    name_en: "Benchmarking and Market Analysis"
+    name_ja: "ベンチマーキングと市場分析"
+    purpose: "業界水準と市場動向を比較しギャップ・機会を特定する"
+    babok_section: "10.4"
+    typical_phase: ["phase_0_discovery"]
+    typical_artifacts: ["context_map.yaml", "business_need.yaml"]
+
+  - id: "brainstorming"
+    name_en: "Brainstorming"
+    name_ja: "ブレインストーミング"
+    purpose: "短時間で多様な選択肢を発散させる協働発想手法"
+    babok_section: "10.5"
+    typical_phase: ["phase_0_discovery"]
+    typical_artifacts: ["business_need.yaml", "value_canvas.yaml"]
+
+  - id: "business_capability_analysis"
+    name_en: "Business Capability Analysis"
+    name_ja: "ビジネス能力分析"
+    purpose: "組織が提供できる業務能力を体系化し戦略的ギャップを把握する"
+    babok_section: "10.6"
+    typical_phase: ["phase_0_discovery"]
+    typical_artifacts: ["context_map.yaml", "goal_tree.yaml"]
+
+  - id: "business_cases"
+    name_en: "Business Cases"
+    name_ja: "ビジネスケース"
+    purpose: "投資判断のために便益・コスト・リスクを構造化して提示する"
+    babok_section: "10.7"
+    typical_phase: ["phase_0_discovery"]
+    typical_artifacts: ["business_need.yaml", "value_canvas.yaml", "change_strategy.yaml"]
+
+  - id: "business_model_canvas"
+    name_en: "Business Model Canvas"
+    name_ja: "ビジネスモデルキャンバス"
+    purpose: "9 ブロックで事業モデルを 1 枚に俯瞰する戦略可視化フレーム"
+    babok_section: "10.8"
+    typical_phase: ["phase_0_discovery"]
+    typical_artifacts: ["value_canvas.yaml", "context_map.yaml"]
+
+  - id: "business_rules_analysis"
+    name_en: "Business Rules Analysis"
+    name_ja: "ビジネスルール分析"
+    purpose: "業務判断・制約をルールとして抽出・分類・整合させる"
+    babok_section: "10.9"
+    typical_phase: ["phase_0_5_context_modelling"]
+    typical_artifacts: ["condition_variation.yaml", "usecase_complex.yaml"]
+
+  - id: "collaborative_games"
+    name_en: "Collaborative Games"
+    name_ja: "コラボレイティブ・ゲーム"
+    purpose: "ゲーム形式の協働技法で参加者の合意形成と発散を促す"
+    babok_section: "10.10"
+    typical_phase: ["phase_0_3_elicit"]
+    typical_artifacts: ["elicitation_results.yaml"]
+
+  - id: "concept_modelling"
+    name_en: "Concept Modelling"
+    name_ja: "概念モデリング"
+    purpose: "業務に登場する概念とその関係をドメイン語彙として構造化する"
+    babok_section: "10.11"
+    typical_phase: ["phase_0_5_context_modelling"]
+    typical_artifacts: ["information_state.yaml", "requirements_architecture.yaml"]
+
+  - id: "data_dictionary"
+    name_en: "Data Dictionary"
+    name_ja: "データ辞書"
+    purpose: "データ項目の定義・型・関係を一元管理し用語統一を担保する"
+    babok_section: "10.12"
+    typical_phase: ["phase_0_5_context_modelling"]
+    typical_artifacts: ["information_state.yaml"]
+
+  - id: "data_flow_diagrams"
+    name_en: "Data Flow Diagrams"
+    name_ja: "データフロー図"
+    purpose: "プロセス間のデータ移動を可視化し情報フローと境界を明示する"
+    babok_section: "10.13"
+    typical_phase: ["phase_0_5_context_modelling"]
+    typical_artifacts: ["information_state.yaml", "actor_system.yaml"]
+
+  - id: "data_mining"
+    name_en: "Data Mining"
+    name_ja: "データマイニング"
+    purpose: "既存データから傾向・パターンを抽出し意思決定を支える"
+    babok_section: "10.14"
+    typical_phase: ["phase_0_3_elicit"]
+    typical_artifacts: ["elicitation_results.yaml", "context_map.yaml"]
+
+  - id: "data_modelling"
+    name_en: "Data Modelling"
+    name_ja: "データモデリング"
+    purpose: "エンティティ・属性・関連を厳密にモデル化しデータ構造を確定する"
+    babok_section: "10.15"
+    typical_phase: ["phase_0_5_context_modelling"]
+    typical_artifacts: ["information_state.yaml", "requirements_architecture.yaml"]
+
+  - id: "decision_analysis"
+    name_en: "Decision Analysis"
+    name_ja: "意思決定分析"
+    purpose: "選択肢を評価軸ごとに比較し最適案を選定する判断プロセス"
+    babok_section: "10.16"
+    typical_phase: ["phase_0_discovery"]
+    typical_artifacts: ["change_strategy.yaml", "risk_register.yaml"]
+
+  - id: "decision_modelling"
+    name_en: "Decision Modelling"
+    name_ja: "意思決定モデリング"
+    purpose: "業務判断ロジックを DMN 等の形式で機械可読に表現する"
+    babok_section: "10.17"
+    typical_phase: ["phase_0_5_context_modelling"]
+    typical_artifacts: ["condition_variation.yaml"]
+
+  - id: "document_analysis"
+    name_en: "Document Analysis"
+    name_ja: "ドキュメント分析"
+    purpose: "既存文書から要件・制約・経緯を読み取り暗黙知を顕在化する"
+    babok_section: "10.18"
+    typical_phase: ["phase_0_3_elicit"]
+    typical_artifacts: ["elicitation_results.yaml", "context_map.yaml"]
+
+  - id: "estimation"
+    name_en: "Estimation"
+    name_ja: "見積り"
+    purpose: "工数・期間・コストを根拠付きで予測し計画の前提を設定する"
+    babok_section: "10.19"
+    typical_phase: ["stride_core"]
+    typical_artifacts: ["change_strategy.yaml", "risk_register.yaml"]
+
+  - id: "financial_analysis"
+    name_en: "Financial Analysis"
+    name_ja: "財務分析"
+    purpose: "ROI / NPV / 回収期間で投資の財務的妥当性を評価する"
+    babok_section: "10.20"
+    typical_phase: ["phase_0_discovery"]
+    typical_artifacts: ["business_need.yaml", "value_canvas.yaml"]
+
+  - id: "focus_groups"
+    name_en: "Focus Groups"
+    name_ja: "フォーカスグループ"
+    purpose: "代表ユーザー集団に短期間で意見を集約しテーマを掘り下げる"
+    babok_section: "10.21"
+    typical_phase: ["phase_0_3_elicit"]
+    typical_artifacts: ["elicitation_results.yaml", "stakeholder_map.yaml"]
+
+  - id: "functional_decomposition"
+    name_en: "Functional Decomposition"
+    name_ja: "機能分解"
+    purpose: "上位機能を漸進的に下位機能へ分解し責務階層を作る"
+    babok_section: "10.22"
+    typical_phase: ["phase_0_5_context_modelling"]
+    typical_artifacts: ["business_usecase.yaml", "requirements_architecture.yaml"]
+
+  - id: "glossary"
+    name_en: "Glossary"
+    name_ja: "用語集"
+    purpose: "業務用語・略語の定義を共有し言葉のズレを解消する"
+    babok_section: "10.23"
+    typical_phase: ["phase_0_discovery"]
+    typical_artifacts: ["context_map.yaml", "information_state.yaml"]
+
+  - id: "interface_analysis"
+    name_en: "Interface Analysis"
+    name_ja: "インターフェース分析"
+    purpose: "システム間の入出力境界を契約として明文化する"
+    babok_section: "10.24"
+    typical_phase: ["phase_0_5_context_modelling"]
+    typical_artifacts: ["actor_system.yaml", "requirements_architecture.yaml"]
+
+  - id: "interviews"
+    name_en: "Interviews"
+    name_ja: "インタビュー"
+    purpose: "ステークホルダー個別対話で深い文脈・暗黙的要求を引き出す"
+    babok_section: "10.25"
+    typical_phase: ["phase_0_3_elicit"]
+    typical_artifacts: ["elicitation_plan.yaml", "elicitation_results.yaml"]
+
+  - id: "item_tracking"
+    name_en: "Item Tracking"
+    name_ja: "項目追跡"
+    purpose: "課題・決定・依頼を一覧化し対応状態を可視化する"
+    babok_section: "10.26"
+    typical_phase: ["stride_core"]
+    typical_artifacts: ["risk_register.yaml"]
+
+  - id: "lessons_learned"
+    name_en: "Lessons Learned"
+    name_ja: "教訓"
+    purpose: "過去案件の成功・失敗を構造化し組織知として循環させる"
+    babok_section: "10.27"
+    typical_phase: ["stride_core"]
+    typical_artifacts: ["risk_register.yaml", "change_strategy.yaml"]
+
+  - id: "metrics_and_kpis"
+    name_en: "Metrics and Key Performance Indicators (KPIs)"
+    name_ja: "メトリクスと KPI"
+    purpose: "達成目標を計測可能な指標に翻訳し進捗判定を客観化する"
+    babok_section: "10.28"
+    typical_phase: ["stride_core"]
+    typical_artifacts: ["goal_tree.yaml", "value_canvas.yaml"]
+
+  - id: "mind_mapping"
+    name_en: "Mind Mapping"
+    name_ja: "マインドマッピング"
+    purpose: "中心概念から放射状に発散させ短時間で関連項目を網羅する"
+    babok_section: "10.29"
+    typical_phase: ["phase_0_discovery"]
+    typical_artifacts: ["business_need.yaml", "context_map.yaml"]
+
+  - id: "non_functional_requirements_analysis"
+    name_en: "Non-Functional Requirements Analysis"
+    name_ja: "非機能要求分析"
+    purpose: "性能・可用性・セキュリティ等の品質特性を要求として抽出する"
+    babok_section: "10.30"
+    typical_phase: ["phase_0_5_context_modelling"]
+    typical_artifacts: ["requirements_architecture.yaml"]
+
+  - id: "observation"
+    name_en: "Observation"
+    name_ja: "観察"
+    purpose: "実業務を現場で観察し言語化されない手順・暗黙知を可視化する"
+    babok_section: "10.31"
+    typical_phase: ["phase_0_3_elicit"]
+    typical_artifacts: ["elicitation_results.yaml", "business_usecase.yaml"]
+
+  - id: "organizational_modelling"
+    name_en: "Organizational Modelling"
+    name_ja: "組織モデリング"
+    purpose: "組織構造と役割分担を図式化し責任所在を明示する"
+    babok_section: "10.32"
+    typical_phase: ["phase_0_5_context_modelling"]
+    typical_artifacts: ["actor_system.yaml", "stakeholder_map.yaml"]
+
+  - id: "prioritization"
+    name_en: "Prioritization"
+    name_ja: "優先順位付け"
+    purpose: "MoSCoW・WSJF 等で要求順序を価値・コスト軸で決定する"
+    babok_section: "10.33"
+    typical_phase: ["stride_core"]
+    typical_artifacts: ["change_strategy.yaml", "goal_tree.yaml"]
+
+  - id: "process_analysis"
+    name_en: "Process Analysis"
+    name_ja: "プロセス分析"
+    purpose: "現プロセスを計測しムダ・ボトルネック・改善機会を特定する"
+    babok_section: "10.34"
+    typical_phase: ["phase_0_5_context_modelling"]
+    typical_artifacts: ["business_usecase.yaml", "context_map.yaml"]
+
+  - id: "process_modelling"
+    name_en: "Process Modelling"
+    name_ja: "プロセスモデリング"
+    purpose: "業務フローを BPMN 等で構造化しタスク・分岐・関係者を可視化する"
+    babok_section: "10.35"
+    typical_phase: ["phase_0_5_context_modelling"]
+    typical_artifacts: ["business_usecase.yaml", "requirements_architecture.yaml"]
+
+  - id: "prototyping"
+    name_en: "Prototyping"
+    name_ja: "プロトタイピング"
+    purpose: "仮実装で要求を具体化し早期に妥当性検証と発見を行う"
+    babok_section: "10.36"
+    typical_phase: ["phase_0_3_elicit"]
+    typical_artifacts: ["elicitation_results.yaml", "business_usecase.yaml"]
+
+  - id: "reviews"
+    name_en: "Reviews"
+    name_ja: "レビュー"
+    purpose: "成果物を関係者で検査し合意・誤解・欠落を早期に検出する"
+    babok_section: "10.37"
+    typical_phase: ["stride_core"]
+    typical_artifacts: ["risk_register.yaml"]
+
+  - id: "risk_analysis_and_management"
+    name_en: "Risk Analysis and Management"
+    name_ja: "リスク分析・管理"
+    purpose: "リスクを識別・評価・対応計画化し継続的に追跡する"
+    babok_section: "10.38"
+    typical_phase: ["phase_0_discovery"]
+    typical_artifacts: ["risk_register.yaml", "change_strategy.yaml"]
+
+  - id: "roles_and_permissions_matrix"
+    name_en: "Roles and Permissions Matrix"
+    name_ja: "ロール・権限マトリクス"
+    purpose: "誰が何をできるかを表で明示し SoD・最小権限を担保する"
+    babok_section: "10.39"
+    typical_phase: ["phase_0_5_context_modelling"]
+    typical_artifacts: ["actor_system.yaml", "stakeholder_map.yaml"]
+
+  - id: "root_cause_analysis"
+    name_en: "Root Cause Analysis"
+    name_ja: "根本原因分析"
+    purpose: "5 Whys / Fishbone 等で表面事象から本質的原因へ遡る"
+    babok_section: "10.40"
+    typical_phase: ["stride_core"]
+    typical_artifacts: ["business_need.yaml", "risk_register.yaml"]
+
+  - id: "scope_modelling"
+    name_en: "Scope Modelling"
+    name_ja: "スコープモデリング"
+    purpose: "対象範囲を In/Out で線引きし境界を関係者間で合意する"
+    babok_section: "10.41"
+    typical_phase: ["phase_0_5_context_modelling"]
+    typical_artifacts: ["context_map.yaml", "requirements_architecture.yaml"]
+
+  - id: "sequence_diagrams"
+    name_en: "Sequence Diagrams"
+    name_ja: "シーケンス図"
+    purpose: "オブジェクト/アクター間の時系列メッセージ交換を可視化する"
+    babok_section: "10.42"
+    typical_phase: ["phase_0_5_context_modelling"]
+    typical_artifacts: ["business_usecase.yaml", "actor_system.yaml"]
+
+  - id: "stakeholder_list_map_or_personas"
+    name_en: "Stakeholder List, Map, or Personas"
+    name_ja: "ステークホルダーリスト・マップ・ペルソナ"
+    purpose: "影響を受ける/与える関係者を体系的に列挙し関心と影響度を整理する"
+    babok_section: "10.43"
+    typical_phase: ["phase_0_discovery"]
+    typical_artifacts: ["stakeholder_map.yaml", "actor_system.yaml"]
+
+  - id: "state_modelling"
+    name_en: "State Modelling"
+    name_ja: "状態モデリング"
+    purpose: "対象が取りうる状態と遷移条件を厳密に定義する"
+    babok_section: "10.44"
+    typical_phase: ["phase_0_5_context_modelling"]
+    typical_artifacts: ["information_state.yaml", "condition_variation.yaml"]
+
+  - id: "survey_or_questionnaire"
+    name_en: "Survey or Questionnaire"
+    name_ja: "アンケート"
+    purpose: "多数のステークホルダーに同じ問いを投げ広く意見を収集する"
+    babok_section: "10.45"
+    typical_phase: ["phase_0_3_elicit"]
+    typical_artifacts: ["elicitation_results.yaml", "stakeholder_map.yaml"]
+
+  - id: "swot_analysis"
+    name_en: "SWOT Analysis"
+    name_ja: "SWOT 分析"
+    purpose: "強み・弱み・機会・脅威を 2x2 で整理し戦略示唆を得る"
+    babok_section: "10.46"
+    typical_phase: ["phase_0_discovery"]
+    typical_artifacts: ["context_map.yaml", "value_canvas.yaml"]
+
+  - id: "use_cases_and_scenarios"
+    name_en: "Use Cases and Scenarios"
+    name_ja: "ユースケース・シナリオ"
+    purpose: "アクターとシステムの相互作用を物語形式で網羅し AC を導出する"
+    babok_section: "10.47"
+    typical_phase: ["phase_0_5_context_modelling"]
+    typical_artifacts: ["business_usecase.yaml", "usecase_complex.yaml"]
+
+  - id: "user_stories"
+    name_en: "User Stories"
+    name_ja: "ユーザストーリー"
+    purpose: "『〜として、〜したい、なぜなら〜』形式で要求を価値中心に表現する"
+    babok_section: "10.48"
+    typical_phase: ["phase_0_5_context_modelling"]
+    typical_artifacts: ["business_usecase.yaml", "stakeholder_map.yaml"]
+
+  - id: "vendor_assessment"
+    name_en: "Vendor Assessment"
+    name_ja: "ベンダー評価"
+    purpose: "外部委託先・製品候補を評価軸で比較し選定の根拠を残す"
+    babok_section: "10.49"
+    typical_phase: ["stride_core"]
+    typical_artifacts: ["risk_register.yaml", "change_strategy.yaml"]
+
+  - id: "workshops"
+    name_en: "Workshops"
+    name_ja: "ワークショップ"
+    purpose: "複数関係者を集めた集中討議で短期間に成果物を作り合意を形成する"
+    babok_section: "10.50"
+    typical_phase: ["phase_0_3_elicit"]
+    typical_artifacts: ["elicitation_plan.yaml", "elicitation_results.yaml"]

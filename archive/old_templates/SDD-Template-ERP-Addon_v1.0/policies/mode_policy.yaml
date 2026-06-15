@@ -1,0 +1,31 @@
+version: 1.0
+principle:
+  - "mode is decided per Work Item (per change), not per feature."
+  - "autopilot always requires post-run walkthrough review and CI pass."
+
+modes:
+  autopilot:
+    checkpoints:
+      pre_run: []
+      post_run: ["walkthrough_review", "ci_pass"]
+  confirm:
+    checkpoints:
+      pre_run: ["plan_review"]
+      post_run: ["walkthrough_review", "ci_pass"]
+  validate:
+    checkpoints:
+      pre_run: ["design_diff_review", "plan_review"]
+      post_run: ["walkthrough_review", "ci_pass", "ops_review"]
+
+rules:
+  - if_any_risk_flags: ["authz", "sod", "pii", "accounting_calc", "inventory_valuation"]
+    mode: "validate"
+  - if_any_risk_flags: ["db_schema", "data_migration", "update_integration", "cross_module"]
+    mode: "validate"
+  - if_any_risk_flags: ["new_api", "contract_change", "performance_sensitive"]
+    mode: "confirm"
+  - if_any_risk_flags: ["ui_only", "message_only", "test_only", "logging_only"]
+    mode: "autopilot"
+
+overrides:
+  require_reason_when_override: true

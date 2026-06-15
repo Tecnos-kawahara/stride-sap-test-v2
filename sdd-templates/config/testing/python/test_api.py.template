@@ -1,0 +1,486 @@
+"""
+API Test Template - SDD Compliant
+Version: 5.3.3-tecnos-stride
+
+Usage:
+  1. Copy to specs/<feature>/tests/test_<resource>.py
+  2. Replace XXX_RESOURCE with actual resource name (orders, users, etc.)
+  3. Update endpoints and test data
+  4. Link tests to ACs via docstrings
+
+Test Naming Convention:
+  - File: test_<resource>.py (e.g., test_orders.py)
+  - Class: Test<Action><Resource> (e.g., TestCreateOrder)
+  - Method: test_<scenario> (e.g., test_create_order_success)
+
+AC Linking:
+  - Add @ac:AC-US-FEATXXX-001-01 in docstring to link to spec.md
+  - This enables traceability from test to AC
+"""
+
+import uuid
+from datetime import date, timedelta
+
+import pytest
+
+
+# =============================================================================
+# CREATE Tests
+# =============================================================================
+
+
+class TestCreateXXX_RESOURCE:
+    """Test XXX_RESOURCE creation.
+
+    Plan Reference: TS-UNIT-01, TS-UNIT-02
+    """
+
+    def test_create_success(self, client, buyer_session, sample_data):
+        """
+        @ac AC-US-FEATXXX-001-01 - XXX can be created with valid data
+
+        Given: Authenticated buyer user
+        When: POST /api/v1/xxx_resource with valid data
+        Then: Returns 201 with created resource
+        """
+        response = client.post(
+            "/api/v1/xxx_resource",
+            json=sample_data,
+            headers={"Idempotency-Key": str(uuid.uuid4())},
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert "id" in data
+        assert data["status"] == "created"
+
+    def test_create_requires_auth(self, client):
+        """
+        @ac AC-US-FEATXXX-001-02 - Unauthenticated users cannot create
+
+        Given: No authentication
+        When: POST /api/v1/xxx_resource
+        Then: Returns 401 Unauthorized
+        """
+        response = client.post(
+            "/api/v1/xxx_resource",
+            json={"name": "test"},
+        )
+
+        assert response.status_code == 401
+
+    def test_create_idempotency(self, client, buyer_session, sample_data):
+        """
+        @ac AC-US-FEATXXX-001-03 - Duplicate requests return same result
+
+        Given: Authenticated user with idempotency key
+        When: POST same request twice with same key
+        Then: Returns same resource (no duplicate)
+        """
+        idempotency_key = str(uuid.uuid4())
+
+        # First request
+        response1 = client.post(
+            "/api/v1/xxx_resource",
+            json=sample_data,
+            headers={"Idempotency-Key": idempotency_key},
+        )
+        assert response1.status_code == 201
+        id1 = response1.json()["id"]
+
+        # Second request with same key
+        response2 = client.post(
+            "/api/v1/xxx_resource",
+            json=sample_data,
+            headers={"Idempotency-Key": idempotency_key},
+        )
+        assert response2.status_code == 201
+        id2 = response2.json()["id"]
+
+        assert id1 == id2  # Same resource returned
+
+    def test_create_validation_error(self, client, buyer_session):
+        """
+        @ac AC-US-FEATXXX-001-04 - Invalid data returns validation error
+
+        Given: Authenticated user
+        When: POST with invalid/missing required fields
+        Then: Returns 422 with error details
+        """
+        response = client.post(
+            "/api/v1/xxx_resource",
+            json={"invalid": "data"},
+            headers={"Idempotency-Key": str(uuid.uuid4())},
+        )
+
+        assert response.status_code == 422
+        data = response.json()
+        assert "detail" in data
+
+
+# =============================================================================
+# LIST Tests
+# =============================================================================
+
+
+class TestListXXX_RESOURCE:
+    """Test XXX_RESOURCE listing.
+
+    Plan Reference: TS-UNIT-03, TS-UNIT-04
+    """
+
+    def test_list_empty(self, client, buyer_session):
+        """
+        @ac AC-US-FEATXXX-002-01 - Empty list returns empty array
+
+        Given: Authenticated user with no resources
+        When: GET /api/v1/xxx_resource
+        Then: Returns empty list with pagination info
+        """
+        response = client.get("/api/v1/xxx_resource")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["items"] == []
+        assert data["total"] == 0
+
+    def test_list_with_data(self, client, buyer_session, created_resource):
+        """
+        @ac AC-US-FEATXXX-002-02 - List returns all user's resources
+
+        Given: Authenticated user with created resources
+        When: GET /api/v1/xxx_resource
+        Then: Returns list with resources
+        """
+        response = client.get("/api/v1/xxx_resource")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["items"]) >= 1
+        assert "id" in data["items"][0]
+
+    def test_list_pagination(self, client, buyer_session, multiple_resources):
+        """
+        @ac AC-US-FEATXXX-002-03 - Pagination works correctly
+
+        Given: Multiple resources exist
+        When: GET with page and size params
+        Then: Returns paginated results
+        """
+        response = client.get("/api/v1/xxx_resource?page=1&size=2")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["items"]) <= 2
+        assert data["page"] == 1
+        assert data["size"] == 2
+
+    def test_list_with_filter(self, client, buyer_session, created_resource):
+        """
+        @ac AC-US-FEATXXX-002-04 - Filtering by status works
+
+        Given: Resources with various statuses
+        When: GET with status filter
+        Then: Returns only matching resources
+        """
+        response = client.get("/api/v1/xxx_resource?status=active")
+
+        assert response.status_code == 200
+        data = response.json()
+        for item in data["items"]:
+            assert item["status"] == "active"
+
+    def test_list_with_date_range(self, client, buyer_session, created_resource):
+        """
+        @ac AC-US-FEATXXX-002-05 - Date range filtering works
+
+        Given: Resources created on various dates
+        When: GET with date_from and date_to
+        Then: Returns resources within range
+        """
+        today = date.today()
+        response = client.get(
+            f"/api/v1/xxx_resource?date_from={today}&date_to={today + timedelta(days=1)}"
+        )
+
+        assert response.status_code == 200
+
+
+# =============================================================================
+# GET DETAIL Tests
+# =============================================================================
+
+
+class TestGetXXX_RESOURCE:
+    """Test XXX_RESOURCE detail retrieval.
+
+    Plan Reference: TS-UNIT-05
+    """
+
+    def test_get_success(self, client, buyer_session, created_resource):
+        """
+        @ac AC-US-FEATXXX-003-01 - Resource details can be retrieved
+
+        Given: Existing resource
+        When: GET /api/v1/xxx_resource/{id}
+        Then: Returns resource details
+        """
+        resource_id = created_resource["id"]
+        response = client.get(f"/api/v1/xxx_resource/{resource_id}")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == resource_id
+
+    def test_get_not_found(self, client, buyer_session):
+        """
+        @ac AC-US-FEATXXX-003-02 - Non-existent resource returns 404
+
+        Given: Non-existent resource ID
+        When: GET /api/v1/xxx_resource/{id}
+        Then: Returns 404 Not Found
+        """
+        response = client.get(f"/api/v1/xxx_resource/{uuid.uuid4()}")
+
+        assert response.status_code == 404
+
+    def test_get_unauthorized(self, client, buyer_session, other_user_resource):
+        """
+        @ac AC-US-FEATXXX-003-03 - Cannot access other user's resource
+
+        Given: Resource owned by another user
+        When: GET /api/v1/xxx_resource/{id}
+        Then: Returns 403 Forbidden
+        """
+        resource_id = other_user_resource["id"]
+        response = client.get(f"/api/v1/xxx_resource/{resource_id}")
+
+        assert response.status_code == 403
+
+
+# =============================================================================
+# UPDATE Tests
+# =============================================================================
+
+
+class TestUpdateXXX_RESOURCE:
+    """Test XXX_RESOURCE updates.
+
+    Plan Reference: TS-UNIT-06
+    """
+
+    def test_update_success(self, client, buyer_session, created_resource):
+        """
+        @ac AC-US-FEATXXX-004-01 - Resource can be updated
+
+        Given: Existing resource
+        When: PUT /api/v1/xxx_resource/{id} with new data
+        Then: Returns updated resource
+        """
+        resource_id = created_resource["id"]
+        response = client.put(
+            f"/api/v1/xxx_resource/{resource_id}",
+            json={"name": "Updated Name"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["name"] == "Updated Name"
+
+    def test_update_not_found(self, client, buyer_session):
+        """
+        @ac AC-US-FEATXXX-004-02 - Cannot update non-existent resource
+        """
+        response = client.put(
+            f"/api/v1/xxx_resource/{uuid.uuid4()}",
+            json={"name": "Updated Name"},
+        )
+
+        assert response.status_code == 404
+
+
+# =============================================================================
+# DELETE Tests
+# =============================================================================
+
+
+class TestDeleteXXX_RESOURCE:
+    """Test XXX_RESOURCE deletion.
+
+    Plan Reference: TS-UNIT-07
+    """
+
+    def test_delete_success(self, client, buyer_session, created_resource):
+        """
+        @ac AC-US-FEATXXX-005-01 - Resource can be deleted
+
+        Given: Existing resource
+        When: DELETE /api/v1/xxx_resource/{id}
+        Then: Returns 204 No Content
+        """
+        resource_id = created_resource["id"]
+        response = client.delete(f"/api/v1/xxx_resource/{resource_id}")
+
+        assert response.status_code == 204
+
+        # Verify deletion
+        get_response = client.get(f"/api/v1/xxx_resource/{resource_id}")
+        assert get_response.status_code == 404
+
+
+# =============================================================================
+# WORKFLOW Tests (Multi-step scenarios)
+# =============================================================================
+
+
+class TestXXX_RESOURCEWorkflow:
+    """Test complete workflows.
+
+    Plan Reference: TS-INT-01
+    """
+
+    def test_complete_workflow(
+        self, client, buyer_user, supplier_user, supplier_company
+    ):
+        """
+        @ac AC-US-FEATXXX-006-01 - Complete workflow succeeds
+
+        Given: Buyer and supplier users
+        When: Execute full workflow (create -> process -> complete)
+        Then: All steps succeed and history is recorded
+        """
+        # Step 1: Login as buyer
+        client.post(
+            "/api/v1/auth/login",
+            json={"username": buyer_user["username"], "password": buyer_user["password"]},
+        )
+
+        # Step 2: Create resource
+        create_response = client.post(
+            "/api/v1/xxx_resource",
+            json={
+                "supplier_id": str(supplier_company.id),
+                # ... other fields
+            },
+            headers={"Idempotency-Key": str(uuid.uuid4())},
+        )
+        assert create_response.status_code == 201
+        resource_id = create_response.json()["id"]
+
+        # Step 3: Login as supplier
+        client.post(
+            "/api/v1/auth/login",
+            json={"username": supplier_user["username"], "password": supplier_user["password"]},
+        )
+
+        # Step 4: Supplier processes
+        process_response = client.post(
+            f"/api/v1/xxx_resource/{resource_id}/process",
+            json={"status": "accepted"},
+        )
+        assert process_response.status_code == 200
+
+        # Step 5: Login as buyer again
+        client.post(
+            "/api/v1/auth/login",
+            json={"username": buyer_user["username"], "password": buyer_user["password"]},
+        )
+
+        # Step 6: Complete
+        complete_response = client.post(
+            f"/api/v1/xxx_resource/{resource_id}/complete",
+            json={"notes": "Completed successfully"},
+        )
+        assert complete_response.status_code == 200
+
+        # Step 7: Verify history
+        detail_response = client.get(f"/api/v1/xxx_resource/{resource_id}")
+        assert detail_response.status_code == 200
+        data = detail_response.json()
+        assert len(data.get("history", [])) >= 3  # create, process, complete
+
+
+# =============================================================================
+# ERROR HANDLING Tests
+# =============================================================================
+
+
+class TestXXX_RESOURCEErrors:
+    """Test error handling scenarios.
+
+    Plan Reference: TS-UNIT-08
+    """
+
+    def test_invalid_state_transition(self, client, buyer_session, created_resource):
+        """
+        @ac AC-US-FEATXXX-007-01 - Invalid state transitions are rejected
+
+        Given: Resource in initial state
+        When: Attempt invalid transition
+        Then: Returns 400 Bad Request with error message
+        """
+        resource_id = created_resource["id"]
+        response = client.post(
+            f"/api/v1/xxx_resource/{resource_id}/complete",  # Skip processing
+            json={"notes": "Trying to complete early"},
+        )
+
+        assert response.status_code == 400
+        data = response.json()
+        assert "error" in data or "detail" in data
+
+    def test_concurrent_modification(self, client, buyer_session, created_resource):
+        """
+        @ac AC-US-FEATXXX-007-02 - Concurrent modifications are handled
+
+        Given: Resource being modified
+        When: Another modification attempt
+        Then: Appropriate handling (conflict or queue)
+        """
+        # Implementation depends on your concurrency model
+        pass
+
+
+# =============================================================================
+# Fixtures for this test file
+# =============================================================================
+
+
+@pytest.fixture
+def sample_data(supplier_company):
+    """Sample data for creating resource."""
+    return {
+        "supplier_id": str(supplier_company.id),
+        "name": "Test Resource",
+        "quantity": 10,
+    }
+
+
+@pytest.fixture
+def created_resource(client, buyer_session, sample_data):
+    """Create a resource for testing."""
+    response = client.post(
+        "/api/v1/xxx_resource",
+        json=sample_data,
+        headers={"Idempotency-Key": str(uuid.uuid4())},
+    )
+    assert response.status_code == 201
+    return response.json()
+
+
+@pytest.fixture
+def multiple_resources(client, buyer_session, supplier_company):
+    """Create multiple resources for pagination testing."""
+    resources = []
+    for i in range(5):
+        response = client.post(
+            "/api/v1/xxx_resource",
+            json={
+                "supplier_id": str(supplier_company.id),
+                "name": f"Test Resource {i}",
+            },
+            headers={"Idempotency-Key": str(uuid.uuid4())},
+        )
+        if response.status_code == 201:
+            resources.append(response.json())
+    return resources

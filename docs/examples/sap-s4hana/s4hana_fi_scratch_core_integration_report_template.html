@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>S/4HANA FI × スクラッチ基幹 統合テストレポート Template</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --panel: #ffffff;
+      --panel-2: #f7fafc;
+      --text: #122033;
+      --muted: #556274;
+      --line: #dbe4ee;
+      --brand: #0d5ea6;
+      --brand-soft: #dcecff;
+      --ok: #1f8f5f;
+      --ok-soft: #dff7ea;
+      --warn: #b7791f;
+      --warn-soft: #fff1d9;
+      --fail: #c53030;
+      --fail-soft: #fde8e8;
+      --info: #4a5568;
+      --shadow: 0 10px 30px rgba(18, 32, 51, 0.08);
+      --radius: 18px;
+      --radius-sm: 12px;
+      --mono: "SFMono-Regular", "Menlo", "Consolas", monospace;
+      --sans: "Helvetica Neue", "Hiragino Sans", "Yu Gothic", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      background:
+        radial-gradient(circle at top left, #e7f0ff 0, transparent 28%),
+        radial-gradient(circle at top right, #e5fff4 0, transparent 24%),
+        var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    .page {
+      width: min(1440px, calc(100vw - 32px));
+      margin: 24px auto 48px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #0d5ea6, #1f7ac8 55%, #3aa0d8);
+      color: #fff;
+      border-radius: 28px;
+      padding: 28px 32px;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -120px -120px auto;
+      width: 320px;
+      height: 320px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: clamp(28px, 3vw, 42px);
+      line-height: 1.15;
+      letter-spacing: 0.01em;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 940px;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .hero-meta {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(120px, 1fr));
+      gap: 12px;
+      margin-top: 22px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .meta-box {
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 14px;
+      padding: 12px 14px;
+      backdrop-filter: blur(8px);
+    }
+
+    .meta-box .label {
+      display: block;
+      font-size: 12px;
+      opacity: 0.8;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .meta-box .value {
+      font-weight: 700;
+      font-size: 14px;
+      word-break: break-word;
+    }
+
+    .grid {
+      display: grid;
+      gap: 20px;
+      margin-top: 22px;
+    }
+
+    .grid.summary {
+      grid-template-columns: 1.4fr 1fr;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 22px;
+    }
+
+    .card h2,
+    .card h3 {
+      margin: 0 0 12px;
+      line-height: 1.2;
+    }
+
+    .card h2 {
+      font-size: 22px;
+    }
+
+    .card h3 {
+      font-size: 18px;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(110px, 1fr));
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .stat {
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px;
+    }
+
+    .stat .k {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .stat .v {
+      margin-top: 6px;
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .coverage-list {
+      display: grid;
+      gap: 14px;
+      margin-top: 10px;
+    }
+
+    .coverage-item {
+      background: var(--panel-2);
+      border-radius: 14px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+    }
+
+    .coverage-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+      align-items: baseline;
+    }
+
+    .bar {
+      height: 10px;
+      background: #e8eef5;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .bar > span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--brand), #39a9e1);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .pass {
+      background: var(--ok-soft);
+      color: var(--ok);
+    }
+
+    .warn {
+      background: var(--warn-soft);
+      color: var(--warn);
+    }
+
+    .fail {
+      background: var(--fail-soft);
+      color: var(--fail);
+    }
+
+    .info {
+      background: #edf2f7;
+      color: var(--info);
+    }
+
+    .table-wrap {
+      overflow: auto;
+      margin-top: 10px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 980px;
+      background: #fff;
+    }
+
+    thead th {
+      background: #f6f9fc;
+      color: #2f4052;
+      text-align: left;
+      font-size: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    tbody td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    code {
+      font-family: var(--mono);
+      background: #eff4f9;
+      border: 1px solid #dbe4ee;
+      border-radius: 8px;
+      padding: 1px 6px;
+      font-size: 12px;
+    }
+
+    .scenarios {
+      display: grid;
+      gap: 18px;
+      margin-top: 22px;
+    }
+
+    .scenario {
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .scenario-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 18px;
+      padding: 22px 24px 18px;
+      background: linear-gradient(180deg, #fbfdff, #f3f8fd);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .scenario-head h3 {
+      margin: 0 0 6px;
+    }
+
+    .scenario-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .scenario-body {
+      padding: 22px 24px 24px;
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 22px;
+    }
+
+    .kv-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(180px, 1fr));
+      gap: 12px;
+      margin: 14px 0 18px;
+    }
+
+    .kv {
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 14px;
+    }
+
+    .kv .label {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+
+    .kv .value {
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .section-label {
+      margin: 18px 0 8px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    ul.clean {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #f9fbfd;
+      padding: 6px 10px;
+      font-size: 12px;
+      color: #294056;
+      font-family: var(--mono);
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    figure.shot {
+      margin: 0;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .shot img {
+      display: block;
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+      background: #edf2f7;
+    }
+
+    .shot figcaption {
+      padding: 10px 12px;
+      font-size: 13px;
+      color: #33485f;
+      border-top: 1px solid var(--line);
+      background: #fcfdff;
+    }
+
+    .artifact-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .artifact {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 14px;
+      background: var(--panel-2);
+    }
+
+    .artifact .name {
+      font-weight: 700;
+    }
+
+    .artifact .path {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 12px;
+      word-break: break-all;
+    }
+
+    .artifact a {
+      text-decoration: none;
+      color: var(--brand);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .layout {
+      margin-top: 22px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+    }
+
+    .tree {
+      background: #0f1f33;
+      color: #d9e7f7;
+      border-radius: 18px;
+      padding: 18px 20px;
+      overflow: auto;
+      box-shadow: var(--shadow);
+    }
+
+    .tree pre {
+      margin: 0;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+    }
+
+    .note {
+      background: linear-gradient(180deg, #fffaf0, #fffdf8);
+      border: 1px solid #f4e0b8;
+      border-radius: 16px;
+      padding: 16px 18px;
+      color: #6c4f18;
+    }
+
+    .footer {
+      margin-top: 28px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    @media (max-width: 1100px) {
+      .grid.summary,
+      .scenario-body,
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-meta,
+      .stats,
+      .gallery {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 720px) {
+      .page {
+        width: min(100vw - 20px, 100%);
+        margin-top: 12px;
+      }
+
+      .hero,
+      .card,
+      .scenario-head,
+      .scenario-body {
+        padding-left: 18px;
+        padding-right: 18px;
+      }
+
+      .hero-meta,
+      .stats,
+      .gallery,
+      .kv-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .scenario-head {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <h1>S/4HANA FI × スクラッチ基幹<br />統合テストレポート Template</h1>
+      <p>
+        業務レビュー用の正本 HTML を想定した雛形です。<code>testreport/report.html</code> を主レポートにし、
+        Playwright の screenshot / trace / video / payload をシナリオ単位で追える構成にしています。
+      </p>
+      <div class="hero-meta">
+        <div class="meta-box"><span class="label">Run ID</span><span class="value">RUN-20260324-001</span></div>
+        <div class="meta-box"><span class="label">Environment</span><span class="value">SIT</span></div>
+        <div class="meta-box"><span class="label">Execution</span><span class="value">Playwright Chromium</span></div>
+        <div class="meta-box"><span class="label">Base URL</span><span class="value">https://sit.example.local</span></div>
+        <div class="meta-box"><span class="label">Commit</span><span class="value">abc1234</span></div>
+        <div class="meta-box"><span class="label">Executed At</span><span class="value">2026-03-24 10:15 JST</span></div>
+      </div>
+    </section>
+
+    <section class="grid summary">
+      <article class="card">
+        <h2>Execution Summary</h2>
+        <p class="muted">
+          [docs/s4hana_fi_scratch_core_integration_test_scenarios.md](/Users/j620h-okzk/ZINOKZ/sdd_template_enterprise/docs/s4hana_fi_scratch_core_integration_test_scenarios.md)
+          の <code>TS-INT-FI-001</code> 〜 <code>TS-INT-FI-010</code> を対象にした想定出力です。
+        </p>
+        <div class="stats">
+          <div class="stat">
+            <div class="k">Total</div>
+            <div class="v">10</div>
+          </div>
+          <div class="stat">
+            <div class="k">Passed</div>
+            <div class="v" style="color: var(--ok)">8</div>
+          </div>
+          <div class="stat">
+            <div class="k">Failed</div>
+            <div class="v" style="color: var(--fail)">2</div>
+          </div>
+          <div class="stat">
+            <div class="k">Warnings</div>
+            <div class="v" style="color: var(--warn)">1</div>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Scenario</th>
+                <th>Type</th>
+                <th>Result</th>
+                <th>Main BPMN / MessageFlow</th>
+                <th>Key Actual</th>
+                <th>Evidence</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>TS-INT-FI-001</code><br />売上請求イベントの会計起票成功</td>
+                <td>正常系</td>
+                <td><span class="pill pass">PASS</span></td>
+                <td><code>MsgFlow_CoreToFI_AccountingEvent</code></td>
+                <td><code>journal_entry_id=1900001234</code></td>
+                <td>screenshot / payload / trace</td>
+              </tr>
+              <tr>
+                <td><code>TS-INT-FI-005</code><br />勘定/取引先マッピング不備で起票差戻し</td>
+                <td>異常系</td>
+                <td><span class="pill fail">FAIL</span></td>
+                <td><code>Task_FI_ValidateMasterMapping</code></td>
+                <td><code>reason=BP_MAPPING_MISSING</code></td>
+                <td>error screenshot / trace / response</td>
+              </tr>
+              <tr>
+                <td><code>TS-INT-FI-009</code><br />未解決例外を含む月次レポート</td>
+                <td>異常系</td>
+                <td><span class="pill pass">PASS</span></td>
+                <td><code>MsgFlow_FIToAccounting_CloseReport</code></td>
+                <td><code>close_report_id=CR-202603-09</code></td>
+                <td>report screenshot / csv / trace</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <aside class="card">
+        <h2>Coverage Snapshot</h2>
+        <div class="coverage-list">
+          <div class="coverage-item">
+            <div class="coverage-row">
+              <strong>Participant Coverage</strong>
+              <span>4 / 4 (100%)</span>
+            </div>
+            <div class="bar"><span style="width: 100%"></span></div>
+          </div>
+          <div class="coverage-item">
+            <div class="coverage-row">
+              <strong>MessageFlow Coverage</strong>
+              <span>6 / 6 (100%)</span>
+            </div>
+            <div class="bar"><span style="width: 100%"></span></div>
+          </div>
+          <div class="coverage-item">
+            <div class="coverage-row">
+              <strong>Integration Block Coverage</strong>
+              <span>26 / 26 (100%)</span>
+            </div>
+            <div class="bar"><span style="width: 100%"></span></div>
+          </div>
+          <div class="coverage-item">
+            <div class="coverage-row">
+              <strong>Business Critical Path</strong>
+              <span>8 / 8 (100%)</span>
+            </div>
+            <div class="bar"><span style="width: 100%"></span></div>
+          </div>
+        </div>
+
+        <div class="section-label">Recommended Artifact Policy</div>
+        <div class="chips">
+          <span class="pill info">Playwright trace: retain-on-failure</span>
+          <span class="pill info">Screenshot: key-step + on-failure</span>
+          <span class="pill info">Video: retain-on-failure</span>
+          <span class="pill info">Payload JSON: per messageFlow</span>
+        </div>
+
+        <div class="section-label">Audience</div>
+        <ul class="clean">
+          <li>PM / 業務 / QA: この HTML をレビュー</li>
+          <li>開発 / テスト担当: Playwright report と trace を参照</li>
+          <li>Gate 承認者: BPMN ID と結果の対応を確認</li>
+        </ul>
+      </aside>
+    </section>
+
+    <section class="scenarios">
+      <article class="scenario">
+        <div class="scenario-head">
+          <div>
+            <h3><code>TS-INT-FI-001</code> 正常系: 売上請求イベントの会計起票成功</h3>
+            <p class="muted">
+              スクラッチ基幹の売上請求確定から、S/4HANA FI の伝票起票、起票結果返却、
+              スクラッチ基幹の <code>POSTED</code> 更新までを確認。
+            </p>
+            <div class="scenario-meta">
+              <span class="pill pass">PASS</span>
+              <span class="pill info">Correlation ID: CORR-AR-0001</span>
+              <span class="pill info">Event ID: EVT-AR-0001</span>
+              <span class="pill info">Journal Entry: 1900001234</span>
+            </div>
+          </div>
+          <div class="pill pass">Business Critical</div>
+        </div>
+        <div class="scenario-body">
+          <div>
+            <div class="kv-grid">
+              <div class="kv">
+                <div class="label">Expected</div>
+                <div class="value">FI 伝票 1 件起票 / Core status = POSTED</div>
+              </div>
+              <div class="kv">
+                <div class="label">Actual</div>
+                <div class="value">Single post confirmed / duplicate = false</div>
+              </div>
+              <div class="kv">
+                <div class="label">Main MessageFlow</div>
+                <div class="value"><code>MsgFlow_CoreToFI_AccountingEvent</code></div>
+              </div>
+              <div class="kv">
+                <div class="label">Key Assertion</div>
+                <div class="value"><code>journal_entry_id</code> returned and stored</div>
+              </div>
+            </div>
+
+            <div class="section-label">Covered BPMN IDs</div>
+            <div class="chips">
+              <span class="chip">Task_Core_SendMasterDelta</span>
+              <span class="chip">Task_Core_SendAccountingEvent</span>
+              <span class="chip">Task_FI_PostAccountingDocument</span>
+              <span class="chip">Task_FI_SendPostingResult</span>
+              <span class="chip">Task_Core_UpdateBusinessStatus</span>
+              <span class="chip">MsgFlow_CoreToFI_MasterDelta</span>
+              <span class="chip">MsgFlow_CoreToFI_AccountingEvent</span>
+              <span class="chip">MsgFlow_FIToCore_PostingResult</span>
+            </div>
+
+            <div class="section-label">Review Notes</div>
+            <ul class="clean">
+              <li>会計仕訳イベント payload に会計不要属性が混入していないことを確認。</li>
+              <li>S/4HANA FI 側の伝票照会画面と、Core 側の業務状態更新画面を同じケースに紐付け。</li>
+              <li>trace と request/response JSON を添付し、調査時に messageFlow 単位で追えるようにする。</li>
+            </ul>
+          </div>
+          <div>
+            <div class="section-label">Evidence Gallery</div>
+            <div class="gallery">
+              <figure class="shot">
+                <img alt="Core event send" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 360'><rect width='600' height='360' fill='%23d9ecff'/><rect x='36' y='40' width='528' height='54' rx='12' fill='%230d5ea6'/><rect x='52' y='118' width='220' height='164' rx='16' fill='%23ffffff'/><rect x='292' y='118' width='256' height='28' rx='8' fill='%239bc4f0'/><rect x='292' y='160' width='210' height='20' rx='8' fill='%23c8ddf2'/><rect x='292' y='194' width='180' height='20' rx='8' fill='%23c8ddf2'/><rect x='292' y='242' width='124' height='34' rx='10' fill='%231f8f5f'/><text x='52' y='74' font-family='Arial' font-size='24' fill='white'>Core Event Sent</text><text x='68' y='208' font-family='Arial' font-size='22' fill='%230d5ea6'>EVT-AR-0001</text><text x='68' y='238' font-family='Arial' font-size='14' fill='%23556274'>Accounting event dispatched</text></svg>" />
+                <figcaption>Core 側イベント送信完了画面</figcaption>
+              </figure>
+              <figure class="shot">
+                <img alt="FI posting" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 360'><rect width='600' height='360' fill='%23eef6ff'/><rect x='32' y='34' width='536' height='42' rx='10' fill='%231c4875'/><rect x='32' y='96' width='536' height='228' rx='18' fill='white'/><rect x='60' y='126' width='160' height='120' rx='14' fill='%23dcecff'/><rect x='250' y='124' width='248' height='24' rx='8' fill='%239bc4f0'/><rect x='250' y='162' width='210' height='20' rx='8' fill='%23c8ddf2'/><rect x='250' y='196' width='170' height='20' rx='8' fill='%23c8ddf2'/><rect x='250' y='236' width='140' height='36' rx='10' fill='%231f8f5f'/><text x='52' y='62' font-family='Arial' font-size='20' fill='white'>S/4HANA FI Document Posted</text><text x='72' y='190' font-family='Arial' font-size='20' fill='%230d5ea6'>1900001234</text><text x='72' y='220' font-family='Arial' font-size='13' fill='%23556274'>Journal Entry ID</text></svg>" />
+                <figcaption>S/4HANA FI 会計伝票確認画面</figcaption>
+              </figure>
+              <figure class="shot">
+                <img alt="Core status posted" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 360'><rect width='600' height='360' fill='%23e9fff5'/><rect x='40' y='44' width='520' height='272' rx='22' fill='white'/><rect x='68' y='78' width='464' height='40' rx='12' fill='%231f8f5f'/><rect x='72' y='150' width='210' height='88' rx='16' fill='%23dff7ea'/><rect x='312' y='150' width='172' height='24' rx='8' fill='%23bce8ce'/><rect x='312' y='186' width='144' height='20' rx='8' fill='%23d8efe0'/><rect x='312' y='224' width='128' height='34' rx='10' fill='%230d5ea6'/><text x='94' y='104' font-family='Arial' font-size='20' fill='white'>Business Status Updated</text><text x='108' y='202' font-family='Arial' font-size='28' fill='%231f8f5f'>POSTED</text></svg>" />
+                <figcaption>Core 側業務ステータス更新画面</figcaption>
+              </figure>
+            </div>
+
+            <div class="section-label">Artifacts</div>
+            <div class="artifact-list">
+              <div class="artifact">
+                <div>
+                  <div class="name">Playwright Trace</div>
+                  <div class="path">tests/reports/e2e/test-results/TS-INT-FI-001/trace.zip</div>
+                </div>
+                <a href="#">Open</a>
+              </div>
+              <div class="artifact">
+                <div>
+                  <div class="name">Request Payload</div>
+                  <div class="path">testreport/TS-INT-FI-001/request-accounting-event.json</div>
+                </div>
+                <a href="#">Open</a>
+              </div>
+              <div class="artifact">
+                <div>
+                  <div class="name">Response Payload</div>
+                  <div class="path">testreport/TS-INT-FI-001/response-posting-result.json</div>
+                </div>
+                <a href="#">Open</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="scenario">
+        <div class="scenario-head">
+          <div>
+            <h3><code>TS-INT-FI-005</code> 異常系: 勘定/取引先マッピング不備で起票差戻し</h3>
+            <p class="muted">
+              異常系の代表として、マスタ差分があっても FI 側マッピング不備で差戻すケースを想定。
+              業務レビューで最も重要なのは、差戻し理由が業務側に理解できる形で返っていることです。
+            </p>
+            <div class="scenario-meta">
+              <span class="pill fail">FAIL</span>
+              <span class="pill info">Reason: BP_MAPPING_MISSING</span>
+              <span class="pill info">Severity: High</span>
+            </div>
+          </div>
+          <div class="pill fail">Exception Flow</div>
+        </div>
+        <div class="scenario-body">
+          <div>
+            <div class="kv-grid">
+              <div class="kv">
+                <div class="label">Expected</div>
+                <div class="value">FI 起票なし / Core status = WAITING_MASTER_FIX</div>
+              </div>
+              <div class="kv">
+                <div class="label">Actual</div>
+                <div class="value">差戻し理由返却あり、ただし業務画面の文言が不十分</div>
+              </div>
+              <div class="kv">
+                <div class="label">Main BPMN</div>
+                <div class="value"><code>Task_FI_ValidateMasterMapping</code></div>
+              </div>
+              <div class="kv">
+                <div class="label">Blocking Point</div>
+                <div class="value">業務ユーザー向け文言と運用アクションが不足</div>
+              </div>
+            </div>
+
+            <div class="section-label">Covered BPMN IDs</div>
+            <div class="chips">
+              <span class="chip">Task_Core_SendMasterDelta</span>
+              <span class="chip">Task_FI_ReceiveMasterDelta</span>
+              <span class="chip">Task_FI_ValidateMasterMapping</span>
+              <span class="chip">Task_FI_SendPostingResult</span>
+              <span class="chip">Task_Core_ReceivePostingResult</span>
+              <span class="chip">Task_Core_UpdateBusinessStatus</span>
+              <span class="chip">MsgFlow_CoreToFI_MasterDelta</span>
+              <span class="chip">MsgFlow_FIToCore_PostingResult</span>
+            </div>
+
+            <div class="section-label">Failure Summary</div>
+            <ul class="clean">
+              <li>API 応答自体は正しく <code>BP_MAPPING_MISSING</code> を返却。</li>
+              <li>Core 側画面で運用担当が取るべき次アクションが明示されていない。</li>
+              <li>Playwright trace 上は画面遷移成功、業務メッセージの期待文言のみ不一致。</li>
+            </ul>
+          </div>
+          <div>
+            <div class="section-label">Evidence Gallery</div>
+            <div class="gallery">
+              <figure class="shot">
+                <img alt="Error message" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 360'><rect width='600' height='360' fill='%23fff0f0'/><rect x='42' y='42' width='516' height='276' rx='20' fill='white'/><rect x='66' y='72' width='468' height='44' rx='10' fill='%23c53030'/><rect x='74' y='146' width='452' height='82' rx='14' fill='%23fde8e8'/><rect x='74' y='244' width='170' height='34' rx='10' fill='%230d5ea6'/><text x='88' y='101' font-family='Arial' font-size='20' fill='white'>Posting Rejected</text><text x='92' y='188' font-family='Arial' font-size='22' fill='%23c53030'>BP_MAPPING_MISSING</text><text x='92' y='214' font-family='Arial' font-size='14' fill='%23556274'>Business partner mapping not maintained</text></svg>" />
+                <figcaption>差戻しメッセージ画面</figcaption>
+              </figure>
+              <figure class="shot">
+                <img alt="Trace placeholder" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 360'><rect width='600' height='360' fill='%23f4f7fb'/><rect x='50' y='40' width='500' height='280' rx='18' fill='%230f1f33'/><polyline points='84,246 150,190 210,216 290,126 360,160 430,102 514,138' fill='none' stroke='%2339a9e1' stroke-width='8' stroke-linecap='round' stroke-linejoin='round'/><text x='86' y='92' font-family='Arial' font-size='22' fill='white'>Trace / Step Timeline</text><text x='86' y='286' font-family='Arial' font-size='14' fill='%23c7d7ea'>Use as thumbnail linked to trace.zip</text></svg>" />
+                <figcaption>Playwright trace 導線サムネイル</figcaption>
+              </figure>
+              <figure class="shot">
+                <img alt="Response payload" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 360'><rect width='600' height='360' fill='%23eef4fa'/><rect x='44' y='34' width='512' height='292' rx='20' fill='white'/><rect x='68' y='68' width='464' height='30' rx='8' fill='%230d5ea6'/><rect x='74' y='122' width='450' height='18' rx='6' fill='%23c8ddf2'/><rect x='74' y='154' width='402' height='18' rx='6' fill='%23c8ddf2'/><rect x='74' y='186' width='420' height='18' rx='6' fill='%23fde8e8'/><rect x='74' y='218' width='360' height='18' rx='6' fill='%23c8ddf2'/><text x='86' y='90' font-family='Arial' font-size='18' fill='white'>response-posting-result.json</text><text x='86' y='198' font-family='Arial' font-size='14' fill='%23c53030'>reason: BP_MAPPING_MISSING</text></svg>" />
+                <figcaption>差戻しレスポンス payload</figcaption>
+              </figure>
+            </div>
+
+            <div class="artifact-list">
+              <div class="artifact">
+                <div>
+                  <div class="name">Playwright Trace</div>
+                  <div class="path">tests/reports/e2e/test-results/TS-INT-FI-005/trace.zip</div>
+                </div>
+                <a href="#">Open</a>
+              </div>
+              <div class="artifact">
+                <div>
+                  <div class="name">Failure Screenshot</div>
+                  <div class="path">testreport/TS-INT-FI-005/error-screen.png</div>
+                </div>
+                <a href="#">Open</a>
+              </div>
+              <div class="artifact">
+                <div>
+                  <div class="name">Posting Result Payload</div>
+                  <div class="path">testreport/TS-INT-FI-005/response-posting-result.json</div>
+                </div>
+                <a href="#">Open</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="scenario">
+        <div class="scenario-head">
+          <div>
+            <h3><code>TS-INT-FI-009</code> 異常系: 締め時点で未解決例外を含む月次レポート</h3>
+            <p class="muted">
+              経理レビュー向けケースです。画面キャプチャだけでなく、CSV/PDF、差異件数、
+              未解決例外一覧へのリンクを同時に持つ構成を想定しています。
+            </p>
+            <div class="scenario-meta">
+              <span class="pill pass">PASS</span>
+              <span class="pill warn">2 unresolved exceptions</span>
+              <span class="pill info">Close Report: CR-202603-09</span>
+            </div>
+          </div>
+          <div class="pill warn">Accounting Review</div>
+        </div>
+        <div class="scenario-body">
+          <div>
+            <div class="kv-grid">
+              <div class="kv">
+                <div class="label">Expected</div>
+                <div class="value">未解決例外を含む月次レポートが経理へ共有される</div>
+              </div>
+              <div class="kv">
+                <div class="label">Actual</div>
+                <div class="value">close report 生成、差異 2 件、経理レビュー待ち</div>
+              </div>
+              <div class="kv">
+                <div class="label">Main MessageFlow</div>
+                <div class="value"><code>MsgFlow_FIToAccounting_CloseReport</code></div>
+              </div>
+              <div class="kv">
+                <div class="label">Review Owner</div>
+                <div class="value">経理部門 / 月次締め担当</div>
+              </div>
+            </div>
+
+            <div class="section-label">Expected Review Questions</div>
+            <ul class="clean">
+              <li>例外件数は業務許容範囲か。</li>
+              <li>差異の原因が Core 起因か FI 起因か識別できるか。</li>
+              <li>経理が次アクションを取るための情報が足りているか。</li>
+            </ul>
+          </div>
+          <div>
+            <div class="artifact-list">
+              <div class="artifact">
+                <div>
+                  <div class="name">Close Report HTML/PDF</div>
+                  <div class="path">testreport/TS-INT-FI-009/close-report-summary.pdf</div>
+                </div>
+                <a href="#">Open</a>
+              </div>
+              <div class="artifact">
+                <div>
+                  <div class="name">Close Report CSV</div>
+                  <div class="path">testreport/TS-INT-FI-009/close-report-detail.csv</div>
+                </div>
+                <a href="#">Open</a>
+              </div>
+              <div class="artifact">
+                <div>
+                  <div class="name">Accounting Screenshot</div>
+                  <div class="path">testreport/TS-INT-FI-009/accounting-review-screen.png</div>
+                </div>
+                <a href="#">Open</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="layout">
+      <article class="card">
+        <h2>Recommended Artifact Layout</h2>
+        <div class="tree">
+          <pre>specs/FEAT-S4FI-INT/
+├── tests/
+│   ├── scenarios.yaml
+│   ├── e2e/
+│   │   ├── playwright.config.ts
+│   │   └── s4fi.integration.spec.ts
+│   └── reports/
+│       └── e2e/
+│           ├── playwright-report/
+│           │   └── index.html
+│           └── test-results/
+│               ├── TS-INT-FI-001/
+│               │   ├── trace.zip
+│               │   └── video.webm
+│               └── TS-INT-FI-005/
+│                   ├── trace.zip
+│                   └── error-context.png
+└── testreport/
+    ├── cases.json
+    ├── stride_mapping.yaml
+    ├── TS-INT-FI-001/
+    │   ├── core-send.png
+    │   ├── fi-posted.png
+    │   ├── core-posted.png
+    │   ├── request-accounting-event.json
+    │   └── response-posting-result.json
+    ├── TS-INT-FI-005/
+    │   ├── error-screen.png
+    │   └── response-posting-result.json
+    └── report.html</pre>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>How To Use This Template</h2>
+        <div class="note">
+          <strong>推奨:</strong> 業務レビューではこの HTML を使い、詳細調査は
+          <code>playwright-report/index.html</code> と <code>trace.zip</code> に委譲します。
+        </div>
+        <div class="section-label">Fill Targets</div>
+        <ul class="clean">
+          <li>Run metadata: 実行日時、環境、コミット、対象ブラウザ。</li>
+          <li>Scenario summary: 全 10 ケースの PASS/FAIL/Warning。</li>
+          <li>Business actuals: <code>journal_entry_id</code>、<code>clearing_status</code>、<code>close_report_id</code>。</li>
+          <li>Evidence links: screenshot、payload、trace、video。</li>
+          <li>Review note: 業務判断に必要な差異だけを短く残す。</li>
+        </ul>
+
+        <div class="section-label">Best Practice</div>
+        <ul class="clean">
+          <li>成功ケースは 2〜3 枚の key-step screenshot に絞る。</li>
+          <li>異常系は error screen と response payload を必ず並べる。</li>
+          <li>月次締め系は CSV / PDF / review screen を 1 ケースに束ねる。</li>
+          <li>BPMN ID とシナリオ ID を同じ詳細カード内に出す。</li>
+        </ul>
+      </article>
+    </section>
+
+    <div class="footer">
+      Template file: <code>docs/s4hana_fi_scratch_core_integration_report_template.html</code>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "abap-ai-starter-kit",
+  "version": "4.0.0",
+  "private": true,
+  "description": "AI駆動 ABAP開発スターターキット v4 — SAP ADT MCP対応",
+  "scripts": {
+    "clean": "node tools/clean_abap.js ../../src/ --recursive --stats",
+    "lint": "npm run clean && npx abaplint abaplint.json"
+  },
+  "devDependencies": {
+    "@abaplint/cli": "^2.0.0",
+    "abap-adt-api": "^7.0.0",
+    "dotenv": "^16.0.0",
+    "js-yaml": "^4.1.0"
+  }
+}

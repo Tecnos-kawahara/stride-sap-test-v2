@@ -1,0 +1,45 @@
+---
+# Template: elicitation_results.yaml
+# Phase: phase_0_3_elicit
+# BABOK Source: KA4 Elicitation and Collaboration / 4.2 Conduct Elicitation / 4.3 Confirm Elicitation Results
+# Layered Requirements Modeling Source: n/a
+# Inspired by: n/a
+# Rule-0: 正本は YAML フロントマター + 下記 YAML ブロック
+---
+
+artifact: "elicitation_results.yaml"
+template_id: "TPL-UP-ELR-001"
+feature_id: "FEAT-XXX"
+upstream_artifact_id: "ELR-XXX"
+title: "Elicitation Results - <Feature Name>"
+version: "{{TEMPLATE_VERSION}}"
+status: "draft"
+phase: "phase_0_3_elicit"
+profile_applicability: ["enterprise-erp", "saas-integration", "prototype"]
+owners: []
+reviewers: []
+links:
+  upstream_policy_ref: "shared/policies/upstream_policy.yaml"
+  baccm_completeness_ref: "shared/policies/baccm_completeness.yaml"
+  iteration_policy_ref: "shared/policies/upstream_iteration_policy.yaml"
+  constitution_ref: "memory/constitution.md"
+  amendment_ref: "memory/constitution_amendments/XVI_layered_requirement_architecture.md"
+created_at: "YYYY-MM-DD"
+updated_at: "YYYY-MM-DD"
+
+# Elicitation Results 本体 (KA4 4.2 + 4.3)
+findings: []
+# 例:
+# - id: "FND-001"
+#   source: "営業部 課長 インタビュー (2026-04-30)"
+#   technique: "interviews"        # technique_library.yaml の id 参照
+#   content: "受注確認の電話確認に平均 30 分かかっている"
+#   confirmed_with: ["SH-001"]
+#   evidence_refs: []              # 録音 / 画面キャプチャ / Doc 等の参照
+
+unresolved_questions: []         # まだ回答が得られていない質問 (Phase 1 着手前に解消推奨)
+contradictions: []               # ステークホルダー間で矛盾する情報 (要調停)
+deferred_topics: []              # スコープ外と判断した話題
+
+attributions:
+  - { source: "BABOK v3 (IIBA)", role: "framework backbone (KA4.2 / 4.3)", license: "fair-use, names and section refs only" }

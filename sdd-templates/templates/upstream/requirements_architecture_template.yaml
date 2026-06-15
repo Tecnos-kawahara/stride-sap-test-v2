@@ -1,0 +1,55 @@
+---
+# Template: requirements_architecture.yaml
+# Phase: phase_0_5_context_modelling
+# BABOK Source: KA7 Requirements Analysis and Design Definition / 7.5 Define Requirements Architecture
+# Layered Requirements Modeling Source: 要求アーキテクチャ (Requirements Architecture) — System / Business / BusinessUseCase / Conditions の 4 レイヤー
+# Inspired by: value-driven discovery method 価値→目的→業務→システムの階層 (philosophical inspiration)
+# Rule-0: 正本は YAML フロントマター + 下記 YAML ブロック
+---
+
+artifact: "requirements_architecture.yaml"
+template_id: "TPL-UP-RAR-001"
+feature_id: "FEAT-XXX"
+upstream_artifact_id: "RAR-XXX"
+title: "Requirements Architecture - <Feature Name>"
+version: "{{TEMPLATE_VERSION}}"
+status: "draft"
+phase: "phase_0_5_context_modelling"
+profile_applicability: ["enterprise-erp", "saas-integration", "prototype"]
+owners: []
+reviewers: []
+links:
+  upstream_policy_ref: "shared/policies/upstream_policy.yaml"
+  baccm_completeness_ref: "shared/policies/baccm_completeness.yaml"
+  iteration_policy_ref: "shared/policies/upstream_iteration_policy.yaml"
+  constitution_ref: "memory/constitution.md"
+  amendment_ref: "memory/constitution_amendments/XVI_layered_requirement_architecture.md"
+created_at: "YYYY-MM-DD"
+updated_at: "YYYY-MM-DD"
+
+# Requirements Architecture 本体 (4-layer Requirements Architecture model)
+layers:
+  - id: "LAYER-SYS"
+    name: "System"
+    description: "アクター・外部システム・コンテキストの最外層"
+    items: []                  # actor_system.yaml ACS-XXX への参照集合
+  - id: "LAYER-BIZ"
+    name: "Business"
+    description: "ビジネスユースケース層 — 業務フローと価値の発生点"
+    items: []                  # business_usecase.yaml BUC-XXX への参照集合
+  - id: "LAYER-BUC"
+    name: "BusinessUseCase"
+    description: "BUC 複合層 — 4 軸 (BUC × Actor × Information × Condition) の交差点"
+    items: []                  # usecase_complex.yaml UCX-XXX への参照集合
+  - id: "LAYER-COND"
+    name: "Conditions"
+    description: "条件・バリエーション層 — テスタブルな AC への落とし口"
+    items: []                  # condition_variation.yaml CVR-XXX への参照集合
+
+cross_layer_links: []          # レイヤー間トレース (上→下の解像度推移)
+nfr_alignment: []              # 非機能要求との対応 (KPI / SLO 等)
+
+attributions:
+  - { source: "BABOK v3 (IIBA)", role: "framework backbone (KA7.5)", license: "fair-use, names and section refs only" }
+  - { source: "Layered Requirements Modeling ((concept reference, no proprietary brand))", role: "4-layer requirements architecture concept", license: "fair-use, layer names only" }
+  - { source: "value-driven discovery (philosophical foundation)", role: "value-purpose-business-system hierarchy inspiration", license: "fair-use, model concept only" }

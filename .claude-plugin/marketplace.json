@@ -1,0 +1,21 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "tecnos-stride",
+  "owner": {
+    "name": "Tecnos Japan Inc.",
+    "email": "okazaki.hitoshi@tecnos.co.jp"
+  },
+  "metadata": {
+    "description": "Tecnos-STRIDE VALUE Upstream Extension marketplace — provides the cowork-plugin for upstream business consultants (BABOK v3 / Layered Requirements Modeling / value-driven discovery method integrated SDD plugin).",
+    "homepage": "https://github.com/tecnos-japan-cbp/tecnos-stride"
+  },
+  "plugins": [
+    {
+      "name": "tecnos-stride-value",
+      "version": "0.4.0-bpmn-package-integration",
+      "source": "./cowork-plugin",
+      "description": "Tecnos-STRIDE VALUE Upstream Extension Plugin for Claude Cowork. Empowers business consultants (non-technical users) to author Phase 0 (BACCM Discovery / BABOK Elicit / Layered Context Modelling with 4-layer Requirements Architecture), Phase 1 (basic_design.md + process.bpmn), and optional Epic decomposition from natural-language customer requirements, following BABOK v3 best practices augmented with layered requirements modeling and value-driven discovery (concepts only, no proprietary brand names). v0.4.0 bundles a self-contained BPMN 2.0 / Camunda 8 authoring pack (rules + OMG+Camunda 8.9 dictionary + FEAT/EPIC templates + examples + stdlib-only validator) under bpmn/ component for upstream BPMN documentation creation. Generates SDD-compliant artifacts ready for Claude Code handoff.",
+      "category": "consulting"
+    }
+  ]
+}

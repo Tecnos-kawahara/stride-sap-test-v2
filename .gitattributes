@@ -1,0 +1,5 @@
+# Shell scripts must keep LF line endings (bash fails with CRLF)
+*.sh text eol=lf
+sdd-templates/bin/stride text eol=lf
+sdd-templates/bin/stride-lint text eol=lf
+sdd-templates/tools/stride-lint text eol=lf

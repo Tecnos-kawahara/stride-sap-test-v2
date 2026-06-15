@@ -1,0 +1,341 @@
+{
+  "metadata": {
+    "description": "4-layer architecture abaplint configuration with 67 rules",
+    "version": "4.0",
+    "date": "2026-03-13",
+    "rules_count": 67
+  },
+  "global": {
+    "files": "/../../src/**/*.*",
+    "skipGeneratedGatewayClasses": true,
+    "skipGeneratedPersistenceClasses": true,
+    "skipGeneratedFunctionGroups": true
+  },
+  "dependencies": [],
+  "syntax": {
+    "version": "v757",
+    "errorNamespace": "^(Z|Y|LCL_|TY_|LIF_)"
+  },
+  "rules": {
+    "7bit_ascii": true,
+    "line_length": {
+      "severity": "Warning",
+      "length": 120
+    },
+    "max_one_statement": {
+      "severity": "Error"
+    },
+    "method_length": {
+      "severity": "Warning",
+      "statements": 80,
+      "errorWhenExceeding": 100,
+      "checkForms": true
+    },
+    "sequential_blank": {
+      "severity": "Warning",
+      "lines": 4
+    },
+    "indentation": {
+      "severity": "Warning",
+      "alignTryCatch": true,
+      "globalClassSkipFirst": false,
+      "ignoreExceptions": false
+    },
+    "empty_statement": {
+      "severity": "Error"
+    },
+    "local_variable_names": {
+      "severity": "Error",
+      "expectedData": "^(LD[FST]_|LDT_R_|LR[ODBXI]_).*$",
+      "expectedConstant": "^LC[FS]_.*$",
+      "expectedFS": "^<LD[FST]_.*>$",
+      "patternKind": "required"
+    },
+    "class_attribute_names": {
+      "severity": "Error",
+      "statics": "^(GD[FST]_|GDT_R_|GR[ODBXI]_).*$",
+      "instance": "^(MD[FST]_|MDT_R_|MR[ODBXI]_).*$",
+      "constants": "^(GC[FS]_|MC[FS]_).*$",
+      "patternKind": "required"
+    },
+    "method_parameter_names": {
+      "severity": "Error",
+      "importing": "^PI[FSTR]_.*$",
+      "exporting": "^PO[FSTR]_.*$",
+      "changing": "^PC[FSTR]_.*$",
+      "returning": "^PR[FSTR]_.*$",
+      "ignoreExceptions": true,
+      "patternKind": "required"
+    },
+    "nesting": {
+      "severity": "Error",
+      "depth": 2
+    },
+    "cyclomatic_complexity": {
+      "severity": "Warning",
+      "max": 5
+    },
+    "functional_writing": {
+      "severity": "Error"
+    },
+    "check_subrc": {
+      "severity": "Warning"
+    },
+    "avoid_use": {
+      "severity": "Error",
+      "define": true,
+      "statics": false,
+      "defaultKey": true,
+      "break": true,
+      "testSeams": true,
+      "describeLines": true
+    },
+    "dangerous_statement": {
+      "severity": "Error",
+      "execSQL": true,
+      "kernelCall": true,
+      "systemCall": true,
+      "insertReport": true,
+      "generateDynpro": true,
+      "generateReport": true,
+      "generateSubroutine": true,
+      "deleteReport": true,
+      "deleteTextpool": true
+    },
+    "forbidden_identifier": {
+      "severity": "Error",
+      "check": [
+        "^PERFORM ",
+        "^CALL FUNCTION ",
+        "^CALL METHOD "
+      ]
+    },
+    "empty_line_in_statement": {
+      "severity": "Warning",
+      "allowChained": false
+    },
+    "no_public_attributes": {
+      "severity": "Warning",
+      "allowReadOnly": true
+    },
+    "prefer_inline": {
+      "severity": "Info"
+    },
+    "select_single_full_key": {
+      "severity": "Warning",
+      "allowPseudo": true
+    },
+    "use_new_exceptions": {
+      "severity": "Error"
+    },
+    "use_class_based_exceptions": {
+      "severity": "Error"
+    },
+    "begin_end_names": {
+      "severity": "Error"
+    },
+    "check_transformation_exists": {
+      "severity": "Error"
+    },
+    "obsolete_statement": {
+      "severity": "Error",
+      "refresh": true,
+      "compute": true,
+      "add": true,
+      "subtract": true,
+      "multiply": true,
+      "divide": true,
+      "move": true,
+      "requested": true,
+      "occurs": true,
+      "setExtended": true,
+      "withHeaderLine": true,
+      "fieldSymbolStructure": true,
+      "typePools": true,
+      "load": true,
+      "communication": true,
+      "pack": true,
+      "parameter": true,
+      "ranges": true,
+      "selectWithout": true,
+      "freeMemory": true,
+      "exitFromSQL": true,
+      "sortByFS": true,
+      "callTransformation": true,
+      "regex": true,
+      "occurences": true,
+      "clientSpecified": true
+    },
+    "try_without_catch": {
+      "severity": "Error"
+    },
+    "unreachable_code": {
+      "severity": "Error"
+    },
+    "unused_variables": {
+      "severity": "Warning",
+      "skipNames": []
+    },
+    "identical_conditions": {
+      "severity": "Error"
+    },
+    "short_case": {
+      "severity": "Warning",
+      "length": 1,
+      "allow": []
+    },
+    "space_before_colon": {
+      "severity": "Warning"
+    },
+    "start_at_tab": {
+      "severity": "Warning"
+    },
+    "no_aliases": {
+      "severity": "Error"
+    },
+    "abapdoc": {
+      "severity": "Info",
+      "checkLocal": false
+    },
+
+    "object_naming": {
+      "severity": "Error",
+      "patternKind": "required",
+      "clas": "^Z(CL|CX)_[A-Z]{2,3}_",
+      "intf": "^ZIF_[A-Z]{2,3}_",
+      "prog": "^[ZY][A-Z0-9_]+$",
+      "fugr": "^Z[A-Z]{3}\\d{4}$",
+      "tabl": "^Z[A-Z]{2,3}_",
+      "ttyp": "^Z[A-Z]{2,3}_",
+      "dtel": "^Z[A-Z]{2,3}_",
+      "doma": "^Z[A-Z]{2,3}_",
+      "msag": "^Z[A-Z]{3}",
+      "tran": "^Z[A-Z]{3}\\d{4}",
+      "enqu": "^EZ",
+      "ssfo": "^Z[A-Z]{3}_",
+      "ssst": "^Z[A-Z]{3}_",
+      "shlp": "^Z[A-Z]{3}_"
+    },
+    "local_class_naming": {
+      "severity": "Error",
+      "patternKind": "required",
+      "local": "^LCL_.+$",
+      "exception": "^LCX_.+$",
+      "test": "^LCL_UT\\d+_.+$"
+    },
+    "selection_screen_naming": {
+      "severity": "Error",
+      "patternKind": "required",
+      "parameter": "^[PRGCB]_.+$",
+      "selectOption": "^S_.+$",
+      "screenElement": "^SC_.+$"
+    },
+    "types_naming": {
+      "severity": "Warning",
+      "pattern": "^[GL]T[FSTR]_.+$|^[GL]TT_R_.+$"
+    },
+    "names_no_dash": {
+      "severity": "Error"
+    },
+
+    "db_operation_in_loop": {
+      "severity": "Error"
+    },
+    "select_performance": {
+      "severity": "Error",
+      "endSelect": true,
+      "selectStar": true,
+      "starOkayIfFewColumns": 3
+    },
+    "select_add_order_by": {
+      "severity": "Warning",
+      "skipForAllEntries": true
+    },
+    "unsecure_fae": {
+      "severity": "Error"
+    },
+    "sql_escape_host_variables": {
+      "severity": "Error"
+    },
+    "sql_value_conversion": {
+      "severity": "Warning"
+    },
+    "strict_sql": {
+      "severity": "Error"
+    },
+
+    "change_if_to_case": {
+      "severity": "Info"
+    },
+    "exit_or_check": {
+      "severity": "Warning",
+      "allowExit": true,
+      "allowCheck": false
+    },
+    "if_in_if": {
+      "severity": "Warning"
+    },
+    "reduce_procedural_code": {
+      "severity": "Warning",
+      "maxStatements": 15
+    },
+    "definitions_top": {
+      "severity": "Warning"
+    },
+
+    "prefer_xsdbool": {
+      "severity": "Warning"
+    },
+    "use_bool_expression": {
+      "severity": "Warning"
+    },
+    "fully_type_constants": {
+      "severity": "Warning",
+      "checkData": true
+    },
+    "type_form_parameters": {
+      "severity": "Warning"
+    },
+
+    "call_transaction_authority_check": {
+      "severity": "Error"
+    },
+    "rfc_error_handling": {
+      "severity": "Error"
+    },
+    "modify_only_own_db_tables": {
+      "severity": "Error",
+      "reportDynamic": true,
+      "ownTables": "^[zy]"
+    },
+
+    "cds_comment_style": {
+      "severity": "Warning"
+    },
+    "cds_legacy_view": {
+      "severity": "Error"
+    },
+    "cds_parser_error": {
+      "severity": "Error"
+    },
+
+    "keyword_case": {
+      "severity": "Warning",
+      "style": "upper",
+      "ignoreExceptions": true
+    },
+    "commented_code": {
+      "severity": "Warning",
+      "allowIncludeInFugr": true
+    },
+    "form_tables_obsolete": {
+      "severity": "Warning"
+    },
+    "no_external_form_calls": {
+      "severity": "Warning"
+    },
+    "slow_parameter_passing": {
+      "severity": "Warning"
+    }
+  }
+}

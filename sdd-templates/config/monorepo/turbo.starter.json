@@ -1,0 +1,17 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"],
+      "cache": true,
+      "inputs": ["src/**", "tsconfig.json"]
+    },
+    "test": {
+      "dependsOn": [],
+      "outputs": [],
+      "cache": true,
+      "inputs": ["src/**", "tests/**", "test/**", "vitest.config.*"]
+    }
+  }
+}

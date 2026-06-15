@@ -1,0 +1,90 @@
+# Issue → GitHub Projects V2 自動追加 + フィールド自動設定ワークフロー
+# SDD ラベル付きIssue作成時にProjectボードへ自動追加し、カスタムフィールドを設定
+
+name: Auto-add Issues to Project
+
+on:
+  issues:
+    types: [opened, labeled]
+
+env:
+  PROJECT_NUMBER: ${{ vars.STRIDE_PROJECT_NUMBER || '2' }}
+  ORG_NAME: ${{ github.repository_owner }}
+
+jobs:
+  add-to-project:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+
+    steps:
+      - name: Check SDD labels
+        id: check
+        env:
+          ISSUE_LABELS: ${{ toJson(github.event.issue.labels.*.name) }}
+        run: |
+          SDD_LABELS=("epic" "milestone" "work-item" "risk" "blocker" "dependency" "symphony:ready")
+          MATCH="false"
+          for label in "${SDD_LABELS[@]}"; do
+            if echo "$ISSUE_LABELS" | grep -q "\"$label\""; then
+              MATCH="true"
+              break
+            fi
+          done
+          echo "match=$MATCH" >> "$GITHUB_OUTPUT"
+
+      - name: Add to Project
+        if: steps.check.outputs.match == 'true'
+        id: add
+        env:
+          GH_TOKEN: ${{ secrets.STRIDE_PROJECT_TOKEN }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+        run: |
+          ITEM_ID=$(gh project item-add "$PROJECT_NUMBER" \
+            --owner "$ORG_NAME" \
+            --url "$ISSUE_URL" \
+            --format json | python3 -c "import json,sys; print(json.load(sys.stdin).get('id',''))")
+
+          echo "item_id=$ITEM_ID" >> "$GITHUB_OUTPUT"
+          echo "Added to project. Item ID: $ITEM_ID"
+
+      - name: Checkout repository
+        if: steps.add.outputs.item_id != ''
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        if: steps.add.outputs.item_id != ''
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set custom fields
+        if: steps.add.outputs.item_id != ''
+        env:
+          GH_TOKEN: ${{ secrets.STRIDE_PROJECT_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ITEM_ID: ${{ steps.add.outputs.item_id }}
+        run: |
+          python scripts/auto_set_project_fields.py "$ITEM_ID" "$ISSUE_NUMBER"
+
+      - name: Summary
+        if: steps.check.outputs.match == 'true'
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+        run: |
+          {
+            echo "## Auto-added to Project"
+            echo ""
+            echo "- **Issue:** #${ISSUE_NUMBER}"
+            echo "- **Project:** #${PROJECT_NUMBER}"
+            echo "- **Fields:** Set via auto_set_project_fields.py"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Skip (no SDD label)
+        if: steps.check.outputs.match != 'true'
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          echo "Issue #${ISSUE_NUMBER} has no SDD labels — skipping."

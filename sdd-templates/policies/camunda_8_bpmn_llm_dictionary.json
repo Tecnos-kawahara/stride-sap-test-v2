@@ -1,0 +1,1140 @@
+{
+
+  "system_prompt": "You are an expert BPMN 2.0 XML generator for Camunda 8 (Zeebe), version 8.8. Adhere strictly to the provided JSON specification. All expressions must be valid FEEL. All Camunda 8 extensions must use the 'zeebe' namespace prefix. Generate complete, valid BPMN XML including all required namespaces, process definitions, and BPMNDI diagram information.",
+  "spec_version": "Camunda 8.8",
+  "last_updated": "2025-12-30",
+
+  "root_element": {
+    "name": "bpmn:definitions",
+    "description": "The root element of a BPMN 2.0 XML document. Contains all process definitions, global elements, and diagram information.",
+    "attributes": [
+      {"name": "xmlns:bpmn", "value": "http://www.omg.org/spec/BPMN/20100524/MODEL", "required": true},
+      {"name": "xmlns:bpmndi", "value": "http://www.omg.org/spec/BPMN/20100524/DI", "required": true},
+      {"name": "xmlns:dc", "value": "http://www.omg.org/spec/DD/20100524/DC", "required": true},
+      {"name": "xmlns:di", "value": "http://www.omg.org/spec/DD/20100524/DI", "required": true},
+      {"name": "xmlns:xsi", "value": "http://www.w3.org/2001/XMLSchema-instance", "required": true},
+      {"name": "xmlns:zeebe", "value": "http://camunda.org/schema/zeebe/1.0", "required": true, "description": "Primary namespace for Camunda 8 extensions."},
+      {"name": "xmlns:modeler", "value": "http://camunda.org/schema/modeler/1.0", "required": false, "description": "Used by Camunda Modeler for UI hints."},
+      {"name": "id", "value": "Definitions_[UNIQUE_ID]", "required": true},
+      {"name": "targetNamespace", "value": "http://bpmn.io/schema/bpmn", "required": true},
+      {"name": "exporter", "value": "Camunda Modeler", "required": false},
+      {"name": "exporterVersion", "value": "5.0.0", "required": false}
+    ],
+    "children": [
+      "global_definitions (bpmn:message, bpmn:error, bpmn:signal, bpmn:escalation)",
+      "bpmn:process",
+      "bpmndi:BPMNDiagram"
+    ],
+    "structure_order": "Global definitions first, then process(es), then diagram information"
+  },
+
+  "bpmn_process": {
+    "name": "bpmn:process",
+    "description": "Defines a single executable process. A definitions element can contain multiple processes.",
+    "attributes": [
+      {"name": "id", "required": true, "type": "ID", "description": "Unique process identifier. Used for deployment and call activities."},
+      {"name": "name", "required": false, "type": "String", "description": "Human-readable process name."},
+      {"name": "isExecutable", "required": true, "value": "true", "description": "MUST be 'true' for Camunda 8 to execute the process."}
+    ],
+    "extension_elements": [
+      {
+        "name": "zeebe:properties",
+        "description": "Custom properties for the process.",
+        "child_elements": [
+          {
+            "name": "zeebe:property",
+            "attributes": [
+              {"name": "name", "required": true, "type": "String"},
+              {"name": "value", "required": true, "type": "String"}
+            ]
+          }
+        ]
+      }
+    ],
+    "child_elements": [
+      "bpmn:startEvent",
+      "bpmn:endEvent",
+      "bpmn:task (serviceTask, userTask, scriptTask, etc.)",
+      "bpmn:gateway (exclusiveGateway, parallelGateway, etc.)",
+      "bpmn:intermediateCatchEvent",
+      "bpmn:intermediateThrowEvent",
+      "bpmn:boundaryEvent",
+      "bpmn:subProcess",
+      "bpmn:sequenceFlow",
+      "bpmn:textAnnotation",
+      "bpmn:association"
+    ],
+    "xml_example": "<bpmn:process id=\"Process_1\" name=\"Order Process\" isExecutable=\"true\"><bpmn:extensionElements><zeebe:properties><zeebe:property name=\"version\" value=\"1.0\" /></zeebe:properties></bpmn:extensionElements><!-- Process elements here --></bpmn:process>"
+  },
+
+  "bpmn_sequence_flow": {
+    "name": "bpmn:sequenceFlow",
+    "description": "Connects flow elements (events, activities, gateways) to define the execution order.",
+    "attributes": [
+      {"name": "id", "required": true, "type": "ID", "description": "Unique identifier for this sequence flow."},
+      {"name": "name", "required": false, "type": "String", "description": "Label displayed on the flow (often used for condition labels)."},
+      {"name": "sourceRef", "required": true, "type": "IDREF", "description": "ID of the source element."},
+      {"name": "targetRef", "required": true, "type": "IDREF", "description": "ID of the target element."}
+    ],
+    "child_elements": [
+      {
+        "name": "bpmn:conditionExpression",
+        "required": false,
+        "description": "Required for conditional flows from gateways (except default flow).",
+        "attributes": [
+          {"name": "xsi:type", "required": true, "value": "bpmn:tFormalExpression"}
+        ],
+        "content": "FEEL expression that evaluates to boolean, e.g., =amount > 1000"
+      }
+    ],
+    "xml_examples": [
+      {
+        "type": "Simple flow",
+        "xml": "<bpmn:sequenceFlow id=\"Flow_1\" sourceRef=\"StartEvent_1\" targetRef=\"Task_1\" />"
+      },
+      {
+        "type": "Conditional flow",
+        "xml": "<bpmn:sequenceFlow id=\"Flow_2\" name=\"Amount > 1000\" sourceRef=\"Gateway_1\" targetRef=\"Task_2\"><bpmn:conditionExpression xsi:type=\"bpmn:tFormalExpression\">=amount > 1000</bpmn:conditionExpression></bpmn:sequenceFlow>"
+      },
+      {
+        "type": "Default flow",
+        "xml": "<bpmn:sequenceFlow id=\"Flow_Default\" name=\"Otherwise\" sourceRef=\"Gateway_1\" targetRef=\"Task_3\" />"
+      }
+    ]
+  },
+
+  "bpmn_incoming_outgoing": {
+    "description": "All flow nodes (events, activities, gateways) contain incoming and outgoing references.",
+    "elements": {
+      "bpmn:incoming": {
+        "description": "Reference to incoming sequence flow ID. Multiple allowed.",
+        "content": "ID of the incoming sequenceFlow"
+      },
+      "bpmn:outgoing": {
+        "description": "Reference to outgoing sequence flow ID. Multiple allowed.",
+        "content": "ID of the outgoing sequenceFlow"
+      }
+    },
+    "xml_example": "<bpmn:serviceTask id=\"Task_1\" name=\"Process Order\"><bpmn:incoming>Flow_1</bpmn:incoming><bpmn:outgoing>Flow_2</bpmn:outgoing></bpmn:serviceTask>"
+  },
+
+  "feel_expressions": {
+    "description": "Friendly Enough Expression Language (FEEL) is used for conditions, mappings, and timers. Expressions MUST start with '='.",
+    "data_types": [
+      {"type": "String", "example": "\"Hello World\""},
+      {"type": "Number", "example": "123.45"},
+      {"type": "Boolean", "example": "true"},
+      {"type": "Date", "example": "date(\"2025-12-30\")"},
+      {"type": "Time", "example": "time(\"10:30:00\")"},
+      {"type": "Date-Time", "example": "date and time(\"2025-12-30T10:30:00Z\")"},
+      {"type": "Duration", "example": "duration(\"PT1H30M\")"},
+      {"type": "List", "example": "[1, 2, 3]"},
+      {"type": "Context", "example": "{key: \"value\", num: 123}"},
+      {"type": "Null", "example": "null"}
+    ],
+    "operators": [
+      {"type": "Arithmetic", "symbols": ["+", "-", "*", "/", "**", "%"]},
+      {"type": "Comparison", "symbols": ["=", "!=", "<", ">", "<=", ">="]},
+      {"type": "Logic", "symbols": ["and", "or", "not"]},
+      {"type": "List/Range", "symbols": ["in", "..", "some", "every"]},
+      {"type": "String", "symbols": ["+"]}
+    ],
+    "built_in_functions": {
+      "conversion": ["string()", "number()", "boolean()", "date()", "time()", "date and time()", "duration()"],
+      "string": ["substring()", "string length()", "upper case()", "lower case()", "contains()", "starts with()", "ends with()", "matches()", "replace()", "split()", "join()"],
+      "list": ["list contains()", "count()", "min()", "max()", "sum()", "mean()", "all()", "any()", "sublist()", "append()", "concatenate()", "insert before()", "remove()", "reverse()", "index of()", "union()", "distinct values()", "flatten()", "sort()"],
+      "context": ["get value()", "get entries()", "put()", "put all()", "context()"],
+      "temporal": ["now()", "today()", "day of week()", "day of year()", "week of year()", "month of year()", "year()"],
+      "boolean": ["not()", "is defined()"],
+      "range": ["before()", "after()", "meets()", "met by()", "overlaps()", "overlaps before()", "overlaps after()", "finishes()", "finished by()", "includes()", "during()", "starts()", "started by()", "coincides()"]
+    },
+    "expression_examples": [
+      {"description": "Simple comparison", "expression": "=amount > 1000"},
+      {"description": "String comparison", "expression": "=status = \"approved\""},
+      {"description": "List contains", "expression": "=list contains(categories, \"premium\")"},
+      {"description": "Context access", "expression": "=order.customer.name"},
+      {"description": "Conditional", "expression": "=if approved then \"proceed\" else \"reject\""},
+      {"description": "Date comparison", "expression": "=dueDate < today()"},
+      {"description": "Combined conditions", "expression": "=amount > 1000 and status = \"pending\""},
+      {"description": "List filtering", "expression": "=items[status = \"active\"]"},
+      {"description": "Aggregation", "expression": "=sum(items.price)"}
+    ]
+  },
+
+  "timer_formats": {
+    "description": "ISO 8601 formats for timer events.",
+    "types": {
+      "timeDate": {
+        "description": "A specific point in time when the timer should trigger.",
+        "format": "ISO 8601 date-time",
+        "examples": [
+          "2025-12-30T10:00:00Z",
+          "2025-12-30T10:00:00+09:00",
+          "=orderDueDate"
+        ]
+      },
+      "timeDuration": {
+        "description": "A duration after which the timer should trigger.",
+        "format": "ISO 8601 duration (P[n]Y[n]M[n]DT[n]H[n]M[n]S)",
+        "examples": [
+          {"duration": "PT1H", "meaning": "1 hour"},
+          {"duration": "PT30M", "meaning": "30 minutes"},
+          {"duration": "PT15S", "meaning": "15 seconds"},
+          {"duration": "P1D", "meaning": "1 day"},
+          {"duration": "P1DT2H30M", "meaning": "1 day, 2 hours, 30 minutes"},
+          {"duration": "P1M", "meaning": "1 month"},
+          {"duration": "P1Y", "meaning": "1 year"},
+          {"duration": "=duration(\"PT\" + string(waitHours) + \"H\")", "meaning": "Dynamic duration"}
+        ]
+      },
+      "timeCycle": {
+        "description": "A repeating timer.",
+        "formats": {
+          "iso8601_repeating": {
+            "pattern": "R[count]/[duration] or R[count]/[start]/[duration]",
+            "examples": [
+              {"cycle": "R3/PT10M", "meaning": "Repeat 3 times, every 10 minutes"},
+              {"cycle": "R/PT1H", "meaning": "Repeat indefinitely, every 1 hour"},
+              {"cycle": "R5/2025-01-01T00:00:00Z/P1D", "meaning": "Repeat 5 times starting Jan 1, every day"}
+            ]
+          },
+          "cron": {
+            "pattern": "seconds minutes hours day-of-month month day-of-week [year]",
+            "examples": [
+              {"cron": "0 0 9 * * ?", "meaning": "Every day at 9:00 AM"},
+              {"cron": "0 0/15 * * * ?", "meaning": "Every 15 minutes"},
+              {"cron": "0 0 9 ? * MON-FRI", "meaning": "Every weekday at 9:00 AM"},
+              {"cron": "0 0 0 1 * ?", "meaning": "First day of every month at midnight"}
+            ]
+          }
+        }
+      }
+    },
+    "xml_examples": [
+      {
+        "type": "Timer Start Event (daily)",
+        "xml": "<bpmn:startEvent id=\"Timer_Start\"><bpmn:timerEventDefinition><bpmn:timeCycle>0 0 9 * * ?</bpmn:timeCycle></bpmn:timerEventDefinition></bpmn:startEvent>"
+      },
+      {
+        "type": "Timer Boundary (timeout)",
+        "xml": "<bpmn:boundaryEvent id=\"Timeout\" attachedToRef=\"Task_1\" cancelActivity=\"true\"><bpmn:timerEventDefinition><bpmn:timeDuration>PT2H</bpmn:timeDuration></bpmn:timerEventDefinition></bpmn:boundaryEvent>"
+      },
+      {
+        "type": "Timer Intermediate (wait)",
+        "xml": "<bpmn:intermediateCatchEvent id=\"Wait_Event\"><bpmn:timerEventDefinition><bpmn:timeDuration>=waitDuration</bpmn:timeDuration></bpmn:timerEventDefinition></bpmn:intermediateCatchEvent>"
+      }
+    ]
+  },
+
+  "elements": {
+
+    "tasks": {
+      "description": "Units of work within a process.",
+      "types": {
+
+        "bpmn:serviceTask": {
+          "description": "Generates a job for an external worker.",
+          "extension_elements": [
+            {
+              "name": "zeebe:taskDefinition",
+              "required": true,
+              "attributes": [
+                {"name": "type", "required": true, "type": "String/FEEL", "description": "The job type identifier for workers to subscribe to."},
+                {"name": "retries", "required": false, "type": "Integer/FEEL", "default": "3", "description": "Number of retries on failure."}
+              ]
+            },
+            {"ref": "zeebe:taskHeaders"},
+            {"ref": "zeebe:ioMapping"}
+          ],
+          "xml_example": "<bpmn:serviceTask id=\"Task_1\" name=\"Process Payment\"><bpmn:extensionElements><zeebe:taskDefinition type=\"payment-service\" retries=\"5\" /><zeebe:taskHeaders><zeebe:header key=\"method\" value=\"credit-card\" /></zeebe:taskHeaders><zeebe:ioMapping><zeebe:input source=\"=orderId\" target=\"paymentRef\" /><zeebe:output source=\"=confirmation\" target=\"paymentConfirmation\" /></zeebe:ioMapping></bpmn:extensionElements></bpmn:serviceTask>"
+        },
+
+        "bpmn:userTask": {
+          "description": "A task performed by a human user.",
+          "extension_elements": [
+            {"name": "zeebe:userTask", "required": false, "description": "Marks this as a Camunda 8 User Task (8.6+). Omit for job worker implementation (Self-Managed/Hybrid compatible).", "attributes": []},
+            {"ref": "zeebe:formDefinition"},
+            {"ref": "zeebe:assignmentDefinition"},
+            {"ref": "zeebe:taskSchedule"},
+            {"ref": "zeebe:priorityDefinition"},
+            {"ref": "zeebe:userTaskListener"},
+            {
+              "name": "zeebe:taskDefinition",
+              "required": "conditional",
+              "description": "Required for job worker implementation; omit when using <zeebe:userTask />.",
+              "attributes": [
+                {"name": "type", "required": true, "type": "String/FEEL", "description": "The job type identifier for workers to subscribe to."},
+                {"name": "retries", "required": false, "type": "Integer/FEEL", "default": "3", "description": "Number of retries on failure."}
+              ]
+            },
+            {"ref": "zeebe:taskHeaders"},
+            {"ref": "zeebe:ioMapping"}
+          ],
+          "xml_example": "<bpmn:userTask id=\"UserTask_1\" name=\"Approve Order\"><bpmn:extensionElements><zeebe:userTask /><zeebe:formDefinition formId=\"order-approval-form\" /><zeebe:assignmentDefinition assignee=\"=order.approver\" /></bpmn:extensionElements></bpmn:userTask>"
+        },
+
+        "bpmn:scriptTask": {
+          "description": "Executes a script using a FEEL expression.",
+          "extension_elements": [
+            {
+              "name": "zeebe:script",
+              "required": true,
+              "attributes": [
+                {"name": "expression", "required": true, "type": "FEEL", "description": "The FEEL expression to execute."},
+                {"name": "resultVariable", "required": true, "type": "String", "description": "Variable to store the expression result."}
+              ]
+            }
+          ],
+          "xml_example": "<bpmn:scriptTask id=\"ScriptTask_1\" name=\"Calculate Total\"><bpmn:extensionElements><zeebe:script expression=\"=price * quantity\" resultVariable=\"total\" /></bpmn:extensionElements></bpmn:scriptTask>"
+        },
+
+        "bpmn:businessRuleTask": {
+          "description": "Invokes a DMN decision table.",
+          "extension_elements": [
+            {
+              "name": "zeebe:calledDecision",
+              "required": true,
+              "attributes": [
+                {"name": "decisionId", "required": true, "type": "String/FEEL", "description": "The ID of the DMN decision to evaluate."},
+                {"name": "resultVariable", "required": true, "type": "String", "description": "Variable to store the decision result."},
+                {"name": "bindingType", "required": false, "type": "String", "enum": ["latest", "deployment", "versionTag"], "default": "latest"},
+                {"name": "versionTag", "required": "conditional", "type": "String", "description": "Required when bindingType='versionTag'."}
+              ]
+            }
+          ],
+          "xml_example": "<bpmn:businessRuleTask id=\"DMNTask_1\" name=\"Determine Discount\"><bpmn:extensionElements><zeebe:calledDecision decisionId=\"discount-decision\" resultVariable=\"discountRate\" /></bpmn:extensionElements></bpmn:businessRuleTask>"
+        },
+
+        "bpmn:callActivity": {
+          "description": "Calls another reusable BPMN process.",
+          "extension_elements": [
+            {
+              "name": "zeebe:calledElement",
+              "required": true,
+              "attributes": [
+                {"name": "processId", "required": true, "type": "String/FEEL", "description": "The BPMN Process ID of the process to call."},
+                {"name": "bindingType", "required": false, "type": "String", "enum": ["latest", "deployment", "versionTag"], "default": "latest"},
+                {"name": "versionTag", "required": "conditional", "type": "String", "description": "Required when bindingType='versionTag'."},
+                {"name": "propagateAllChildVariables", "required": false, "type": "Boolean", "default": "true"},
+                {"name": "propagateAllParentVariables", "required": false, "type": "Boolean", "default": "true"}
+              ]
+            },
+            {"ref": "zeebe:ioMapping"}
+          ],
+          "xml_example": "<bpmn:callActivity id=\"CallActivity_1\" name=\"Process Sub-Order\"><bpmn:extensionElements><zeebe:calledElement processId=\"sub-order-process\" propagateAllChildVariables=\"false\" /><zeebe:ioMapping><zeebe:input source=\"=orderId\" target=\"subOrderId\" /><zeebe:output source=\"=result\" target=\"subOrderResult\" /></zeebe:ioMapping></bpmn:extensionElements></bpmn:callActivity>"
+        },
+
+        "bpmn:sendTask": {
+          "description": "Sends a message. Implemented as a Service Task that generates a job.",
+          "extension_elements": [{"ref": "zeebe:taskDefinition"}],
+          "xml_example": "<bpmn:sendTask id=\"SendTask_1\" name=\"Send Notification\"><bpmn:extensionElements><zeebe:taskDefinition type=\"notification-sender\" /></bpmn:extensionElements></bpmn:sendTask>"
+        },
+
+        "bpmn:receiveTask": {
+          "description": "Waits for a specific message to be correlated.",
+          "attributes": [{"name": "messageRef", "required": true, "type": "IDREF", "description": "Reference to a bpmn:message element."}],
+          "xml_example": "<bpmn:receiveTask id=\"ReceiveTask_1\" name=\"Wait for Payment\" messageRef=\"Message_PaymentReceived\" />"
+        },
+
+        "bpmn:manualTask": {
+          "description": "Represents a task done outside the system. Zeebe automatically completes it.",
+          "xml_example": "<bpmn:manualTask id=\"ManualTask_1\" name=\"Physical Inspection\" />"
+        }
+      }
+    },
+
+    "gateways": {
+      "description": "Control the flow of the process.",
+      "types": {
+
+        "bpmn:exclusiveGateway": {
+          "description": "Routes the flow to exactly one outgoing sequence flow based on conditions.",
+          "attributes": [{"name": "default", "required": false, "type": "IDREF", "description": "The ID of the default sequence flow if no condition matches."}],
+          "child_elements": {
+            "bpmn:sequenceFlow": {
+              "child_elements": {
+                "bpmn:conditionExpression": {
+                  "required": "conditional",
+                  "description": "A FEEL expression that evaluates to a boolean. Required for all non-default outgoing flows.",
+                  "attributes": [{"name": "xsi:type", "value": "bpmn:tFormalExpression"}],
+                  "content": "FEEL expression, e.g., =amount > 1000"
+                }
+              }
+            }
+          },
+          "xml_example": "<bpmn:exclusiveGateway id=\"Gateway_1\" default=\"Flow_Default\" /><bpmn:sequenceFlow id=\"Flow_1\" sourceRef=\"Gateway_1\" targetRef=\"Task_A\"><bpmn:conditionExpression xsi:type=\"bpmn:tFormalExpression\">=amount > 1000</bpmn:conditionExpression></bpmn:sequenceFlow>"
+        },
+
+        "bpmn:parallelGateway": {
+          "description": "Splits the flow into multiple parallel paths (fork) or waits for all incoming parallel paths to complete before continuing (join).",
+          "xml_example": "<bpmn:parallelGateway id=\"Gateway_Fork\" />"
+        },
+
+        "bpmn:inclusiveGateway": {
+          "description": "Splits the flow into one or more paths based on conditions. All active incoming flows must complete before merging.",
+          "attributes": [{"name": "default", "required": false, "type": "IDREF"}],
+          "child_elements": {
+            "bpmn:sequenceFlow": {
+              "child_elements": {"ref": "bpmn:conditionExpression"}
+            }
+          },
+          "xml_example": "<bpmn:inclusiveGateway id=\"Gateway_1\" default=\"Flow_Default\" /><bpmn:sequenceFlow id=\"Flow_1\" sourceRef=\"Gateway_1\"><bpmn:conditionExpression xsi:type=\"bpmn:tFormalExpression\">=needsApproval</bpmn:conditionExpression></bpmn:sequenceFlow>"
+        },
+
+        "bpmn:eventBasedGateway": {
+          "description": "Routes the flow based on whichever of the subsequent events occurs first. Must be followed by Intermediate Catch Events or Receive Tasks.",
+          "xml_example": "<bpmn:eventBasedGateway id=\"Gateway_1\" /><bpmn:intermediateCatchEvent id=\"Catch_Msg\"><bpmn:messageEventDefinition messageRef=\"Msg_1\" /></bpmn:intermediateCatchEvent><bpmn:intermediateCatchEvent id=\"Catch_Timer\"><bpmn:timerEventDefinition><bpmn:timeDuration>PT1H</bpmn:timeDuration></bpmn:timerEventDefinition></bpmn:intermediateCatchEvent>"
+        }
+      }
+    },
+
+    "events": {
+      "description": "Occurrences during a process that trigger or influence the flow.",
+      "types": {
+
+        "bpmn:startEvent": {
+          "description": "Starts a process instance.",
+          "child_elements": ["bpmn:messageEventDefinition", "bpmn:timerEventDefinition", "bpmn:signalEventDefinition"]
+        },
+
+        "bpmn:endEvent": {
+          "description": "Ends a path in the process.",
+          "child_elements": ["bpmn:errorEventDefinition", "bpmn:messageEventDefinition", "bpmn:signalEventDefinition", "bpmn:terminateEventDefinition", "bpmn:escalationEventDefinition"],
+          "extension_elements": [
+            {
+              "name": "zeebe:taskDefinition",
+              "required": "conditional",
+              "description": "Required for message end events to define job type (same behavior as send/service tasks).",
+              "attributes": [
+                {"name": "type", "required": true, "type": "String/FEEL", "description": "The job type identifier for workers to subscribe to."},
+                {"name": "retries", "required": false, "type": "Integer/FEEL", "default": "3", "description": "Number of retries on failure."}
+              ]
+            },
+            {"ref": "zeebe:taskHeaders"},
+            {"ref": "zeebe:ioMapping"}
+          ]
+        },
+
+        "bpmn:intermediateCatchEvent": {
+          "description": "Waits for a specific trigger (timer, message, signal).",
+          "child_elements": ["bpmn:timerEventDefinition", "bpmn:messageEventDefinition", "bpmn:signalEventDefinition", "bpmn:linkEventDefinition"]
+        },
+
+        "bpmn:intermediateThrowEvent": {
+          "description": "Throws a trigger (message, signal, escalation).",
+          "child_elements": ["bpmn:messageEventDefinition", "bpmn:signalEventDefinition", "bpmn:escalationEventDefinition", "bpmn:linkEventDefinition"],
+          "extension_elements": [
+            {
+              "name": "zeebe:taskDefinition",
+              "required": "conditional",
+              "description": "Required for message throw events to define job type (same behavior as send/service tasks).",
+              "attributes": [
+                {"name": "type", "required": true, "type": "String/FEEL", "description": "The job type identifier for workers to subscribe to."},
+                {"name": "retries", "required": false, "type": "Integer/FEEL", "default": "3", "description": "Number of retries on failure."}
+              ]
+            },
+            {"ref": "zeebe:taskHeaders"},
+            {"ref": "zeebe:ioMapping"}
+          ]
+        },
+
+        "bpmn:boundaryEvent": {
+          "description": "Attached to an activity, triggered by an event (error, timer, message, etc.).",
+          "attributes": [
+            {"name": "attachedToRef", "required": true, "type": "IDREF", "description": "The ID of the activity this event is attached to."},
+            {"name": "cancelActivity", "required": false, "type": "Boolean", "default": "true", "description": "If true (interrupting), the attached activity is terminated. If false (non-interrupting), it continues."}
+          ],
+          "child_elements": ["bpmn:errorEventDefinition", "bpmn:timerEventDefinition", "bpmn:messageEventDefinition", "bpmn:signalEventDefinition", "bpmn:escalationEventDefinition", "bpmn:compensationEventDefinition"]
+        }
+      },
+
+      "definitions": {
+        "bpmn:messageEventDefinition": {"attributes": [{"name": "messageRef", "required": true, "type": "IDREF"}]},
+        "bpmn:signalEventDefinition": {"attributes": [{"name": "signalRef", "required": true, "type": "IDREF"}]},
+        "bpmn:errorEventDefinition": {"attributes": [{"name": "errorRef", "required": "conditional", "type": "IDREF", "description": "Required for specific error catch/throw; omit for catch-all."}]},
+        "bpmn:escalationEventDefinition": {"attributes": [{"name": "escalationRef", "required": "conditional", "type": "IDREF", "description": "Required for specific escalation catch/throw; omit for catch-all."}]},
+        "bpmn:linkEventDefinition": {"attributes": [{"name": "name", "required": true, "type": "String"}]},
+        "bpmn:terminateEventDefinition": {},
+        "bpmn:timerEventDefinition": {
+          "description": "Defines a timer. Must contain exactly one of timeDate, timeDuration, or timeCycle.",
+          "child_elements": [
+            {"name": "bpmn:timeDate", "type": "String/FEEL", "description": "A specific date-time (ISO 8601)."},
+            {"name": "bpmn:timeDuration", "type": "String/FEEL", "description": "A duration from the current time (ISO 8601)."},
+            {"name": "bpmn:timeCycle", "type": "String/FEEL", "description": "A repeating interval (ISO 8601) or a cron expression."}
+          ]
+        }
+      }
+    },
+
+    "subprocesses": {
+      "description": "Group related activities or define event-driven logic.",
+      "types": {
+        "bpmn:subProcess": {
+          "description": "An embedded subprocess that groups elements and creates a variable scope.",
+          "xml_example": "<bpmn:subProcess id=\"SubProcess_1\"><bpmn:startEvent /><bpmn:sequenceFlow /><bpmn:serviceTask /><bpmn:endEvent /></bpmn:subProcess>"
+        },
+        "bpmn:eventSubProcess": {
+          "description": "A subprocess triggered by an event within its scope. Not connected by sequence flow.",
+          "attributes": [{"name": "triggeredByEvent", "required": true, "value": "true"}],
+          "child_elements": {
+            "bpmn:startEvent": {
+              "attributes": [{"name": "isInterrupting", "required": false, "type": "Boolean", "default": "true"}],
+              "child_elements": ["bpmn:errorEventDefinition", "bpmn:messageEventDefinition", "bpmn:timerEventDefinition", "bpmn:signalEventDefinition", "bpmn:escalationEventDefinition"]
+            }
+          },
+          "xml_example": "<bpmn:subProcess id=\"EventSubProcess_1\" triggeredByEvent=\"true\"><bpmn:startEvent isInterrupting=\"true\"><bpmn:errorEventDefinition errorRef=\"Error_1\" /></bpmn:startEvent>...</bpmn:subProcess>"
+        }
+      }
+    },
+
+    "multi_instance": {
+      "description": "Loops over a collection for a task or subprocess.",
+      "element": "bpmn:multiInstanceLoopCharacteristics",
+      "parent": "bpmn:serviceTask, bpmn:userTask, bpmn:subProcess, etc.",
+      "attributes": [{"name": "isSequential", "required": false, "type": "Boolean", "default": "false", "description": "false=parallel, true=sequential"}],
+      "extension_elements": [
+        {
+          "name": "zeebe:loopCharacteristics",
+          "required": true,
+          "attributes": [
+            {"name": "inputCollection", "required": true, "type": "FEEL", "description": "The collection to iterate over, e.g., =items.", "example": "=items"},
+            {"name": "inputElement", "required": false, "type": "String", "description": "Variable name for each element in the collection.", "example": "item"},
+            {"name": "outputCollection", "required": false, "type": "String", "description": "Variable to store the aggregated results.", "example": "results"},
+            {"name": "outputElement", "required": false, "type": "FEEL", "description": "An expression to transform each result element before aggregation.", "example": "=result.value"}
+          ]
+        }
+      ],
+      "child_elements": {
+        "bpmn:completionCondition": {
+          "required": false,
+          "type": "FEEL",
+          "description": "A FEEL expression that, when it evaluates to true, terminates the multi-instance activity.",
+          "example": "=count(results) >= 3"
+        }
+      },
+      "xml_example": "<bpmn:serviceTask id=\"Task_1\"><bpmn:multiInstanceLoopCharacteristics><bpmn:extensionElements><zeebe:loopCharacteristics inputCollection=\"=items\" /></bpmn:extensionElements></bpmn:multiInstanceLoopCharacteristics></bpmn:serviceTask>"
+    },
+
+    "global_definitions": {
+      "description": "Reusable definitions placed directly under bpmn:definitions.",
+      "types": {
+        "bpmn:message": {
+          "attributes": [{"name": "id", "required": true}, {"name": "name", "required": true, "type": "String/FEEL", "description": "Message name (static or FEEL expression)."}],
+          "extension_elements": [{
+            "name": "zeebe:subscription",
+            "required": "conditional",
+            "description": "Required for message catch events and receive tasks to correlate messages.",
+            "attributes": [{"name": "correlationKey", "required": true, "type": "FEEL", "description": "The FEEL expression to extract the correlation key from the message."}]
+          }]
+        },
+        "bpmn:error": {
+          "attributes": [{"name": "id", "required": true}, {"name": "name", "required": false}, {"name": "errorCode", "required": true, "type": "String/FEEL", "description": "The code used to match throw and catch events. Catch events require a static value."}]
+        },
+        "bpmn:signal": {
+          "attributes": [{"name": "id", "required": true}, {"name": "name", "required": true, "type": "String/FEEL", "description": "The name used to match throw and catch events (static or FEEL expression)."}]
+        },
+        "bpmn:escalation": {
+          "attributes": [{"name": "id", "required": true}, {"name": "name", "required": false}, {"name": "escalationCode", "required": true, "type": "String/FEEL", "description": "Escalation code used to match catch events; catch events require a static value."}]
+        }
+      }
+    },
+
+    "zeebe_extensions": {
+      "description": "Reusable Zeebe extension elements.",
+      "types": {
+        "zeebe:ioMapping": {
+          "description": "Controls variable flow into and out of an activity.",
+          "child_elements": [
+            {"name": "zeebe:input", "attributes": [{"name": "source", "required": true, "type": "FEEL"}, {"name": "target", "required": true, "type": "String"}]},
+            {"name": "zeebe:output", "attributes": [{"name": "source", "required": true, "type": "FEEL"}, {"name": "target", "required": true, "type": "String"}]}
+          ]
+        },
+        "zeebe:taskHeaders": {
+          "description": "Passes static metadata as headers to a job.",
+          "child_elements": [{"name": "zeebe:header", "attributes": [{"name": "key", "required": true}, {"name": "value", "required": true}]}]
+        },
+        "zeebe:formDefinition": {
+          "description": "Links a user task to a Camunda Form.",
+          "attributes": [
+            {"name": "formId", "required": "conditional", "type": "String"},
+            {"name": "externalReference", "required": "conditional", "type": "String"},
+            {"name": "bindingType", "required": false, "enum": ["latest", "deployment", "versionTag"]},
+            {"name": "versionTag", "required": "conditional", "type": "String", "description": "Required when bindingType='versionTag'."}
+          ]
+        },
+        "zeebe:assignmentDefinition": {
+          "description": "Assigns a user task. Standard guidance: use assignee-based assignment. candidateUsers/candidateGroups are available but require separate authorization design and Tasklist V2 configuration — not part of the standard template pattern.",
+          "attributes": [
+            {"name": "assignee", "required": false, "type": "String/FEEL", "description": "Standard: direct assignee (recommended for standard patterns)."},
+            {"name": "candidateUsers", "required": false, "type": "String/FEEL", "description": "Optional: requires authorization design. Not used in standard templates."},
+            {"name": "candidateGroups", "required": false, "type": "String/FEEL", "description": "Optional: requires authorization design and Tasklist V2 configuration. Not used in standard templates."}
+          ]
+        },
+        "zeebe:taskSchedule": {
+          "description": "Sets due and follow-up dates for a user task.",
+          "attributes": [
+            {"name": "dueDate", "required": false, "type": "FEEL"},
+            {"name": "followUpDate", "required": false, "type": "FEEL"}
+          ]
+        },
+        "zeebe:priorityDefinition": {
+          "description": "Sets the priority of a user task (0-100, default 50).",
+          "attributes": [
+            {"name": "priority", "required": true, "type": "Integer/FEEL", "description": "Priority from 0 to 100. Higher is more important."}
+          ]
+        }
+      }
+    },
+
+    "connectors": {
+      "description": "Built-in connectors implemented as Service Tasks with a specific type and input/output mappings.",
+      "types": {
+        "rest_connector": {
+          "taskDefinition_type": "io.camunda:http-json:1",
+          "description": "Make HTTP/REST API calls",
+          "ioMapping_inputs": [
+            {"target": "url", "type": "FEEL/String", "required": true, "description": "Request URL"},
+            {"target": "method", "type": "String", "required": true, "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"], "description": "HTTP method"},
+            {"target": "headers", "type": "FEEL Context", "required": false, "description": "Request headers as key-value pairs"},
+            {"target": "queryParameters", "type": "FEEL Context", "required": false, "description": "Query parameters"},
+            {"target": "body", "type": "FEEL Context", "required": false, "description": "Request body (for POST/PUT/PATCH)"},
+            {"target": "authentication", "type": "FEEL Context", "required": false, "description": "Authentication configuration context (type + fields)"},
+            {"target": "connectionTimeoutInSeconds", "type": "Integer", "required": false, "default": 20},
+            {"target": "readTimeoutInSeconds", "type": "Integer", "required": false, "default": 20},
+            {"target": "writeTimeoutInSeconds", "type": "Integer", "required": false, "default": 20}
+          ],
+          "authentication_types": {
+            "none": {},
+            "basic": {"username": "String", "password": "String"},
+            "bearer": {"token": "String"},
+            "oauth2": {"oauthTokenEndpoint": "String", "clientId": "String", "clientSecret": "String", "scopes": "String", "audience": "String"},
+            "apiKey": {"apiKeyLocation": "headers|query", "name": "String", "value": "String"}
+          },
+          "ioMapping_outputs": [
+            {"source": "=response.status", "description": "HTTP status code"},
+            {"source": "=response.body", "description": "Response body"},
+            {"source": "=response.headers", "description": "Response headers"}
+          ],
+          "xml_example": "<bpmn:serviceTask id=\"REST_Task\" name=\"Call API\"><bpmn:extensionElements><zeebe:taskDefinition type=\"io.camunda:http-json:1\" /><zeebe:ioMapping><zeebe:input source=\"=\\\"https://api.example.com/orders\\\"\" target=\"url\" /><zeebe:input source=\"=\\\"GET\\\"\" target=\"method\" /><zeebe:output source=\"=response.body\" target=\"apiResult\" /></zeebe:ioMapping></bpmn:extensionElements></bpmn:serviceTask>"
+        },
+        "slack_connector": {
+          "taskDefinition_type": "io.camunda:slack:1",
+          "description": "Send messages to Slack channels or users",
+          "ioMapping_inputs": [
+            {"target": "authentication.type", "type": "String", "required": true, "enum": ["oauth-bearer"], "description": "Authentication type"},
+            {"target": "authentication.token", "type": "String/FEEL", "required": true, "description": "Slack Bot OAuth token"},
+            {"target": "method", "type": "String", "required": true, "enum": ["createChannel", "inviteUser", "postMessage"]},
+            {"target": "newChannelName", "type": "String", "required": "conditional", "description": "Required when method=createChannel"},
+            {"target": "visibility", "type": "String", "required": "conditional", "enum": ["public", "private"], "description": "Required when method=createChannel"},
+            {"target": "inviteBy", "type": "String", "required": "conditional", "enum": ["channelName", "channelId"], "description": "Required when method=inviteUser"},
+            {"target": "channel", "type": "String", "required": "conditional", "description": "Required when method=inviteUser"},
+            {"target": "users", "type": "String/FEEL", "required": "conditional", "description": "Required when method=inviteUser; comma-separated or list"},
+            {"target": "channelUserName", "type": "String", "required": "conditional", "description": "Required when method=postMessage; channel (#...) or user (@...)"},
+            {"target": "threadTs", "type": "String", "required": false, "description": "Optional thread timestamp for postMessage"},
+            {"target": "messageType", "type": "String", "required": "conditional", "enum": ["plainText", "messageBlock"], "description": "Required when method=postMessage"},
+            {"target": "message", "type": "String/FEEL", "required": "conditional", "description": "Required when messageType=plainText"},
+            {"target": "messageBlock", "type": "FEEL Context", "required": "conditional", "description": "Required when messageType=messageBlock"},
+            {"target": "attachments", "type": "List/FEEL", "required": false, "description": "Optional list of Camunda document variables"}
+          ],
+          "notes": "Field names align with slack_connector_documentation.md"
+        },
+        "sendgrid_connector": {
+          "taskDefinition_type": "io.camunda:sendgrid:1",
+          "description": "Send emails via SendGrid (simple or dynamic template)",
+          "ioMapping_inputs": [
+            {"target": "apiKey", "type": "String", "required": true},
+            {"target": "from.email", "type": "String", "required": true},
+            {"target": "from.name", "type": "String", "required": false},
+            {"target": "to.email", "type": "String", "required": true},
+            {"target": "to.name", "type": "String", "required": false},
+            {"target": "template.id", "type": "String", "required": false},
+            {"target": "template.data", "type": "FEEL Context", "required": false},
+            {"target": "content.subject", "type": "String", "required": false},
+            {"target": "content.type", "type": "String", "required": false},
+            {"target": "content.value", "type": "String", "required": false},
+            {"target": "attachments", "type": "List/FEEL", "required": false, "description": "Optional list of Camunda document variables (8.7+)"}
+          ],
+          "notes": "Use content.* for simple emails; use template.* for dynamic templates (sendgrid_connector_doc.md)."
+        },
+        "kafka_connector": {
+          "taskDefinition_type": "io.camunda:connector-kafka:1",
+          "description": "Produce messages to Kafka topics",
+          "ioMapping_inputs": [
+            {"target": "authentication.username", "type": "String/FEEL", "required": false},
+            {"target": "authentication.password", "type": "String/FEEL", "required": false},
+            {"target": "topic.bootstrapServers", "type": "String/FEEL", "required": true},
+            {"target": "topic.topicName", "type": "String/FEEL", "required": true},
+            {"target": "additionalProperties", "type": "String/FEEL", "required": false, "description": "Optional JSON string of producer properties."},
+            {"target": "schemaStrategy.type", "type": "String", "required": true, "enum": ["noSchema", "inlineSchema", "schemaRegistry"], "default": "noSchema", "description": "Schema handling strategy."},
+            {"target": "schemaStrategy.schema", "type": "String/FEEL", "required": "conditional", "description": "Required when schemaStrategy.type is inlineSchema or schemaRegistry."},
+            {"target": "schemaStrategy.schemaType", "type": "String", "required": "conditional", "enum": ["json", "avro"], "description": "Required when schemaStrategy.type is schemaRegistry."},
+            {"target": "schemaStrategy.schemaRegistryUrl", "type": "String/FEEL", "required": "conditional", "description": "Required when schemaStrategy.type is schemaRegistry."},
+            {"target": "message.key", "type": "String/FEEL", "required": true},
+            {"target": "message.value", "type": "String/FEEL", "required": true},
+            {"target": "headers", "type": "String/FEEL", "required": false, "description": "Optional JSON string of header map."}
+          ],
+          "notes": "Field names aligned with camunda/connectors kafka-outbound element template."
+        },
+        "aws_lambda_connector": {
+          "taskDefinition_type": "io.camunda:aws-lambda:1",
+          "description": "Invoke AWS Lambda functions",
+          "ioMapping_inputs": [
+            {"target": "authentication.type", "type": "String", "required": true, "enum": ["defaultCredentialsChain", "credentials"], "default": "credentials"},
+            {"target": "authentication.accessKey", "type": "String/FEEL", "required": "conditional", "description": "Required when authentication.type=credentials."},
+            {"target": "authentication.secretKey", "type": "String/FEEL", "required": "conditional", "description": "Required when authentication.type=credentials."},
+            {"target": "configuration.region", "type": "String/FEEL", "required": true},
+            {"target": "configuration.endpoint", "type": "String/FEEL", "required": false, "description": "Optional custom endpoint."},
+            {"target": "awsFunction.operationType", "type": "String", "required": true, "enum": ["sync"], "default": "sync"},
+            {"target": "awsFunction.functionName", "type": "String/FEEL", "required": true},
+            {"target": "awsFunction.payload", "type": "String/FEEL", "required": true, "description": "JSON payload for the Lambda invocation."}
+          ],
+          "notes": "Field names aligned with camunda/connectors aws-lambda-outbound element template."
+        },
+        "aws_sns_connector": {
+          "taskDefinition_type": "io.camunda:aws-sns:1",
+          "description": "Publish messages to AWS SNS topics",
+          "ioMapping_inputs": [
+            {"target": "authentication.accessKey", "type": "String", "required": true},
+            {"target": "authentication.secretKey", "type": "String", "required": true},
+            {"target": "configuration.region", "type": "String", "required": true},
+            {"target": "topic.topicArn", "type": "String", "required": true},
+            {"target": "topic.type", "type": "String", "required": false, "enum": ["standard", "fifo"], "description": "Topic type (FIFO requires messageGroupId)."},
+            {"target": "topic.message", "type": "FEEL", "required": true, "description": "Message payload (FEEL input)."},
+            {"target": "topic.subject", "type": "String", "required": false},
+            {"target": "topic.messageAttributes", "type": "FEEL Context", "required": false, "description": "Optional message attributes."},
+            {"target": "topic.messageGroupId", "type": "String/FEEL", "required": "conditional", "description": "Required for FIFO topics."},
+            {"target": "topic.messageDeduplicationId", "type": "String/FEEL", "required": false, "description": "Optional FIFO deduplication ID."}
+          ],
+          "notes": "Field names aligned to amazon-sns-connector.md labels; verify element template if needed."
+        },
+        "aws_sqs_connector": {
+          "taskDefinition_type": "io.camunda:aws-sqs:1",
+          "description": "Send messages to AWS SQS queues",
+          "ioMapping_inputs": [
+            {"target": "authentication.accessKey", "type": "String", "required": true},
+            {"target": "authentication.secretKey", "type": "String", "required": true},
+            {"target": "configuration.region", "type": "String", "required": true},
+            {"target": "queue.url", "type": "String", "required": true},
+            {"target": "queue.type", "type": "String", "required": false, "enum": ["standard", "fifo"], "description": "Queue type (FIFO requires messageGroupId)."},
+            {"target": "queue.messageBody", "type": "FEEL", "required": true, "description": "Message body (FEEL input)."},
+            {"target": "queue.messageAttributes", "type": "FEEL Context", "required": false, "description": "Optional message attributes."},
+            {"target": "queue.messageGroupId", "type": "String/FEEL", "required": "conditional", "description": "Required for FIFO queues."},
+            {"target": "queue.messageDeduplicationId", "type": "String/FEEL", "required": false, "description": "Optional FIFO deduplication ID."}
+          ],
+          "notes": "Field names aligned to camunda_docs_sqs.md labels; verify element template if needed."
+        },
+        "google_sheets_connector": {
+          "taskDefinition_type": "io.camunda:google-sheets:1",
+          "description": "Read/write Google Sheets",
+          "ioMapping_inputs": [
+            {"target": "authentication.authType", "type": "String", "required": true, "enum": ["bearer", "refresh"], "default": "refresh"},
+            {"target": "authentication.bearerToken", "type": "String/FEEL", "required": "conditional", "description": "Required when authentication.authType=bearer."},
+            {"target": "authentication.oauthClientId", "type": "String/FEEL", "required": "conditional", "description": "Required when authentication.authType=refresh."},
+            {"target": "authentication.oauthClientSecret", "type": "String/FEEL", "required": "conditional", "description": "Required when authentication.authType=refresh."},
+            {"target": "authentication.oauthRefreshToken", "type": "String/FEEL", "required": "conditional", "description": "Required when authentication.authType=refresh."},
+            {"target": "operation.type", "type": "String", "required": true, "enum": ["createSpreadsheet", "addValues", "createEmptyColumnOrRow", "createRow", "createWorksheet", "deleteColumn", "deleteWorksheet", "getRowByIndex", "spreadsheetsDetails", "getWorksheetData"], "default": "createSpreadsheet"},
+            {"target": "operation.spreadsheetName", "type": "String/FEEL", "required": "conditional", "description": "Required when operation.type=createSpreadsheet."},
+            {"target": "operation.parent", "type": "String/FEEL", "required": false, "description": "Optional when operation.type=createSpreadsheet."},
+            {"target": "operation.spreadsheetId", "type": "String/FEEL", "required": "conditional", "description": "Required for operations that use an existing spreadsheet (all except createSpreadsheet)."},
+            {"target": "operation.worksheetName", "type": "String/FEEL", "required": "conditional", "description": "Required when operation.type is addValues, createRow, createWorksheet, getRowByIndex, or getWorksheetData."},
+            {"target": "operation.cellId", "type": "String/FEEL", "required": "conditional", "description": "Required when operation.type=addValues."},
+            {"target": "operation.value", "type": "String/FEEL", "required": "conditional", "description": "Required when operation.type=addValues."},
+            {"target": "operation.worksheetId", "type": "Integer/FEEL", "required": "conditional", "description": "Required when operation.type is createEmptyColumnOrRow, deleteColumn, or deleteWorksheet."},
+            {"target": "operation.dimension", "type": "String", "required": "conditional", "enum": ["ROWS", "COLUMNS"], "description": "Required when operation.type=createEmptyColumnOrRow."},
+            {"target": "operation.startIndex", "type": "Integer/FEEL", "required": false, "description": "Optional when operation.type=createEmptyColumnOrRow."},
+            {"target": "operation.endIndex", "type": "Integer/FEEL", "required": false, "description": "Optional when operation.type=createEmptyColumnOrRow."},
+            {"target": "operation.rowIndex", "type": "Integer/FEEL", "required": "conditional", "description": "Optional when operation.type=createRow; required when operation.type=getRowByIndex."},
+            {"target": "operation.values", "type": "List/FEEL", "required": "conditional", "description": "Required when operation.type=createRow."},
+            {"target": "operation.worksheetIndex", "type": "Integer/FEEL", "required": false, "description": "Optional when operation.type=createWorksheet."},
+            {"target": "operation.columnIndexType", "type": "String", "required": "conditional", "enum": ["NUMBERS", "LETTERS"], "default": "NUMBERS", "description": "Required when operation.type=deleteColumn."},
+            {"target": "operation.columnNumberIndex", "type": "Integer/FEEL", "required": "conditional", "description": "Required when operation.type=deleteColumn and columnIndexType=NUMBERS."},
+            {"target": "operation.columnLetterIndex", "type": "String/FEEL", "required": "conditional", "description": "Required when operation.type=deleteColumn and columnIndexType=LETTERS."}
+          ],
+          "notes": "Field names aligned with camunda/connectors google-sheets-outbound element template."
+        },
+        "rabbitmq_connector": {
+          "taskDefinition_type": "io.camunda:connector-rabbitmq:1",
+          "description": "Send messages to RabbitMQ",
+          "ioMapping_inputs": [
+            {"target": "authentication.authType", "type": "String", "required": true, "enum": ["uri", "credentials"], "default": "uri"},
+            {"target": "authentication.uri", "type": "String/FEEL", "required": "conditional", "description": "Required when authentication.authType=uri."},
+            {"target": "authentication.userName", "type": "String/FEEL", "required": "conditional", "description": "Required when authentication.authType=credentials."},
+            {"target": "authentication.password", "type": "String/FEEL", "required": "conditional", "description": "Required when authentication.authType=credentials."},
+            {"target": "routing.exchange", "type": "String/FEEL", "required": true},
+            {"target": "routing.routingKey", "type": "String/FEEL", "required": true},
+            {"target": "routing.virtualHost", "type": "String/FEEL", "required": "conditional", "description": "Required when authentication.authType=credentials."},
+            {"target": "routing.hostName", "type": "String/FEEL", "required": "conditional", "description": "Required when authentication.authType=credentials."},
+            {"target": "routing.port", "type": "String/FEEL", "required": "conditional", "description": "Required when authentication.authType=credentials."},
+            {"target": "message.properties", "type": "FEEL Context", "required": false, "default": "={}", "description": "Optional message properties/context."},
+            {"target": "message.body", "type": "String/FEEL", "required": true}
+          ],
+          "notes": "Field names aligned with camunda/connectors rabbitmq-outbound element template."
+        },
+        "graphql_connector": {
+          "taskDefinition_type": "io.camunda:connector-graphql:1",
+          "description": "Execute GraphQL query",
+          "ioMapping_inputs": [
+            {"target": "authentication.type", "type": "String", "required": true, "enum": ["apiKey", "basic", "bearer", "noAuth", "oauth-client-credentials-flow"], "default": "noAuth"},
+            {"target": "authentication.apiKeyLocation", "type": "String", "required": "conditional", "enum": ["headers", "query"], "description": "Required when authentication.type=apiKey."},
+            {"target": "authentication.name", "type": "String/FEEL", "required": "conditional", "description": "Required when authentication.type=apiKey."},
+            {"target": "authentication.value", "type": "String/FEEL", "required": "conditional", "description": "Required when authentication.type=apiKey."},
+            {"target": "authentication.username", "type": "String/FEEL", "required": "conditional", "description": "Required when authentication.type=basic."},
+            {"target": "authentication.password", "type": "String/FEEL", "required": "conditional", "description": "Required when authentication.type=basic."},
+            {"target": "authentication.token", "type": "String/FEEL", "required": "conditional", "description": "Required when authentication.type=bearer."},
+            {"target": "authentication.oauthTokenEndpoint", "type": "String/FEEL", "required": "conditional", "description": "Required when authentication.type=oauth-client-credentials-flow."},
+            {"target": "authentication.clientId", "type": "String/FEEL", "required": "conditional", "description": "Required when authentication.type=oauth-client-credentials-flow."},
+            {"target": "authentication.clientSecret", "type": "String/FEEL", "required": "conditional", "description": "Required when authentication.type=oauth-client-credentials-flow."},
+            {"target": "authentication.audience", "type": "String/FEEL", "required": false},
+            {"target": "authentication.clientAuthentication", "type": "String", "required": "conditional", "enum": ["credentialsBody", "basicAuthHeader"], "description": "Required when authentication.type=oauth-client-credentials-flow."},
+            {"target": "authentication.scopes", "type": "String/FEEL", "required": false},
+            {"target": "graphql.method", "type": "String", "required": true, "enum": ["get", "post"], "default": "get"},
+            {"target": "graphql.url", "type": "String/FEEL", "required": true},
+            {"target": "graphql.headers", "type": "FEEL Context", "required": false, "description": "Optional HTTP headers map."},
+            {"target": "graphql.storeResponse", "type": "Boolean", "required": false, "default": false},
+            {"target": "graphql.query", "type": "String/FEEL", "required": true},
+            {"target": "graphql.variables", "type": "FEEL Context", "required": false},
+            {"target": "graphql.connectionTimeoutInSeconds", "type": "Integer", "required": false, "default": 20}
+          ],
+          "notes": "Field names aligned with camunda/connectors graphql-outbound element template."
+        }
+      }
+    },
+
+    "compensation": {
+      "description": "Compensation is used to undo previously completed work in case of errors (Saga pattern).",
+      "elements": {
+        "bpmn:compensationEventDefinition": {
+          "description": "Marks an event as a compensation event.",
+          "attributes": [
+            {"name": "activityRef", "required": false, "type": "IDREF", "description": "Reference to the activity to compensate. If not set, all activities in scope are compensated."}
+          ]
+        },
+        "compensation_boundary_event": {
+          "description": "Attached to a task to define a compensation handler. Always non-interrupting.",
+          "attributes": [
+            {"name": "cancelActivity", "required": true, "value": "false", "description": "Compensation boundary events are ALWAYS non-interrupting."}
+          ],
+          "xml_example": "<bpmn:boundaryEvent id=\"Compensation_Boundary\" attachedToRef=\"Task_Charge\" cancelActivity=\"false\"><bpmn:compensationEventDefinition /></bpmn:boundaryEvent>"
+        },
+        "compensation_handler": {
+          "description": "An activity connected to a compensation boundary event via an association.",
+          "xml_example": "<bpmn:serviceTask id=\"Task_Refund\" name=\"Refund Payment\" isForCompensation=\"true\"><bpmn:extensionElements><zeebe:taskDefinition type=\"refund-service\" /></bpmn:extensionElements></bpmn:serviceTask>"
+        },
+        "compensation_throw_event": {
+          "description": "Triggers compensation for completed activities.",
+          "types": [
+            {"name": "bpmn:intermediateThrowEvent", "description": "Throw compensation mid-process"},
+            {"name": "bpmn:endEvent", "description": "Throw compensation at process end"}
+          ],
+          "xml_example": "<bpmn:intermediateThrowEvent id=\"Compensate_All\"><bpmn:compensationEventDefinition /></bpmn:intermediateThrowEvent>"
+        },
+        "association": {
+          "name": "bpmn:association",
+          "description": "Connects a compensation boundary event to its handler task.",
+          "attributes": [
+            {"name": "id", "required": true, "type": "ID"},
+            {"name": "associationDirection", "required": true, "value": "One"},
+            {"name": "sourceRef", "required": true, "type": "IDREF", "description": "ID of the compensation boundary event"},
+            {"name": "targetRef", "required": true, "type": "IDREF", "description": "ID of the compensation handler task"}
+          ],
+          "xml_example": "<bpmn:association id=\"Association_1\" associationDirection=\"One\" sourceRef=\"Compensation_Boundary\" targetRef=\"Task_Refund\" />"
+        }
+      },
+      "complete_example": "<bpmn:serviceTask id=\"Task_Charge\" name=\"Charge Customer\"><bpmn:extensionElements><zeebe:taskDefinition type=\"payment-service\" /></bpmn:extensionElements></bpmn:serviceTask><bpmn:boundaryEvent id=\"Comp_Bound_1\" attachedToRef=\"Task_Charge\" cancelActivity=\"false\"><bpmn:compensationEventDefinition /></bpmn:boundaryEvent><bpmn:serviceTask id=\"Task_Refund\" name=\"Refund Customer\" isForCompensation=\"true\"><bpmn:extensionElements><zeebe:taskDefinition type=\"refund-service\" /></bpmn:extensionElements></bpmn:serviceTask><bpmn:association id=\"Assoc_1\" associationDirection=\"One\" sourceRef=\"Comp_Bound_1\" targetRef=\"Task_Refund\" />"
+    },
+
+    "listeners": {
+      "description": "Listeners allow executing custom logic at specific lifecycle events of activities. Available in Camunda 8.6+.",
+      "types": {
+        "zeebe:executionListener": {
+          "description": "Executes a job at start or end of an activity.",
+          "parent_elements": ["bpmn:process", "bpmn:serviceTask", "bpmn:userTask", "bpmn:subProcess", "bpmn:callActivity", "bpmn:startEvent", "bpmn:endEvent", "bpmn:gateway"],
+          "attributes": [
+            {"name": "eventType", "required": true, "type": "String", "enum": ["start", "end"], "description": "When to execute: at activity start or end."},
+            {"name": "type", "required": true, "type": "String/FEEL", "description": "The job type for the worker to subscribe to."},
+            {"name": "retries", "required": false, "type": "Integer/FEEL", "default": "3"}
+          ],
+          "xml_example": "<bpmn:serviceTask id=\"Task_1\" name=\"Process Order\"><bpmn:extensionElements><zeebe:taskDefinition type=\"order-processor\" /><zeebe:executionListener eventType=\"start\" type=\"audit-logger\" /><zeebe:executionListener eventType=\"end\" type=\"metrics-collector\" /></bpmn:extensionElements></bpmn:serviceTask>"
+        },
+        "zeebe:userTaskListener": {
+          "description": "User task specific listener for task lifecycle events. Available in Camunda 8.6+.",
+          "parent_elements": ["bpmn:userTask"],
+          "attributes": [
+            {"name": "eventType", "required": true, "type": "String", "enum": ["create", "assignment", "update", "complete", "cancel"], "description": "User task lifecycle event type."},
+            {"name": "event", "required": false, "type": "String", "enum": ["create", "assignment", "update", "complete", "cancel"], "description": "Legacy alias for eventType."},
+            {"name": "type", "required": true, "type": "String/FEEL", "description": "The job type for the worker to subscribe to."},
+            {"name": "retries", "required": false, "type": "Integer/FEEL", "default": "3"}
+          ],
+          "xml_example": "<bpmn:userTask id=\"UserTask_1\" name=\"Review Application\"><bpmn:extensionElements><zeebe:userTask /><zeebe:userTaskListener eventType=\"create\" type=\"notify-assignee\" /><zeebe:userTaskListener eventType=\"complete\" type=\"log-completion\" /><zeebe:assignmentDefinition assignee=\"=reviewer\" /></bpmn:extensionElements></bpmn:userTask>"
+        }
+      }
+    },
+
+    "text_annotation_and_association": {
+      "description": "Documentation elements that don't affect execution.",
+      "elements": {
+        "bpmn:textAnnotation": {
+          "description": "A note/comment attached to process elements for documentation.",
+          "attributes": [
+            {"name": "id", "required": true, "type": "ID"}
+          ],
+          "child_elements": [
+            {"name": "bpmn:text", "content": "The annotation text content"}
+          ],
+          "xml_example": "<bpmn:textAnnotation id=\"TextAnnotation_1\"><bpmn:text>This task handles payment processing via Stripe API</bpmn:text></bpmn:textAnnotation>"
+        },
+        "bpmn:association": {
+          "description": "Connects a text annotation to a process element.",
+          "attributes": [
+            {"name": "id", "required": true, "type": "ID"},
+            {"name": "sourceRef", "required": true, "type": "IDREF"},
+            {"name": "targetRef", "required": true, "type": "IDREF"}
+          ],
+          "xml_example": "<bpmn:association id=\"Association_1\" sourceRef=\"TextAnnotation_1\" targetRef=\"Task_Payment\" />"
+        }
+      }
+    }
+  },
+
+  "bpmndi": {
+    "description": "BPMN Diagram Interchange - defines the visual representation of BPMN elements.",
+    "namespace": "http://www.omg.org/spec/BPMN/20100524/DI",
+    "related_namespaces": {
+      "dc": "http://www.omg.org/spec/DD/20100524/DC",
+      "di": "http://www.omg.org/spec/DD/20100524/DI"
+    },
+    "elements": {
+      "bpmndi:BPMNDiagram": {
+        "description": "Root element for diagram information. One per process.",
+        "attributes": [
+          {"name": "id", "required": true, "type": "ID"}
+        ],
+        "child_elements": ["bpmndi:BPMNPlane"]
+      },
+      "bpmndi:BPMNPlane": {
+        "description": "The drawing plane containing all shapes and edges.",
+        "attributes": [
+          {"name": "id", "required": true, "type": "ID"},
+          {"name": "bpmnElement", "required": true, "type": "IDREF", "description": "Reference to the bpmn:process element ID."}
+        ],
+        "child_elements": ["bpmndi:BPMNShape", "bpmndi:BPMNEdge"]
+      },
+      "bpmndi:BPMNShape": {
+        "description": "Visual representation of a flow node (event, activity, gateway).",
+        "attributes": [
+          {"name": "id", "required": true, "type": "ID"},
+          {"name": "bpmnElement", "required": true, "type": "IDREF", "description": "Reference to the BPMN element ID."},
+          {"name": "isHorizontal", "required": false, "type": "Boolean", "description": "For pools/lanes."},
+          {"name": "isExpanded", "required": false, "type": "Boolean", "description": "For subprocesses."},
+          {"name": "isMarkerVisible", "required": false, "type": "Boolean", "description": "For gateways."}
+        ],
+        "child_elements": [
+          {
+            "name": "dc:Bounds",
+            "description": "Position and size of the shape.",
+            "attributes": [
+              {"name": "x", "required": true, "type": "Double", "description": "X coordinate of top-left corner."},
+              {"name": "y", "required": true, "type": "Double", "description": "Y coordinate of top-left corner."},
+              {"name": "width", "required": true, "type": "Double", "description": "Width of the shape."},
+              {"name": "height", "required": true, "type": "Double", "description": "Height of the shape."}
+            ]
+          },
+          {
+            "name": "bpmndi:BPMNLabel",
+            "description": "Position of the element's label (optional).",
+            "child_elements": [
+              {"name": "dc:Bounds", "description": "Position and size of the label."}
+            ]
+          }
+        ],
+        "standard_sizes": {
+          "startEvent": {"width": 36, "height": 36},
+          "endEvent": {"width": 36, "height": 36},
+          "intermediateCatchEvent": {"width": 36, "height": 36},
+          "intermediateThrowEvent": {"width": 36, "height": 36},
+          "boundaryEvent": {"width": 36, "height": 36},
+          "task": {"width": 100, "height": 80},
+          "serviceTask": {"width": 100, "height": 80},
+          "userTask": {"width": 100, "height": 80},
+          "scriptTask": {"width": 100, "height": 80},
+          "businessRuleTask": {"width": 100, "height": 80},
+          "callActivity": {"width": 100, "height": 80},
+          "subProcess": {"width": 350, "height": 200},
+          "exclusiveGateway": {"width": 50, "height": 50},
+          "parallelGateway": {"width": 50, "height": 50},
+          "inclusiveGateway": {"width": 50, "height": 50},
+          "eventBasedGateway": {"width": 50, "height": 50}
+        }
+      },
+      "bpmndi:BPMNEdge": {
+        "description": "Visual representation of a sequence flow or association.",
+        "attributes": [
+          {"name": "id", "required": true, "type": "ID"},
+          {"name": "bpmnElement", "required": true, "type": "IDREF", "description": "Reference to the bpmn:sequenceFlow or bpmn:association ID."}
+        ],
+        "child_elements": [
+          {
+            "name": "di:waypoint",
+            "description": "Points along the edge path. Minimum 2 required (start and end).",
+            "attributes": [
+              {"name": "x", "required": true, "type": "Double"},
+              {"name": "y", "required": true, "type": "Double"}
+            ],
+            "note": "Multiple waypoints create curved/angled edges."
+          },
+          {
+            "name": "bpmndi:BPMNLabel",
+            "description": "Position of the edge's label (for conditional flows).",
+            "child_elements": [
+              {"name": "dc:Bounds", "description": "Position and size of the label."}
+            ]
+          }
+        ]
+      }
+    },
+    "layout_guidelines": {
+      "horizontal_spacing": "Typically 50-100 pixels between elements",
+      "vertical_spacing": "Typically 100-150 pixels between parallel branches",
+      "flow_direction": "Left to right is standard",
+      "alignment": "Align elements on the same horizontal/vertical axis for clarity"
+    },
+    "xml_example": "<bpmndi:BPMNDiagram id=\"BPMNDiagram_1\"><bpmndi:BPMNPlane id=\"BPMNPlane_1\" bpmnElement=\"Process_1\"><bpmndi:BPMNShape id=\"StartEvent_1_di\" bpmnElement=\"StartEvent_1\"><dc:Bounds x=\"179\" y=\"99\" width=\"36\" height=\"36\" /></bpmndi:BPMNShape><bpmndi:BPMNShape id=\"Task_1_di\" bpmnElement=\"Task_1\"><dc:Bounds x=\"270\" y=\"77\" width=\"100\" height=\"80\" /></bpmndi:BPMNShape><bpmndi:BPMNShape id=\"EndEvent_1_di\" bpmnElement=\"EndEvent_1\"><dc:Bounds x=\"432\" y=\"99\" width=\"36\" height=\"36\" /></bpmndi:BPMNShape><bpmndi:BPMNEdge id=\"Flow_1_di\" bpmnElement=\"Flow_1\"><di:waypoint x=\"215\" y=\"117\" /><di:waypoint x=\"270\" y=\"117\" /></bpmndi:BPMNEdge><bpmndi:BPMNEdge id=\"Flow_2_di\" bpmnElement=\"Flow_2\"><di:waypoint x=\"370\" y=\"117\" /><di:waypoint x=\"432\" y=\"117\" /></bpmndi:BPMNEdge></bpmndi:BPMNPlane></bpmndi:BPMNDiagram>"
+  },
+
+  "validation_rules": {
+    "critical": [
+      "All BPMN elements MUST have a unique 'id' attribute.",
+      "bpmn:process MUST have isExecutable='true' for Camunda 8 deployment.",
+      "Service Tasks MUST have a zeebe:taskDefinition with a 'type' attribute.",
+      "User Tasks in Camunda 8.6+ SHOULD use <zeebe:userTask /> extension.",
+      "All FEEL expressions MUST start with '=' prefix.",
+      "Sequence flows MUST have valid sourceRef and targetRef pointing to existing element IDs.",
+      "Start Events can ONLY have outgoing sequence flows (no incoming).",
+      "End Events can ONLY have incoming sequence flows (no outgoing).",
+      "Each process MUST have at least one Start Event and one End Event."
+    ],
+    "gateways": [
+      "Exclusive Gateways MUST have a default flow OR all outgoing flows must cover all conditions.",
+      "Inclusive Gateways SHOULD have a default flow to avoid incidents when no condition matches.",
+      "Parallel Gateways used for split MUST have a corresponding join gateway.",
+      "Event-based Gateways MUST be followed ONLY by Intermediate Catch Events or Receive Tasks.",
+      "Event-based Gateways MUST have at least 2 outgoing sequence flows.",
+      "Conditional sequence flows from gateways MUST have bpmn:conditionExpression with xsi:type='bpmn:tFormalExpression'."
+    ],
+    "events": [
+      "Timer formats MUST be ISO 8601 duration/datetime or valid Cron expression.",
+      "Timer events MUST contain exactly ONE of: timeDate, timeDuration, or timeCycle.",
+      "Message events require a bpmn:message definition with 'name' attribute.",
+      "Message catch events and receive tasks require zeebe:subscription with correlationKey (except start events).",
+      "Signal events require a bpmn:signal definition with 'name' attribute.",
+      "Error events require a bpmn:error definition with 'errorCode' attribute.",
+      "Boundary Events MUST have 'attachedToRef' pointing to a valid activity ID.",
+      "Non-interrupting boundary events MUST have cancelActivity='false'.",
+      "Compensation boundary events are ALWAYS non-interrupting (cancelActivity='false')."
+    ],
+    "subprocesses": [
+      "Event Subprocesses MUST have triggeredByEvent='true' attribute.",
+      "Event Subprocesses start with a Start Event that has an event definition.",
+      "Embedded Subprocesses MUST contain at least one Start Event and one End Event.",
+      "Call Activities MUST reference a valid process ID via zeebe:calledElement."
+    ],
+    "multi_instance": [
+      "Multi-instance activities MUST have zeebe:loopCharacteristics with inputCollection.",
+      "inputCollection expression MUST evaluate to a list/array.",
+      "outputElement expression is evaluated per iteration to build outputCollection."
+    ],
+    "diagram": [
+      "Every flow node MUST have a corresponding bpmndi:BPMNShape.",
+      "Every sequence flow MUST have a corresponding bpmndi:BPMNEdge.",
+      "bpmndi:BPMNShape MUST have dc:Bounds with x, y, width, height.",
+      "bpmndi:BPMNEdge MUST have at least 2 di:waypoint elements.",
+      "bpmndi:BPMNPlane bpmnElement MUST reference the bpmn:process id."
+    ]
+  },
+
+  "complete_example": {
+    "description": "A complete, valid Camunda 8 BPMN XML example with multiple element types.",
+    "xml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<bpmn:definitions xmlns:bpmn=\"http://www.omg.org/spec/BPMN/20100524/MODEL\"\n  xmlns:bpmndi=\"http://www.omg.org/spec/BPMN/20100524/DI\"\n  xmlns:dc=\"http://www.omg.org/spec/DD/20100524/DC\"\n  xmlns:di=\"http://www.omg.org/spec/DD/20100524/DI\"\n  xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n  xmlns:zeebe=\"http://camunda.org/schema/zeebe/1.0\"\n  xmlns:modeler=\"http://camunda.org/schema/modeler/1.0\"\n  id=\"Definitions_1\"\n  targetNamespace=\"http://bpmn.io/schema/bpmn\"\n  exporter=\"Camunda Modeler\"\n  exporterVersion=\"5.0.0\">\n\n  <!-- Global Message Definition -->\n  <bpmn:message id=\"Message_OrderConfirmed\" name=\"OrderConfirmed\">\n    <bpmn:extensionElements>\n      <zeebe:subscription correlationKey=\"=orderId\" />\n    </bpmn:extensionElements>\n  </bpmn:message>\n\n  <!-- Global Error Definition -->\n  <bpmn:error id=\"Error_PaymentFailed\" name=\"Payment Failed\" errorCode=\"PAYMENT_ERROR\" />\n\n  <!-- Process Definition -->\n  <bpmn:process id=\"OrderProcess\" name=\"Order Processing\" isExecutable=\"true\">\n\n    <!-- Start Event -->\n    <bpmn:startEvent id=\"StartEvent_1\" name=\"Order Received\">\n      <bpmn:outgoing>Flow_1</bpmn:outgoing>\n    </bpmn:startEvent>\n\n    <!-- Service Task -->\n    <bpmn:serviceTask id=\"Task_ValidateOrder\" name=\"Validate Order\">\n      <bpmn:incoming>Flow_1</bpmn:incoming>\n      <bpmn:outgoing>Flow_2</bpmn:outgoing>\n      <bpmn:extensionElements>\n        <zeebe:taskDefinition type=\"validate-order\" retries=\"3\" />\n        <zeebe:ioMapping>\n          <zeebe:input source=\"=order\" target=\"orderData\" />\n          <zeebe:output source=\"=validationResult\" target=\"isValid\" />\n        </zeebe:ioMapping>\n      </bpmn:extensionElements>\n    </bpmn:serviceTask>\n\n    <!-- Exclusive Gateway -->\n    <bpmn:exclusiveGateway id=\"Gateway_IsValid\" name=\"Is Valid?\" default=\"Flow_Invalid\">\n      <bpmn:incoming>Flow_2</bpmn:incoming>\n      <bpmn:outgoing>Flow_Valid</bpmn:outgoing>\n      <bpmn:outgoing>Flow_Invalid</bpmn:outgoing>\n    </bpmn:exclusiveGateway>\n\n    <!-- User Task -->\n    <bpmn:userTask id=\"Task_ReviewOrder\" name=\"Review Order\">\n      <bpmn:incoming>Flow_Valid</bpmn:incoming>\n      <bpmn:outgoing>Flow_3</bpmn:outgoing>\n      <bpmn:extensionElements>\n        <zeebe:userTask />\n        <zeebe:formDefinition formId=\"order-review-form\" />\n        <zeebe:assignmentDefinition assignee=\"=reviewerEmail\" />\n      </bpmn:extensionElements>\n    </bpmn:userTask>\n\n    <!-- Timer Boundary Event -->\n    <bpmn:boundaryEvent id=\"Boundary_Timeout\" name=\"2 Hours\" attachedToRef=\"Task_ReviewOrder\" cancelActivity=\"true\">\n      <bpmn:outgoing>Flow_Timeout</bpmn:outgoing>\n      <bpmn:timerEventDefinition>\n        <bpmn:timeDuration>PT2H</bpmn:timeDuration>\n      </bpmn:timerEventDefinition>\n    </bpmn:boundaryEvent>\n\n    <!-- End Events -->\n    <bpmn:endEvent id=\"EndEvent_Success\" name=\"Order Completed\">\n      <bpmn:incoming>Flow_3</bpmn:incoming>\n    </bpmn:endEvent>\n\n    <bpmn:endEvent id=\"EndEvent_Invalid\" name=\"Order Rejected\">\n      <bpmn:incoming>Flow_Invalid</bpmn:incoming>\n    </bpmn:endEvent>\n\n    <bpmn:endEvent id=\"EndEvent_Timeout\" name=\"Review Timeout\">\n      <bpmn:incoming>Flow_Timeout</bpmn:incoming>\n    </bpmn:endEvent>\n\n    <!-- Sequence Flows -->\n    <bpmn:sequenceFlow id=\"Flow_1\" sourceRef=\"StartEvent_1\" targetRef=\"Task_ValidateOrder\" />\n    <bpmn:sequenceFlow id=\"Flow_2\" sourceRef=\"Task_ValidateOrder\" targetRef=\"Gateway_IsValid\" />\n    <bpmn:sequenceFlow id=\"Flow_Valid\" name=\"Yes\" sourceRef=\"Gateway_IsValid\" targetRef=\"Task_ReviewOrder\">\n      <bpmn:conditionExpression xsi:type=\"bpmn:tFormalExpression\">=isValid = true</bpmn:conditionExpression>\n    </bpmn:sequenceFlow>\n    <bpmn:sequenceFlow id=\"Flow_Invalid\" name=\"No\" sourceRef=\"Gateway_IsValid\" targetRef=\"EndEvent_Invalid\" />\n    <bpmn:sequenceFlow id=\"Flow_3\" sourceRef=\"Task_ReviewOrder\" targetRef=\"EndEvent_Success\" />\n    <bpmn:sequenceFlow id=\"Flow_Timeout\" sourceRef=\"Boundary_Timeout\" targetRef=\"EndEvent_Timeout\" />\n\n  </bpmn:process>\n\n  <!-- Diagram Information -->\n  <bpmndi:BPMNDiagram id=\"BPMNDiagram_1\">\n    <bpmndi:BPMNPlane id=\"BPMNPlane_1\" bpmnElement=\"OrderProcess\">\n      <bpmndi:BPMNShape id=\"StartEvent_1_di\" bpmnElement=\"StartEvent_1\">\n        <dc:Bounds x=\"179\" y=\"99\" width=\"36\" height=\"36\" />\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"160\" y=\"142\" width=\"74\" height=\"14\" />\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Task_ValidateOrder_di\" bpmnElement=\"Task_ValidateOrder\">\n        <dc:Bounds x=\"270\" y=\"77\" width=\"100\" height=\"80\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Gateway_IsValid_di\" bpmnElement=\"Gateway_IsValid\" isMarkerVisible=\"true\">\n        <dc:Bounds x=\"425\" y=\"92\" width=\"50\" height=\"50\" />\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"428\" y=\"62\" width=\"44\" height=\"14\" />\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Task_ReviewOrder_di\" bpmnElement=\"Task_ReviewOrder\">\n        <dc:Bounds x=\"530\" y=\"77\" width=\"100\" height=\"80\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Boundary_Timeout_di\" bpmnElement=\"Boundary_Timeout\">\n        <dc:Bounds x=\"562\" y=\"139\" width=\"36\" height=\"36\" />\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"558\" y=\"182\" width=\"44\" height=\"14\" />\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"EndEvent_Success_di\" bpmnElement=\"EndEvent_Success\">\n        <dc:Bounds x=\"692\" y=\"99\" width=\"36\" height=\"36\" />\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"669\" y=\"142\" width=\"82\" height=\"14\" />\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"EndEvent_Invalid_di\" bpmnElement=\"EndEvent_Invalid\">\n        <dc:Bounds x=\"432\" y=\"212\" width=\"36\" height=\"36\" />\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"415\" y=\"255\" width=\"70\" height=\"14\" />\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"EndEvent_Timeout_di\" bpmnElement=\"EndEvent_Timeout\">\n        <dc:Bounds x=\"562\" y=\"272\" width=\"36\" height=\"36\" />\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"543\" y=\"315\" width=\"74\" height=\"14\" />\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNEdge id=\"Flow_1_di\" bpmnElement=\"Flow_1\">\n        <di:waypoint x=\"215\" y=\"117\" />\n        <di:waypoint x=\"270\" y=\"117\" />\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_2_di\" bpmnElement=\"Flow_2\">\n        <di:waypoint x=\"370\" y=\"117\" />\n        <di:waypoint x=\"425\" y=\"117\" />\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Valid_di\" bpmnElement=\"Flow_Valid\">\n        <di:waypoint x=\"475\" y=\"117\" />\n        <di:waypoint x=\"530\" y=\"117\" />\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"495\" y=\"99\" width=\"18\" height=\"14\" />\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Invalid_di\" bpmnElement=\"Flow_Invalid\">\n        <di:waypoint x=\"450\" y=\"142\" />\n        <di:waypoint x=\"450\" y=\"212\" />\n        <bpmndi:BPMNLabel>\n          <dc:Bounds x=\"458\" y=\"173\" width=\"15\" height=\"14\" />\n        </bpmndi:BPMNLabel>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_3_di\" bpmnElement=\"Flow_3\">\n        <di:waypoint x=\"630\" y=\"117\" />\n        <di:waypoint x=\"692\" y=\"117\" />\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_Timeout_di\" bpmnElement=\"Flow_Timeout\">\n        <di:waypoint x=\"580\" y=\"175\" />\n        <di:waypoint x=\"580\" y=\"272\" />\n      </bpmndi:BPMNEdge>\n    </bpmndi:BPMNPlane>\n  </bpmndi:BPMNDiagram>\n\n</bpmn:definitions>"
+  },
+
+  "id_naming_conventions": {
+    "description": "Recommended ID naming patterns for BPMN elements.",
+    "patterns": {
+      "process": "Process_[name]",
+      "startEvent": "StartEvent_[name] or Start_[name]",
+      "endEvent": "EndEvent_[name] or End_[name]",
+      "serviceTask": "Task_[name] or Activity_[name]",
+      "userTask": "UserTask_[name] or Task_[name]",
+      "scriptTask": "ScriptTask_[name]",
+      "businessRuleTask": "DMNTask_[name] or BRTask_[name]",
+      "callActivity": "CallActivity_[name] or Call_[name]",
+      "exclusiveGateway": "Gateway_[name] or XOR_[name]",
+      "parallelGateway": "Gateway_[name] or AND_[name]",
+      "inclusiveGateway": "Gateway_[name] or OR_[name]",
+      "eventBasedGateway": "Gateway_[name] or EventGateway_[name]",
+      "intermediateCatchEvent": "Catch_[name] or Wait_[name]",
+      "intermediateThrowEvent": "Throw_[name]",
+      "boundaryEvent": "Boundary_[name]",
+      "subProcess": "SubProcess_[name]",
+      "sequenceFlow": "Flow_[source]_[target] or Flow_[number]",
+      "message": "Message_[name]",
+      "error": "Error_[name]",
+      "signal": "Signal_[name]",
+      "escalation": "Escalation_[name]"
+    },
+    "diagram_patterns": {
+      "shape": "[ElementId]_di",
+      "edge": "[FlowId]_di",
+      "plane": "BPMNPlane_1",
+      "diagram": "BPMNDiagram_1"
+    }
+  },
+
+  "message_correlation": {
+    "description": "How messages are correlated to process instances in Camunda 8.",
+    "concepts": {
+      "message_name": "Static or dynamic (FEEL expression) identifier for the message type.",
+      "correlation_key": "FEEL expression evaluated to match the message to a specific process instance.",
+      "ttl": "Time-to-live for buffered messages (in milliseconds).",
+      "message_id": "Optional unique ID to prevent duplicate message processing."
+    },
+    "correlation_patterns": {
+      "start_event": {
+        "description": "Message start events don't require correlation key - they create new instances.",
+        "correlation_key_behavior": "If provided, ensures only one instance per correlation key."
+      },
+      "intermediate_catch": {
+        "description": "Requires correlation key to match to waiting process instance.",
+        "requirement": "zeebe:subscription with correlationKey is REQUIRED."
+      },
+      "receive_task": {
+        "description": "Same as intermediate catch event - requires correlation.",
+        "requirement": "zeebe:subscription with correlationKey is REQUIRED."
+      }
+    },
+    "xml_example": "<bpmn:message id=\"Message_1\" name=\"OrderUpdate\">\n  <bpmn:extensionElements>\n    <zeebe:subscription correlationKey=\"=orderId\" />\n  </bpmn:extensionElements>\n</bpmn:message>"
+  },
+
+  "variables": {
+    "description": "Process variables in Camunda 8.",
+    "concepts": {
+      "scope": "Variables are scoped to process instances and subprocesses.",
+      "propagation": "By default, all variables are propagated to child scopes and back.",
+      "types": "Any JSON-compatible type: String, Number, Boolean, Object, Array, null."
+    },
+    "control_propagation": {
+      "call_activity": {
+        "propagateAllParentVariables": "If true, all parent variables are copied to child. Default: true.",
+        "propagateAllChildVariables": "If true, all child variables are copied back to parent. Default: true."
+      },
+      "io_mapping": {
+        "input": "Map specific variables into an activity scope.",
+        "output": "Map specific variables out of an activity scope."
+      }
+    },
+    "reserved_variable_names": [
+      "body", "url", "method", "headers", "authentication",
+      "queryParameters", "connectionTimeoutInSeconds", "readTimeoutInSeconds", "writeTimeoutInSeconds"
+    ]
+  }
+}

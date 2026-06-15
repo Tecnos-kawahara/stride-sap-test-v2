@@ -1,0 +1,40 @@
+---
+# Template: usecase_complex.yaml
+# Phase: phase_0_5_context_modelling
+# BABOK Source: KA7 Requirements Analysis / 7.1 Specify and Model Requirements
+# Layered Requirements Modeling Source: ユースケース複合図 (UC Complex Diagram) — usecase × actor × information × condition の重ね合わせ
+# Inspired by: n/a
+# Rule-0: 正本は YAML フロントマター + 下記 YAML ブロック
+---
+
+artifact: "usecase_complex.yaml"
+template_id: "TPL-UP-UCX-001"
+feature_id: "FEAT-XXX"
+upstream_artifact_id: "UCX-XXX"
+title: "Use Case Complex - <Feature Name>"
+version: "{{TEMPLATE_VERSION}}"
+status: "draft"
+phase: "phase_0_5_context_modelling"
+profile_applicability: ["enterprise-erp", "saas-integration", "prototype"]
+owners: []
+reviewers: []
+links:
+  upstream_policy_ref: "shared/policies/upstream_policy.yaml"
+  baccm_completeness_ref: "shared/policies/baccm_completeness.yaml"
+  iteration_policy_ref: "shared/policies/upstream_iteration_policy.yaml"
+  constitution_ref: "memory/constitution.md"
+  amendment_ref: "memory/constitution_amendments/XVI_layered_requirement_architecture.md"
+created_at: "YYYY-MM-DD"
+updated_at: "YYYY-MM-DD"
+
+# Use Case Complex 本体 (Layered Requirements Modeling UC 複合図 — 4 軸の関係束ねモデル)
+# 1 つの BUC に対し関係する actor / information / condition を全部参照する
+usecase_ref: ""                  # business_usecase.yaml の BUC-* 参照
+actor_refs: []                   # actor_system.yaml の ACT-* 参照
+information_refs: []             # information_state.yaml の INF-* 参照
+condition_refs: []               # condition_variation.yaml の CND-* 参照
+flow_summary: []                 # 4 軸を貫いた業務フローの要約 (BPMN 化前段階)
+
+attributions:
+  - { source: "BABOK v3 (IIBA)", role: "framework backbone (KA7.1)", license: "fair-use, names and section refs only" }
+  - { source: "Layered Requirements Modeling ((concept reference, no proprietary brand))", role: "use case complex diagram concept", license: "fair-use, diagram name only" }

@@ -1,0 +1,843 @@
+# test_perspective_master.yaml
+# 処理種別 x 分岐パターン → テスト観点コード + デフォルト期待結果のマッピング
+#
+# default_expected_result: 初期提案。AI がレビュー・修正する。
+# __PLACEHOLDER__: AI が必ず具体的な値に置き換えること。
+#
+# check 種別:
+#   message_type, message_text_contains, alv, alv_min_rows, screen_number,
+#   no_error, db_changed, file_output, log_output, print_output,
+#   idoc_status, wf_status, mail_sent, bdc_result, rfc_return,
+#   bapi_return, lock_verify, field_value_set
+
+processing_types:
+  AUTH:
+    branches:
+    - pattern: 権限あり
+      type: normal
+      perspectives:
+      - BRANCH_BIZ
+      default_expected_result:
+      - check: no_error
+    - pattern: 権限なし
+      type: abnormal
+      evidence_method: manual_required
+      evidence_reason: "権限なしパスの検証には制限ユーザが必要（.env の単一ユーザでは再現不可）"
+      perspectives:
+      - BRANCH_BIZ
+      - ERROR_MSG
+      - ERROR_LOGIC
+      default_expected_result:
+      - check: message_type
+        value: E
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+  EXIST:
+    branches:
+    - pattern: 存在する
+      type: normal
+      perspectives:
+      - BRANCH_BIZ
+      default_expected_result:
+      - check: no_error
+    - pattern: 存在しない
+      type: abnormal
+      perspectives:
+      - BRANCH_BIZ
+      - ERROR_MSG
+      - ERROR_LOGIC
+      default_expected_result:
+      - check: message_type
+        value: E
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+  F4HELP:
+    branches:
+    - pattern: 標準検索ヘルプ
+      type: normal
+      perspectives:
+      - F4_HELP
+      - F4_VALUE_SET
+      default_expected_result:
+      - check: no_error
+      - check: field_value_set
+        field: __PLACEHOLDER__
+        expected_value: __PLACEHOLDER__
+    - pattern: ファイル選択ダイアログ
+      type: normal
+      perspectives:
+      - F4_HELP
+      - F4_VALUE_SET
+      default_expected_result:
+      - check: no_error
+      - check: field_value_set
+        field: __PLACEHOLDER__
+        expected_value: __PLACEHOLDER__
+  FILE_READ:
+    branches:
+    - pattern: 読込成功
+      type: normal
+      perspectives:
+      - BRANCH_BIZ
+      - FILE_DELIMITER
+      default_expected_result:
+      - check: no_error
+    - pattern: 読込失敗
+      type: abnormal
+      perspectives:
+      - BRANCH_BIZ
+      - ERROR_MSG
+      - ERROR_LOGIC
+      default_expected_result:
+      - check: message_type
+        value: E
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+    - pattern: 区切り文字不正
+      type: abnormal
+      perspectives:
+      - FILE_DELIMITER
+      default_expected_result:
+      - check: message_type
+        value: E
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+    - pattern: 0件入力
+      type: abnormal
+      perspectives:
+      - FILE_ZERO_INPUT
+      default_expected_result:
+      - check: message_type
+        value: I
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+  FILE_WRITE:
+    branches:
+    - pattern: 出力成功
+      type: normal
+      perspectives:
+      - FILE_FIELD_LENGTH
+      - FILE_DELIMITER
+      default_expected_result:
+      - check: message_type
+        value: S
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+      - check: file_output
+        path: __PLACEHOLDER__
+        contains: __PLACEHOLDER__
+    - pattern: 桁数超過
+      type: abnormal
+      perspectives:
+      - FILE_FIELD_LENGTH
+      default_expected_result:
+      - check: message_type
+        value: E
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+      - check: file_output
+        path: __PLACEHOLDER__
+        expected_error: true
+    - pattern: 0件出力
+      type: abnormal
+      perspectives:
+      - FILE_ZERO_OUTPUT
+      default_expected_result:
+      - check: message_type
+        value: I
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+  VALIDATE:
+    branches:
+    - pattern: 正常入力
+      type: normal
+      perspectives:
+      - BRANCH_BIZ
+      default_expected_result:
+      - check: no_error
+    - pattern: 必須項目空
+      type: abnormal
+      perspectives:
+      - REQUIRED_FIELD
+      - ERROR_MSG
+      - ERROR_LOGIC
+      default_expected_result:
+      - check: message_type
+        value: E
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+    - pattern: 異常値
+      type: abnormal
+      perspectives:
+      - INPUT_VALIDATE
+      - ERROR_MSG
+      default_expected_result:
+      - check: message_type
+        value: E
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+    - pattern: 編集エラー
+      type: abnormal
+      perspectives:
+      - EDIT_ERROR
+      default_expected_result:
+      - check: message_type
+        value: E
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+  ALV:
+    branches:
+    - pattern: 表示
+      type: normal
+      perspectives:
+      - SCREEN_LAYOUT
+      - OUTPUT_FIELD
+      - FORMAT_CONVERT
+      - OUTPUT_LAYOUT
+      - ALL_FIELDS_OUTPUT
+      default_expected_result:
+      - check: alv
+        value: true
+      - check: alv_min_rows
+        value: __PLACEHOLDER__
+  MSG:
+    branches:
+    - pattern: 正常メッセージ
+      type: normal
+      perspectives:
+      - ERROR_MSG
+      default_expected_result:
+      - check: message_type
+        value: S
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+    - pattern: エラーメッセージ
+      type: abnormal
+      perspectives:
+      - ERROR_MSG
+      - PROGRAM_TERMINATE
+      - ERROR_COUNT
+      default_expected_result:
+      - check: message_type
+        value: E
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+  DB_READ:
+    branches:
+    - pattern: データあり
+      type: normal
+      perspectives:
+      - BRANCH_BIZ
+      - DB_SELECT_MATCH
+      default_expected_result:
+      - check: no_error
+    - pattern: データなし
+      type: abnormal
+      perspectives:
+      - BRANCH_BIZ
+      default_expected_result:
+      - check: message_type
+        value: I
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+  DB_WRITE:
+    branches:
+    - pattern: INSERT
+      type: normal
+      perspectives:
+      - BRANCH_BIZ
+      - DB_CRUD_RESULT
+      default_expected_result:
+      - check: no_error
+      - check: db_changed
+        table: __PLACEHOLDER__
+        keys: __PLACEHOLDER__
+        expected: true
+        mode: insert
+    - pattern: UPDATE
+      type: normal
+      perspectives:
+      - BRANCH_BIZ
+      - DB_CRUD_RESULT
+      default_expected_result:
+      - check: no_error
+      - check: db_changed
+        table: __PLACEHOLDER__
+        keys: __PLACEHOLDER__
+        expected: true
+        mode: update
+    - pattern: DELETE
+      type: normal
+      perspectives:
+      - BRANCH_BIZ
+      - DB_CRUD_RESULT
+      default_expected_result:
+      - check: no_error
+      - check: db_changed
+        table: __PLACEHOLDER__
+        keys: __PLACEHOLDER__
+        expected: true
+        mode: delete
+    - pattern: 失敗
+      type: abnormal
+      perspectives:
+      - BRANCH_BIZ
+      - ERROR_LOGIC
+      - ROLLBACK_EXEC
+      default_expected_result:
+      - check: message_type
+        value: E
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+      - check: db_changed
+        table: __PLACEHOLDER__
+        keys: __PLACEHOLDER__
+        expected: false
+  CALC:
+    branches:
+    - pattern: 正常範囲
+      type: normal
+      perspectives:
+      - BOUNDARY_VALUE
+      default_expected_result:
+      - check: no_error
+    - pattern: 上限超過
+      type: abnormal
+      perspectives:
+      - BOUNDARY_VALUE
+      default_expected_result:
+      - check: message_type
+        value: E
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+    - pattern: 0件
+      type: abnormal
+      perspectives:
+      - ZERO_DATA_EDIT
+      default_expected_result:
+      - check: message_type
+        value: I
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+  CONVERT:
+    branches:
+    - pattern: 変換成功
+      type: normal
+      perspectives:
+      - FORMAT_CONVERT
+      default_expected_result:
+      - check: no_error
+    - pattern: 変換失敗
+      type: abnormal
+      perspectives:
+      - FORMAT_CONVERT
+      default_expected_result:
+      - check: message_type
+        value: E
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+  COMMIT:
+    branches:
+    - pattern: COMMIT
+      type: normal
+      perspectives:
+      - COMMIT_ROLLBACK
+      default_expected_result:
+      - check: no_error
+    - pattern: ROLLBACK
+      type: abnormal
+      perspectives:
+      - COMMIT_ROLLBACK
+      - ROLLBACK_EXEC
+      default_expected_result:
+      - check: db_changed
+        table: __PLACEHOLDER__
+        keys: __PLACEHOLDER__
+        expected: false
+  COMMIT_ROLLBACK:
+    # COMMIT のエイリアス。basic_design.md で processing_type: "COMMIT_ROLLBACK" を使用する場合に対応。
+    branches:
+    - pattern: COMMIT
+      type: normal
+      perspectives:
+      - COMMIT_ROLLBACK
+      default_expected_result:
+      - check: no_error
+    - pattern: ROLLBACK
+      type: abnormal
+      perspectives:
+      - COMMIT_ROLLBACK
+      - ROLLBACK_EXEC
+      default_expected_result:
+      - check: db_changed
+        table: __PLACEHOLDER__
+        keys: __PLACEHOLDER__
+        expected: false
+  LOCK:
+    branches:
+    - pattern: ロック成功
+      type: normal
+      perspectives:
+      - LOCK_ACQUIRE
+      - LOCK_SM12_VERIFY
+      default_expected_result:
+      - check: no_error
+      - check: lock_verify
+        lock_object: __PLACEHOLDER__
+        lock_key: __PLACEHOLDER__
+        expected: true
+    - pattern: ロック競合
+      type: abnormal
+      perspectives:
+      - LOCK_CONFLICT
+      default_expected_result:
+      - check: message_type
+        value: E
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+  LOG:
+    branches:
+    - pattern: 正常ログ
+      type: normal
+      perspectives:
+      - LOG_CONTENT
+      default_expected_result:
+      - check: no_error
+      - check: log_output
+        object: __PLACEHOLDER__
+        subobject: __PLACEHOLDER__
+        contains: __PLACEHOLDER__
+    - pattern: エラーログ
+      type: abnormal
+      perspectives:
+      - LOG_CONTENT
+      default_expected_result:
+      - check: message_type
+        value: E
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+      - check: log_output
+        object: __PLACEHOLDER__
+        subobject: __PLACEHOLDER__
+        contains: __PLACEHOLDER__
+  PRINT:
+    branches:
+    - pattern: 出力
+      type: normal
+      perspectives:
+      - SCREEN_LAYOUT
+      - OUTPUT_LAYOUT
+      - PAGE_BREAK
+      - ALL_FIELDS_OUTPUT
+      default_expected_result:
+      - check: no_error
+      - check: print_output
+        contains: __PLACEHOLDER__
+  MAIL:
+    branches:
+    - pattern: 送信成功
+      type: normal
+      perspectives:
+      - MAIL_SEND
+      default_expected_result:
+      - check: message_type
+        value: S
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+      - check: mail_sent
+        recipient: __PLACEHOLDER__
+        subject_contains: __PLACEHOLDER__
+    - pattern: 送信失敗
+      type: abnormal
+      perspectives:
+      - ERROR_MSG
+      default_expected_result:
+      - check: message_type
+        value: E
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+      - check: mail_sent
+        recipient: __PLACEHOLDER__
+        expected_error: true
+  RFC:
+    branches:
+    - pattern: 呼出成功
+      type: normal
+      perspectives:
+      - BRANCH_BIZ
+      default_expected_result:
+      - check: no_error
+      - check: rfc_return
+        function_module: __PLACEHOLDER__
+        expected_type: __PLACEHOLDER__
+    - pattern: 呼出失敗
+      type: abnormal
+      perspectives:
+      - BRANCH_BIZ
+      - ERROR_MSG
+      - ERROR_LOGIC
+      - TRY_CATCH_BIZ
+      default_expected_result:
+      - check: message_type
+        value: E
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+      - check: rfc_return
+        function_module: __PLACEHOLDER__
+        expected_type: E
+  BAPI:
+    branches:
+    - pattern: 更新成功
+      type: normal
+      perspectives:
+      - BRANCH_BIZ
+      - BAPI_RETURN_VERIFY
+      - BAPI_COMMIT_VERIFY
+      default_expected_result:
+      - check: no_error
+      - check: bapi_return
+        function_module: __PLACEHOLDER__
+        expected_type: S
+      - check: db_changed
+        table: __PLACEHOLDER__
+        keys: __PLACEHOLDER__
+        expected: true
+    - pattern: 更新失敗
+      type: abnormal
+      perspectives:
+      - BRANCH_BIZ
+      - BAPI_RETURN_VERIFY
+      - ERROR_MSG
+      - ERROR_LOGIC
+      default_expected_result:
+      - check: message_type
+        value: E
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+      - check: bapi_return
+        function_module: __PLACEHOLDER__
+        expected_type: E
+      - check: db_changed
+        table: __PLACEHOLDER__
+        keys: __PLACEHOLDER__
+        expected: false
+  BADI:
+    branches:
+    - pattern: 拡張成功
+      type: normal
+      perspectives:
+      - BRANCH_BIZ
+      default_expected_result:
+      - check: no_error
+    - pattern: 拡張失敗
+      type: abnormal
+      perspectives:
+      - BRANCH_BIZ
+      - ERROR_MSG
+      - ERROR_LOGIC
+      default_expected_result:
+      - check: message_type
+        value: E
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+  BDC:
+    branches:
+    - pattern: 投入成功
+      type: normal
+      perspectives:
+      - BRANCH_BIZ
+      - BDC_DATA_VERIFY
+      - BDC_SCREEN_VERIFY
+      default_expected_result:
+      - check: message_type
+        value: S
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+      - check: bdc_result
+        transaction: __PLACEHOLDER__
+        expected_status: __PLACEHOLDER__
+    - pattern: 投入失敗
+      type: abnormal
+      perspectives:
+      - BRANCH_BIZ
+      - ERROR_MSG
+      - ERROR_LOGIC
+      default_expected_result:
+      - check: message_type
+        value: E
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+      - check: bdc_result
+        transaction: __PLACEHOLDER__
+        expected_status: __PLACEHOLDER__
+  IDOC:
+    branches:
+    - pattern: 送受信成功
+      type: normal
+      perspectives:
+      - BRANCH_BIZ
+      default_expected_result:
+      - check: message_type
+        value: S
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+      - check: idoc_status
+        idoc_type: __PLACEHOLDER__
+        expected_status: __PLACEHOLDER__
+    - pattern: 送受信失敗
+      type: abnormal
+      perspectives:
+      - BRANCH_BIZ
+      - ERROR_MSG
+      - ERROR_LOGIC
+      default_expected_result:
+      - check: message_type
+        value: E
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+      - check: idoc_status
+        idoc_type: __PLACEHOLDER__
+        expected_status: __PLACEHOLDER__
+  WF:
+    branches:
+    - pattern: 起動成功
+      type: normal
+      perspectives:
+      - WF_TRIGGER
+      default_expected_result:
+      - check: message_type
+        value: S
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+      - check: wf_status
+        workflow_id: __PLACEHOLDER__
+        expected_status: __PLACEHOLDER__
+    - pattern: 起動失敗
+      type: abnormal
+      perspectives:
+      - ERROR_MSG
+      default_expected_result:
+      - check: message_type
+        value: E
+      - check: message_text_contains
+        value: __PLACEHOLDER__
+      - check: wf_status
+        workflow_id: __PLACEHOLDER__
+        expected_status: __PLACEHOLDER__
+  OTHER:
+    branches: []
+# perspective ごとの expected_checks 定義
+# sap_scenario_generator.py が covers_ts の expected_checks を生成する際に参照する
+# processing_type + branch.type + perspective から対応する check と description を決定する
+perspective_expected_checks:
+  # 正常系共通
+  BRANCH_BIZ:
+    success:
+      - { check: "no_error", description: "処理エラーなしで継続すること" }
+    failure:
+      - { check: "message_type", description: "エラーメッセージが表示されること" }
+  ERROR_MSG:
+    success:
+      - { check: "message_type", description: "正常メッセージ（タイプ S）が表示されること" }
+    failure:
+      - { check: "message_type", description: "エラーメッセージ（タイプ E）が表示されること" }
+  ERROR_LOGIC:
+    failure:
+      - { check: "screen_number", description: "エラー処理ロジックが正しく動作すること" }
+  # ファイル系
+  F4_HELP:
+    success:
+      - { check: "no_error", description: "F4ヘルプが正常に動作すること" }
+  FILE_DELIMITER:
+    success:
+      - { check: "no_error", description: "ファイル区切り文字が正しく処理されること" }
+    failure:
+      - { check: "message_type", description: "区切り文字不正時にエラーが検出されること" }
+  FILE_ZERO_INPUT:
+    failure:
+      - { check: "no_error", description: "0件ファイルでエラーにならないこと" }
+  FILE_FIELD_LENGTH:
+    success:
+      - { check: "no_error", description: "フィールド桁数が正しく処理されること" }
+    failure:
+      - { check: "message_type", description: "フィールド桁数超過が検出されること" }
+  FILE_ZERO_OUTPUT:
+    failure:
+      - { check: "message_type", description: "0件出力時に適切なメッセージが出力されること" }
+  # データ変換・計算
+  FORMAT_CONVERT:
+    success:
+      - { check: "no_error", description: "データ変換が正常に完了すること" }
+    failure:
+      - { check: "message_type", description: "データ変換エラーが検出されること" }
+  BOUNDARY_VALUE:
+    success:
+      - { check: "no_error", description: "集計処理が正常に完了すること" }
+    failure:
+      - { check: "message_type", description: "境界値超過が検出されること" }
+  ZERO_DATA_EDIT:
+    failure:
+      - { check: "message_type", description: "0件データに対して適切なメッセージが出力されること" }
+  INPUT_VALIDATE:
+    failure:
+      - { check: "message_type", description: "入力値バリデーションエラーが検出されること" }
+  REQUIRED_FIELD:
+    failure:
+      - { check: "message_type", description: "必須項目未入力エラーが検出されること" }
+  EDIT_ERROR:
+    failure:
+      - { check: "message_type", description: "編集チェックエラーが検出されること" }
+  # DB 系
+  DB_CRUD_RESULT:
+    success:
+      - { check: "db_changed", description: "テーブルにデータが登録/更新されること" }
+  ROLLBACK_EXEC:
+    failure:
+      - { check: "db_changed", description: "ROLLBACK が実行されデータが変更されないこと" }
+  COMMIT_ROLLBACK:
+    success:
+      - { check: "db_changed", description: "COMMIT WORK が実行されデータが確定すること" }
+    failure:
+      - { check: "db_changed", description: "ROLLBACK WORK が実行されデータが確定しないこと" }
+  # メッセージ系
+  PROGRAM_TERMINATE:
+    failure:
+      - { check: "no_error", description: "プログラムが正常に終了すること（DUMP しないこと）" }
+  ERROR_COUNT:
+    failure:
+      - { check: "message_text_contains", description: "エラーメッセージにエラー概要が含まれること" }
+  # 画面系
+  SCREEN_LAYOUT:
+    success:
+      - { check: "no_error", description: "画面レイアウトが正しく表示されること" }
+  OUTPUT_FIELD:
+    success:
+      - { check: "no_error", description: "出力フィールドが正しく表示されること" }
+  ALL_FIELDS_OUTPUT:
+    success:
+      - { check: "no_error", description: "全出力項目が正しく表示されること" }
+  OUTPUT_LAYOUT:
+    success:
+      - { check: "no_error", description: "出力レイアウトが正しく表示されること" }
+  PAGE_BREAK:
+    success:
+      - { check: "no_error", description: "改ページが正しく動作すること" }
+  # ログ系
+  LOG_CONTENT:
+    success:
+      - { check: "log_output", description: "アプリケーションログが正しく記録されること" }
+    failure:
+      - { check: "log_output", description: "エラーログが正しく記録されること" }
+  # DB SELECT 系
+  DB_SELECT_MATCH:
+    success:
+      - { check: "no_error", description: "データが正しく取得されること" }
+  # メール系
+  MAIL_SEND:
+    success:
+      - { check: "mail_sent", description: "メールが正しく送信されること" }
+  # BDC 系
+  BDC_DATA_VERIFY:
+    success:
+      - { check: "bdc_result", description: "BDC データが正しく投入されること" }
+  BDC_SCREEN_VERIFY:
+    success:
+      - { check: "bdc_result", description: "BDC 画面遷移が正しく処理されること" }
+  # WF 系
+  WF_TRIGGER:
+    success:
+      - { check: "wf_status", description: "ワークフローが正しく起動されること" }
+  # BAPI 系
+  BAPI_RETURN_VERIFY:
+    success:
+      - { check: "bapi_return", description: "BAPI RETURN テーブルにエラーが含まれないこと" }
+    failure:
+      - { check: "bapi_return", description: "BAPI RETURN テーブルにエラーが含まれること" }
+  BAPI_COMMIT_VERIFY:
+    success:
+      - { check: "db_changed", description: "BAPI_TRANSACTION_COMMIT 後にデータが確定すること" }
+  # ロック系
+  LOCK_ACQUIRE:
+    success:
+      - { check: "lock_verify", description: "ENQUEUE 後にロックエントリが存在すること（SM12 で確認）" }
+  LOCK_SM12_VERIFY:
+    success:
+      - { check: "lock_verify", description: "SM12 でロックオブジェクトに対象キーが含まれること" }
+  LOCK_CONFLICT:
+    failure:
+      - { check: "message_type", description: "別セッションからの実行でロックエラーが発生すること" }
+  # F4 値設定
+  F4_VALUE_SET:
+    success:
+      - { check: "field_value_set", description: "F4 ヘルプで選択した値がフィールドに設定されること" }
+  # RFC 系
+  TRY_CATCH_BIZ:
+    failure:
+      - { check: "message_type", description: "例外処理が正しく行われること" }
+
+screen_perspectives:
+- code: SCREEN_LAYOUT
+  source: selection_screen
+  description: 選択画面レイアウト
+- code: BUTTON_CTRL
+  source: screen_definition
+  description: ボタン制御
+- code: MENU_CTRL
+  source: screen_definition
+  description: メニュー制御
+- code: SCREEN_NAVIGATE
+  source: screen_definition
+  description: 画面遷移制御
+- code: INITIAL_VALUE
+  source: selection_screen
+  description: 入力項目の初期値
+
+# ---------- 混在チェックパターン ----------
+# 親処理種別の配下に出現しやすいサブステップの処理種別を定義する。
+# sap_expand_traceability.py が RQ の statement / branches 内のキーワードを走査し、
+# サブステップが独立 RQ として切り出されていない場合に WARNING を出力する。
+#
+# 形式:
+#   parent_type:
+#     - keywords: [検出キーワード群]
+#       sub_type: サブステップの処理種別
+#       description: 人間が読む説明
+mixed_check_patterns:
+  DB_READ:
+    - keywords: ["0件", "データなし", "存在しない", "該当なし"]
+      sub_type: VALIDATE
+      description: "DB_READ の 0件チェックは VALIDATE として独立させる"
+    - keywords: ["エラーメッセージ", "エラー出力", "警告メッセージ"]
+      sub_type: MSG
+      description: "DB_READ 後のエラーメッセージ出力は MSG として独立させる"
+  FILE_READ:
+    - keywords: ["0件", "データなし", "空ファイル"]
+      sub_type: VALIDATE
+      description: "FILE_READ の 0件チェックは VALIDATE として独立させる"
+    - keywords: ["区切り文字", "フォーマット", "桁数", "型不正"]
+      sub_type: VALIDATE
+      description: "FILE_READ のフォーマット検証は VALIDATE として独立させる"
+    - keywords: ["エラーメッセージ", "エラー出力"]
+      sub_type: MSG
+      description: "FILE_READ 後のエラーメッセージ出力は MSG として独立させる"
+  DB_WRITE:
+    - keywords: ["エラーデータ出力", "エラーファイル", "エラーリスト出力"]
+      sub_type: FILE_WRITE
+      description: "DB_WRITE 時のエラーデータファイル出力は FILE_WRITE として独立させる"
+    - keywords: ["エラーメッセージ", "エラー出力", "失敗メッセージ"]
+      sub_type: MSG
+      description: "DB_WRITE 後のエラーメッセージ出力は MSG として独立させる"
+  CALC:
+    - keywords: ["0件", "データなし", "計算不能"]
+      sub_type: VALIDATE
+      description: "CALC の 0件/計算不能チェックは VALIDATE として独立させる"
+    - keywords: ["エラーメッセージ", "エラー出力"]
+      sub_type: MSG
+      description: "CALC 後のエラーメッセージ出力は MSG として独立させる"
+  COMMIT:
+    - keywords: ["エラーデータ出力", "エラーファイル"]
+      sub_type: FILE_WRITE
+      description: "COMMIT 時のエラーデータ出力は FILE_WRITE として独立させる"
+    - keywords: ["エラーメッセージ", "エラー出力"]
+      sub_type: MSG
+      description: "COMMIT 後のエラーメッセージ出力は MSG として独立させる"

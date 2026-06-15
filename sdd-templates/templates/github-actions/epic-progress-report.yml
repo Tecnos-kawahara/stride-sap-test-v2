@@ -1,0 +1,53 @@
+# Epic Progress Dashboard - GitHub Actions Template
+# Copy to .github/workflows/epic-progress-report.yml in your project
+#
+# Generates HTML and Markdown dashboards for all Epics on weekday mornings.
+# Results are auto-committed to the repository.
+#
+# Prerequisites:
+#   - Python 3.11+
+#   - pyyaml package
+#   - epics/EPIC-*/ directories with Feature/WI structure
+#
+# Customization:
+#   - Adjust cron schedule as needed
+#   - Add --output flag for custom output paths
+#   - For GitHub Pages: set output to docs/ directory
+
+name: Epic Progress Dashboard
+on:
+  schedule:
+    - cron: '0 9 * * 1-5'  # Weekday 9:00 AM (UTC)
+  workflow_dispatch:         # Manual trigger
+
+permissions:
+  contents: write            # Required for auto-commit
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Generate dashboards
+        run: |
+          for epic_dir in epics/EPIC-*/; do
+            if [ -d "$epic_dir" ]; then
+              echo "Generating dashboard for $epic_dir"
+              python3 sdd-templates/tools/epic_progress_aggregator.py "$epic_dir" --format html
+              python3 sdd-templates/tools/epic_progress_aggregator.py "$epic_dir" --format markdown
+            fi
+          done
+
+      - name: Commit dashboards
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(epic): Update progress dashboards"
+          file_pattern: "epics/EPIC-*/*.html epics/EPIC-*/*.md"

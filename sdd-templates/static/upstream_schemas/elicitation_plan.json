@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stride.internal.tecnos.co.jp/upstream/elicitation_plan.json",
+  "title": "elicitation_plan",
+  "description": "Common metadata required on every Tecnos-VALUE upstream artifact",
+  "type": "object",
+  "properties": {
+    "artifact": {
+      "type": "string"
+    },
+    "template_id": {
+      "type": "string",
+      "pattern": "^TPL-UP-[A-Z]{3,4}-[0-9]{3}$"
+    },
+    "feature_id": {
+      "type": "string",
+      "pattern": "^FEAT-(?:[A-Z]{2,4}-)?[A-Z0-9]{3,}$"
+    },
+    "upstream_artifact_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "in_review",
+        "approved",
+        "deprecated"
+      ]
+    },
+    "phase": {
+      "type": "string",
+      "enum": [
+        "phase_0_discovery",
+        "phase_0_3_elicit",
+        "phase_0_5_context_modelling"
+      ]
+    },
+    "profile_applicability": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "enterprise-erp",
+          "saas-integration",
+          "prototype"
+        ]
+      }
+    },
+    "owners": {
+      "type": "array"
+    },
+    "reviewers": {
+      "type": "array"
+    },
+    "links": {
+      "type": "object"
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "updated_at": {
+      "type": "string"
+    },
+    "techniques": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "target_stakeholders": {
+      "type": "array"
+    },
+    "schedule": {
+      "type": "string"
+    },
+    "resources": {
+      "type": "array"
+    },
+    "materials": {
+      "type": "array"
+    },
+    "assumptions": {
+      "type": "array"
+    },
+    "risks": {
+      "type": "array"
+    },
+    "attributions": {
+      "type": "array",
+      "description": "Attribution declarations (BABOK / Layered Requirements Modeling / value-driven discovery method - fair-use)",
+      "items": {
+        "type": "object"
+      }
+    }
+  },
+  "required": [
+    "techniques",
+    "feature_id",
+    "phase",
+    "artifact",
+    "template_id",
+    "target_stakeholders",
+    "links",
+    "profile_applicability"
+  ]
+}

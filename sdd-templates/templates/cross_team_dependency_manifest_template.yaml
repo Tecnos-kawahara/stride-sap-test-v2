@@ -1,0 +1,133 @@
+# cross_team_dependency_manifest.yaml - Inter-feature dependency tracking
+#
+# Purpose:
+#   Provides a single manifest of all cross-team dependencies within an Epic.
+#   Tracks the lifecycle of each dependency from identification through resolution,
+#   including scheduling, interface references, and criticality assessment.
+#
+# ID Conventions (from constitution.md):
+#   dependency_id: "^DEP-[0-9]{3}$"
+#   feature_id: "^FEAT-(?:[A-Z]{2,4}-)?[A-Z0-9]{3,}$"
+#   team_id: "^TEAM-[A-Z]{1,3}$"
+#   shared_contract_id: "^SC-(API|EVT|FILE)-[A-Z0-9]{3,}$"
+#   integration_point_id: "^IP-[0-9]{3}$"
+#   epic_id: "^EPIC-[A-Z]{3,}$"
+#
+# Usage:
+#   This manifest lives at shared/dependency_manifest.yaml within an Epic's directory.
+#   Updated whenever new dependencies are identified or statuses change.
+#   Tooling can validate for circular dependencies and scheduling conflicts.
+
+cross_team_dependency_manifest:
+  meta:
+    epic_id: "{{EPIC_ID}}"
+    title: "Cross-Team Dependency Manifest"
+    version: "1.0.0"
+    created_at: "{{DATE}}"
+    updated_at: "{{DATE}}"
+    maintainer: "{{Epic Lead Name}}"
+
+  # All inter-feature dependencies
+  dependencies:
+    - dependency_id: "DEP-001"
+      description: "{{Brief description of the dependency}}"
+
+      # Source and target
+      from_feature: "{{FEATURE_ID}}"       # Feature that depends on another
+      from_team: "{{TEAM_ID}}"             # Team that owns from_feature
+      to_feature: "{{FEATURE_ID}}"         # Feature being depended upon
+      to_team: "{{TEAM_ID}}"              # Team that owns to_feature
+
+      # Dependency characteristics
+      type: "blocking"                     # blocking | soft
+      #   blocking: from_feature cannot proceed past a phase without to_feature delivery
+      #   soft: from_feature can proceed with mocks/stubs but needs resolution before Final Gate
+      criticality: "high"                  # low | medium | high | critical
+      #   critical: Epic milestone at risk if not resolved on time
+      #   high: Significant rework required if delayed
+      #   medium: Workaround exists but suboptimal
+      #   low: Minimal impact, convenience dependency
+
+      # Interface / contract reference
+      interface:
+        type: "api"                        # api | event | file | schema | library | data
+        contract_ref: "SC-API-XXX"         # Shared contract ID (if applicable)
+        integration_point_ref: "IP-001"    # Integration point ID (if applicable)
+        specification_path: ""             # Path to interface specification file
+        description: "{{What the interface provides}}"
+
+      # Scheduling
+      scheduling:
+        required_by_date: "YYYY-MM-DD"     # Date the consumer needs this dependency
+        required_by_phase: "Execute"       # Phase of from_feature that needs this: Design | Specify | Tasking | Execute
+        scheduled_availability: "YYYY-MM-DD"  # Date the provider commits to deliver
+        actual_availability: ""            # YYYY-MM-DD when actually delivered
+        buffer_days: 0                     # Buffer between availability and required_by
+
+      # Status tracking
+      status: "identified"                 # identified | agreed | in_progress | delivered | adopted | blocked
+      #   identified: Dependency noted but not yet discussed with provider team
+      #   agreed: Both teams acknowledge and have scheduled delivery
+      #   in_progress: Provider team is actively working on the interface
+      #   delivered: Provider has published the interface/artifact
+      #   adopted: Consumer has integrated and verified the interface
+      #   blocked: Dependency is blocked (see blockers)
+      last_status_update: "{{DATE}}"
+
+      # Blockers (if status is "blocked")
+      blockers:
+        - description: "{{Blocker description}}"
+          raised_date: "{{DATE}}"
+          owner: "{{Person or team responsible for resolution}}"
+          target_resolution: "YYYY-MM-DD"
+
+      # Communication log
+      coordination_notes:
+        - date: "{{DATE}}"
+          note: "{{Coordination note, e.g., 'Agreed on API schema in sync meeting'}}"
+          participants:
+            - "{{TEAM_ID}}"
+
+  # Dependency graph validation rules
+  validation:
+    no_circular_dependencies: false        # Set to true after validation passes
+    all_blocking_scheduled: false           # All blocking deps have scheduled_availability
+    all_providers_acknowledged: false       # All to_team leads have acknowledged
+    scheduling_conflicts: []               # List of DEP IDs with scheduling issues
+    #   e.g., ["DEP-003"]  - required_by_date before scheduled_availability
+
+  # Summary (auto-computed by tooling)
+  summary:
+    total_dependencies: 0
+    by_type:
+      blocking: 0
+      soft: 0
+    by_status:
+      identified: 0
+      agreed: 0
+      in_progress: 0
+      delivered: 0
+      adopted: 0
+      blocked: 0
+    by_criticality:
+      critical: 0
+      high: 0
+      medium: 0
+      low: 0
+    teams_involved:
+      - team_id: "{{TEAM_ID}}"
+        provides: 0                        # Dependencies this team provides
+        consumes: 0                        # Dependencies this team consumes
+
+  # Dependency review cadence
+  review_cadence:
+    frequency: "weekly"                    # weekly | biweekly | per_sprint
+    next_review_date: "YYYY-MM-DD"
+    review_owner: "{{Epic Lead Name}}"
+    escalation_path:
+      - level: 1
+        contact: "{{Epic Lead}}"
+        condition: "Dependency blocked > 3 days"
+      - level: 2
+        contact: "{{Sponsor}}"
+        condition: "Dependency blocked > 7 days or milestone at risk"

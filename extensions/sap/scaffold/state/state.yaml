@@ -1,0 +1,14 @@
+feature: "FEAT-XXX"
+current_gate: "Gate-1"
+autonomy_bias: "balanced"
+
+work_items: []
+# - wi_id: "WI-XXX-001"
+#   status: "pending"
+#   mode: "autopilot"
+
+run_index: []
+# - wi_id: "WI-XXX-001"
+#   runs:
+#     - run_id: "RUN-001"
+#       status: "pending"

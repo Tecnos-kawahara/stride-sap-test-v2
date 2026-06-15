@@ -1,0 +1,471 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+    xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    xmlns:modeler="http://camunda.org/schema/modeler/1.0"
+    id="Definitions_SAPSD_OrderToCash"
+    targetNamespace="http://tecnos.co.jp/sdd/docs/sap-sd-order-to-cash"
+    exporter="Camunda Modeler"
+    exporterVersion="5.20.0"
+    modeler:executionPlatform="Camunda Cloud"
+    modeler:executionPlatformVersion="8.8.0">
+
+  <bpmn:collaboration id="Collaboration_SAPSD_OrderToCash">
+    <bpmn:documentation>SAP SD 領域の受注登録から在庫引当、出庫、検収、請求までの order-to-cash 全体連携を俯瞰する。
+スコープ: 受注条件確認、SAP 受注登録、ATP/在庫引当、出庫依頼、PGI、納品、検収、請求書送付
+スコープ外: 与信管理、返品/値引、入金消込、FI 仕訳詳細
+参考: docs/sap_sd_order_to_cash_epic_flow.bpmn</bpmn:documentation>
+
+    <bpmn:participant id="Participant_Sales" name="営業部門" processRef="Process_Sales">
+      <bpmn:documentation>得意先からの受注要求を確認し、SAP SD へ正式な受注登録を依頼する責務を持つ (internal_team: Sales)</bpmn:documentation>
+    </bpmn:participant>
+    <bpmn:participant id="Participant_SAPSD" name="SAP SD" processRef="Process_SAPSD">
+      <bpmn:documentation>受注登録、ATP/在庫引当、出庫連携、検収結果反映、請求生成を担う基幹システム (enterprise_system: SAP SD)</bpmn:documentation>
+    </bpmn:participant>
+    <bpmn:participant id="Participant_Warehouse" name="物流倉庫" processRef="Process_Warehouse">
+      <bpmn:documentation>出庫依頼の受領、ピッキング、PGI、納品実行を担当する物流実行主体 (internal_team: Warehouse)</bpmn:documentation>
+    </bpmn:participant>
+    <bpmn:participant id="Participant_Customer" name="得意先" processRef="Process_Customer">
+      <bpmn:documentation>納品受領、検収、請求書受領を行う取引先主体 (external_party: Customer)</bpmn:documentation>
+    </bpmn:participant>
+
+    <bpmn:messageFlow id="MsgFlow_SalesToSD_Order" name="受注登録依頼" sourceRef="Task_Sales_SendOrder" targetRef="Task_SD_ReceiveOrder">
+      <bpmn:documentation>営業部門から SAP SD への受注登録依頼。
+ペイロード: 受注ヘッダ、明細、希望納期、出荷条件、価格条件
+SLA: 営業確定後 5 分以内に登録開始</bpmn:documentation>
+    </bpmn:messageFlow>
+    <bpmn:messageFlow id="MsgFlow_SDToWarehouse_DeliveryReq" name="出庫依頼" sourceRef="Task_SD_SendDeliveryReq" targetRef="Task_WH_ReceiveDeliveryReq">
+      <bpmn:documentation>SAP SD から物流倉庫への出庫依頼。
+ペイロード: 受注番号、納品番号、出荷拠点、ピッキング条件
+SLA: ATP 確定後 15 分以内に倉庫連携</bpmn:documentation>
+    </bpmn:messageFlow>
+    <bpmn:messageFlow id="MsgFlow_WarehouseToSD_GI" name="出庫実績送信" sourceRef="Task_WH_SendGI" targetRef="Task_SD_ReceiveGI">
+      <bpmn:documentation>物流倉庫から SAP SD への PGI 実績送信。
+ペイロード: 納品番号、PGI 時刻、出荷数量、配送便情報
+SLA: PGI 完了後 10 分以内に反映</bpmn:documentation>
+    </bpmn:messageFlow>
+    <bpmn:messageFlow id="MsgFlow_WarehouseToCustomer_Delivery" name="納品" sourceRef="Task_WH_SendDelivery" targetRef="Task_Customer_ReceiveDelivery">
+      <bpmn:documentation>物流倉庫から得意先への納品。
+ペイロード: 納品書、出荷品目、数量、配送情報
+SLA: 出庫後、当日配送条件に従って到着</bpmn:documentation>
+    </bpmn:messageFlow>
+    <bpmn:messageFlow id="MsgFlow_CustomerToSD_Acceptance" name="検収結果返却" sourceRef="Task_Customer_SendAcceptance" targetRef="Task_SD_ReceiveAcceptance">
+      <bpmn:documentation>得意先から SAP SD への検収結果返却。
+ペイロード: 検収結果、受領数量、差異理由、検収日
+SLA: 納品後 2 営業日以内に返却</bpmn:documentation>
+    </bpmn:messageFlow>
+    <bpmn:messageFlow id="MsgFlow_SDToCustomer_Invoice" name="請求書送付" sourceRef="Task_SD_SendInvoice" targetRef="Task_Customer_ReceiveInvoice">
+      <bpmn:documentation>SAP SD から得意先への請求書送付。
+ペイロード: 請求番号、請求金額、税額、支払期日
+SLA: 検収確定当日中に発行</bpmn:documentation>
+    </bpmn:messageFlow>
+    <bpmn:textAnnotation id="Note_BillingTrigger">
+      <bpmn:text>請求トリガー: 検収完了後に請求生成。差異があれば請求保留。</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_BillingTrigger" sourceRef="Note_BillingTrigger" targetRef="MsgFlow_CustomerToSD_Acceptance" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="Process_Sales" name="営業部門">
+    <bpmn:documentation>営業部門は受注条件を固め、SAP SD に受注登録を依頼する。</bpmn:documentation>
+    <bpmn:startEvent id="Start_Sales" name="受注要求受領">
+      <bpmn:outgoing>Flow_Sales_001</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Task_Sales_CheckOrder" name="受注条件確認">
+      <bpmn:documentation>目的: 顧客要求と契約条件を確認し、正式受注の前提を整える
+入力: 顧客要求、見積条件、納期約束
+出力: 確定受注条件</bpmn:documentation>
+      <bpmn:incoming>Flow_Sales_001</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sales_002</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sendTask id="Task_Sales_SendOrder" name="SAP受注登録依頼">
+      <bpmn:documentation>目的: SAP SD に受注登録依頼を送る
+入力: 確定受注条件
+出力: 受注登録依頼 (messageFlow 参照)</bpmn:documentation>
+      <bpmn:incoming>Flow_Sales_002</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sales_003</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:endEvent id="End_Sales" name="営業処理完了">
+      <bpmn:incoming>Flow_Sales_003</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Sales_001" sourceRef="Start_Sales" targetRef="Task_Sales_CheckOrder" />
+    <bpmn:sequenceFlow id="Flow_Sales_002" sourceRef="Task_Sales_CheckOrder" targetRef="Task_Sales_SendOrder" />
+    <bpmn:sequenceFlow id="Flow_Sales_003" sourceRef="Task_Sales_SendOrder" targetRef="End_Sales" />
+  </bpmn:process>
+
+  <bpmn:process id="Process_SAPSD" name="SAP SD">
+    <bpmn:documentation>SAP SD は受注登録から ATP/在庫引当、出庫連携、検収結果反映、請求生成までを制御する。</bpmn:documentation>
+    <bpmn:startEvent id="Start_SD" name="オーダー待機">
+      <bpmn:outgoing>Flow_SD_001</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:receiveTask id="Task_SD_ReceiveOrder" name="受注登録">
+      <bpmn:documentation>目的: 営業からの受注登録依頼を SAP 受注として起票する
+入力: 受注登録依頼 (messageFlow 参照)
+出力: SAP 受注伝票</bpmn:documentation>
+      <bpmn:incoming>Flow_SD_001</bpmn:incoming>
+      <bpmn:outgoing>Flow_SD_002</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:task id="Task_SD_ATP" name="ATP/在庫引当">
+      <bpmn:documentation>目的: 利用可能在庫を確認し、納品・出庫可否を判定する
+入力: SAP 受注伝票、在庫情報、納期条件
+出力: 引当結果、納品予定</bpmn:documentation>
+      <bpmn:incoming>Flow_SD_002</bpmn:incoming>
+      <bpmn:outgoing>Flow_SD_003</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sendTask id="Task_SD_SendDeliveryReq" name="出庫依頼送信">
+      <bpmn:documentation>目的: 物流倉庫へ出庫実行を依頼する
+入力: 引当結果、納品予定
+出力: 出庫依頼 (messageFlow 参照)</bpmn:documentation>
+      <bpmn:incoming>Flow_SD_003</bpmn:incoming>
+      <bpmn:outgoing>Flow_SD_004</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:receiveTask id="Task_SD_ReceiveGI" name="出庫実績受領">
+      <bpmn:documentation>目的: PGI 実績を受領し、売上計上前提の出荷完了を反映する
+入力: 出庫実績 (messageFlow 参照)
+出力: 出荷完了状態</bpmn:documentation>
+      <bpmn:incoming>Flow_SD_004</bpmn:incoming>
+      <bpmn:outgoing>Flow_SD_005</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:receiveTask id="Task_SD_ReceiveAcceptance" name="検収結果受領">
+      <bpmn:documentation>目的: 得意先の検収結果を反映し、請求可否を確定する
+入力: 検収結果 (messageFlow 参照)
+出力: 検収確定状態</bpmn:documentation>
+      <bpmn:incoming>Flow_SD_005</bpmn:incoming>
+      <bpmn:outgoing>Flow_SD_006</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:task id="Task_SD_CreateInvoice" name="請求生成">
+      <bpmn:documentation>目的: 検収確定済みの受注に対して請求伝票を生成する
+入力: 検収確定状態、価格条件、税条件
+出力: 請求伝票</bpmn:documentation>
+      <bpmn:incoming>Flow_SD_006</bpmn:incoming>
+      <bpmn:outgoing>Flow_SD_007</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sendTask id="Task_SD_SendInvoice" name="請求書送付">
+      <bpmn:documentation>目的: 得意先へ請求書を送付する
+入力: 請求伝票
+出力: 請求書 (messageFlow 参照)</bpmn:documentation>
+      <bpmn:incoming>Flow_SD_007</bpmn:incoming>
+      <bpmn:outgoing>Flow_SD_008</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:endEvent id="End_SD" name="売上計上完了">
+      <bpmn:incoming>Flow_SD_008</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_SD_001" sourceRef="Start_SD" targetRef="Task_SD_ReceiveOrder" />
+    <bpmn:sequenceFlow id="Flow_SD_002" sourceRef="Task_SD_ReceiveOrder" targetRef="Task_SD_ATP" />
+    <bpmn:sequenceFlow id="Flow_SD_003" sourceRef="Task_SD_ATP" targetRef="Task_SD_SendDeliveryReq" />
+    <bpmn:sequenceFlow id="Flow_SD_004" sourceRef="Task_SD_SendDeliveryReq" targetRef="Task_SD_ReceiveGI" />
+    <bpmn:sequenceFlow id="Flow_SD_005" sourceRef="Task_SD_ReceiveGI" targetRef="Task_SD_ReceiveAcceptance" />
+    <bpmn:sequenceFlow id="Flow_SD_006" sourceRef="Task_SD_ReceiveAcceptance" targetRef="Task_SD_CreateInvoice" />
+    <bpmn:sequenceFlow id="Flow_SD_007" sourceRef="Task_SD_CreateInvoice" targetRef="Task_SD_SendInvoice" />
+    <bpmn:sequenceFlow id="Flow_SD_008" sourceRef="Task_SD_SendInvoice" targetRef="End_SD" />
+  </bpmn:process>
+
+  <bpmn:process id="Process_Warehouse" name="物流倉庫">
+    <bpmn:documentation>物流倉庫は出庫依頼を受け、PGI と納品を実行して SAP SD と得意先へ結果を返す。</bpmn:documentation>
+    <bpmn:startEvent id="Start_WH" name="出庫待機">
+      <bpmn:outgoing>Flow_WH_001</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:receiveTask id="Task_WH_ReceiveDeliveryReq" name="出庫依頼受領">
+      <bpmn:documentation>目的: SAP SD からの出庫依頼を受領し、倉庫作業を開始する
+入力: 出庫依頼 (messageFlow 参照)
+出力: 倉庫作業指示</bpmn:documentation>
+      <bpmn:incoming>Flow_WH_001</bpmn:incoming>
+      <bpmn:outgoing>Flow_WH_002</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:task id="Task_WH_PGI" name="ピッキング・PGI">
+      <bpmn:documentation>目的: ピッキング、梱包、出庫確定(PGI)を実施する
+入力: 倉庫作業指示
+出力: PGI 実績、配送実績</bpmn:documentation>
+      <bpmn:incoming>Flow_WH_002</bpmn:incoming>
+      <bpmn:outgoing>Flow_WH_003</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sendTask id="Task_WH_SendGI" name="出庫実績送信">
+      <bpmn:documentation>目的: SAP SD へ PGI 実績を返却する
+入力: PGI 実績
+出力: 出庫実績 (messageFlow 参照)</bpmn:documentation>
+      <bpmn:incoming>Flow_WH_003</bpmn:incoming>
+      <bpmn:outgoing>Flow_WH_004</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:sendTask id="Task_WH_SendDelivery" name="納品">
+      <bpmn:documentation>目的: 得意先へ製品を納品し、受領プロセスへ引き渡す
+入力: 配送実績、納品書
+出力: 納品情報 (messageFlow 参照)</bpmn:documentation>
+      <bpmn:incoming>Flow_WH_004</bpmn:incoming>
+      <bpmn:outgoing>Flow_WH_005</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:endEvent id="End_WH" name="出庫完了">
+      <bpmn:incoming>Flow_WH_005</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_WH_001" sourceRef="Start_WH" targetRef="Task_WH_ReceiveDeliveryReq" />
+    <bpmn:sequenceFlow id="Flow_WH_002" sourceRef="Task_WH_ReceiveDeliveryReq" targetRef="Task_WH_PGI" />
+    <bpmn:sequenceFlow id="Flow_WH_003" sourceRef="Task_WH_PGI" targetRef="Task_WH_SendGI" />
+    <bpmn:sequenceFlow id="Flow_WH_004" sourceRef="Task_WH_SendGI" targetRef="Task_WH_SendDelivery" />
+    <bpmn:sequenceFlow id="Flow_WH_005" sourceRef="Task_WH_SendDelivery" targetRef="End_WH" />
+  </bpmn:process>
+
+  <bpmn:process id="Process_Customer" name="得意先">
+    <bpmn:documentation>得意先は納品を受領して検収し、結果を返却した後に請求書を受領する。</bpmn:documentation>
+    <bpmn:startEvent id="Start_Customer" name="納品待機">
+      <bpmn:outgoing>Flow_Customer_001</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:receiveTask id="Task_Customer_ReceiveDelivery" name="納品受領">
+      <bpmn:documentation>目的: 納品物を受領して検収対象へ引き継ぐ
+入力: 納品情報 (messageFlow 参照)
+出力: 受領済み製品</bpmn:documentation>
+      <bpmn:incoming>Flow_Customer_001</bpmn:incoming>
+      <bpmn:outgoing>Flow_Customer_002</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:task id="Task_Customer_Inspect" name="検収">
+      <bpmn:documentation>目的: 数量・品質・破損有無を確認し、受領可否を判断する
+入力: 受領済み製品、納品書
+出力: 検収結果</bpmn:documentation>
+      <bpmn:incoming>Flow_Customer_002</bpmn:incoming>
+      <bpmn:outgoing>Flow_Customer_003</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sendTask id="Task_Customer_SendAcceptance" name="検収結果返却">
+      <bpmn:documentation>目的: SAP SD へ検収結果を返却し、請求可否を通知する
+入力: 検収結果
+出力: 検収結果通知 (messageFlow 参照)</bpmn:documentation>
+      <bpmn:incoming>Flow_Customer_003</bpmn:incoming>
+      <bpmn:outgoing>Flow_Customer_004</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:receiveTask id="Task_Customer_ReceiveInvoice" name="請求書受領">
+      <bpmn:documentation>目的: SAP SD から請求書を受領し、支払処理へ引き渡す
+入力: 請求書 (messageFlow 参照)
+出力: 支払準備済み請求情報</bpmn:documentation>
+      <bpmn:incoming>Flow_Customer_004</bpmn:incoming>
+      <bpmn:outgoing>Flow_Customer_005</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:endEvent id="End_Customer" name="請求受領完了">
+      <bpmn:incoming>Flow_Customer_005</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Customer_001" sourceRef="Start_Customer" targetRef="Task_Customer_ReceiveDelivery" />
+    <bpmn:sequenceFlow id="Flow_Customer_002" sourceRef="Task_Customer_ReceiveDelivery" targetRef="Task_Customer_Inspect" />
+    <bpmn:sequenceFlow id="Flow_Customer_003" sourceRef="Task_Customer_Inspect" targetRef="Task_Customer_SendAcceptance" />
+    <bpmn:sequenceFlow id="Flow_Customer_004" sourceRef="Task_Customer_SendAcceptance" targetRef="Task_Customer_ReceiveInvoice" />
+    <bpmn:sequenceFlow id="Flow_Customer_005" sourceRef="Task_Customer_ReceiveInvoice" targetRef="End_Customer" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_SAPSD_OrderToCash">
+
+      <bpmndi:BPMNShape id="Participant_Sales_di" bpmnElement="Participant_Sales" isHorizontal="false">
+        <dc:Bounds x="60" y="60" width="240" height="2080" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Participant_SAPSD_di" bpmnElement="Participant_SAPSD" isHorizontal="false">
+        <dc:Bounds x="330" y="60" width="240" height="2080" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Participant_Warehouse_di" bpmnElement="Participant_Warehouse" isHorizontal="false">
+        <dc:Bounds x="600" y="60" width="240" height="2080" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Participant_Customer_di" bpmnElement="Participant_Customer" isHorizontal="false">
+        <dc:Bounds x="870" y="60" width="240" height="2080" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Start_Sales_di" bpmnElement="Start_Sales">
+        <dc:Bounds x="162" y="120" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Sales_CheckOrder_di" bpmnElement="Task_Sales_CheckOrder">
+        <dc:Bounds x="125" y="220" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Sales_SendOrder_di" bpmnElement="Task_Sales_SendOrder">
+        <dc:Bounds x="125" y="380" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Sales_di" bpmnElement="End_Sales">
+        <dc:Bounds x="162" y="540" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Start_SD_di" bpmnElement="Start_SD">
+        <dc:Bounds x="432" y="120" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SD_ReceiveOrder_di" bpmnElement="Task_SD_ReceiveOrder">
+        <dc:Bounds x="395" y="380" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SD_ATP_di" bpmnElement="Task_SD_ATP">
+        <dc:Bounds x="395" y="540" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SD_SendDeliveryReq_di" bpmnElement="Task_SD_SendDeliveryReq">
+        <dc:Bounds x="395" y="700" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SD_ReceiveGI_di" bpmnElement="Task_SD_ReceiveGI">
+        <dc:Bounds x="395" y="1020" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SD_ReceiveAcceptance_di" bpmnElement="Task_SD_ReceiveAcceptance">
+        <dc:Bounds x="395" y="1500" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SD_CreateInvoice_di" bpmnElement="Task_SD_CreateInvoice">
+        <dc:Bounds x="395" y="1660" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SD_SendInvoice_di" bpmnElement="Task_SD_SendInvoice">
+        <dc:Bounds x="395" y="1820" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_SD_di" bpmnElement="End_SD">
+        <dc:Bounds x="432" y="1980" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Start_WH_di" bpmnElement="Start_WH">
+        <dc:Bounds x="702" y="120" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_WH_ReceiveDeliveryReq_di" bpmnElement="Task_WH_ReceiveDeliveryReq">
+        <dc:Bounds x="665" y="700" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_WH_PGI_di" bpmnElement="Task_WH_PGI">
+        <dc:Bounds x="665" y="860" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_WH_SendGI_di" bpmnElement="Task_WH_SendGI">
+        <dc:Bounds x="665" y="1020" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_WH_SendDelivery_di" bpmnElement="Task_WH_SendDelivery">
+        <dc:Bounds x="665" y="1180" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_WH_di" bpmnElement="End_WH">
+        <dc:Bounds x="702" y="1340" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Start_Customer_di" bpmnElement="Start_Customer">
+        <dc:Bounds x="972" y="120" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Customer_ReceiveDelivery_di" bpmnElement="Task_Customer_ReceiveDelivery">
+        <dc:Bounds x="935" y="1180" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Customer_Inspect_di" bpmnElement="Task_Customer_Inspect">
+        <dc:Bounds x="935" y="1340" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Customer_SendAcceptance_di" bpmnElement="Task_Customer_SendAcceptance">
+        <dc:Bounds x="935" y="1500" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Customer_ReceiveInvoice_di" bpmnElement="Task_Customer_ReceiveInvoice">
+        <dc:Bounds x="935" y="1820" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Customer_di" bpmnElement="End_Customer">
+        <dc:Bounds x="972" y="1980" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Note_BillingTrigger_di" bpmnElement="Note_BillingTrigger">
+        <dc:Bounds x="620" y="1440" width="170" height="60" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="Flow_Sales_001_di" bpmnElement="Flow_Sales_001">
+        <di:waypoint x="180" y="156" />
+        <di:waypoint x="180" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Sales_002_di" bpmnElement="Flow_Sales_002">
+        <di:waypoint x="180" y="300" />
+        <di:waypoint x="180" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Sales_003_di" bpmnElement="Flow_Sales_003">
+        <di:waypoint x="180" y="460" />
+        <di:waypoint x="180" y="540" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_SD_001_di" bpmnElement="Flow_SD_001">
+        <di:waypoint x="450" y="156" />
+        <di:waypoint x="450" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_SD_002_di" bpmnElement="Flow_SD_002">
+        <di:waypoint x="450" y="460" />
+        <di:waypoint x="450" y="540" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_SD_003_di" bpmnElement="Flow_SD_003">
+        <di:waypoint x="450" y="620" />
+        <di:waypoint x="450" y="700" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_SD_004_di" bpmnElement="Flow_SD_004">
+        <di:waypoint x="450" y="780" />
+        <di:waypoint x="450" y="1020" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_SD_005_di" bpmnElement="Flow_SD_005">
+        <di:waypoint x="450" y="1100" />
+        <di:waypoint x="450" y="1500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_SD_006_di" bpmnElement="Flow_SD_006">
+        <di:waypoint x="450" y="1580" />
+        <di:waypoint x="450" y="1660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_SD_007_di" bpmnElement="Flow_SD_007">
+        <di:waypoint x="450" y="1740" />
+        <di:waypoint x="450" y="1820" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_SD_008_di" bpmnElement="Flow_SD_008">
+        <di:waypoint x="450" y="1900" />
+        <di:waypoint x="450" y="1980" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_WH_001_di" bpmnElement="Flow_WH_001">
+        <di:waypoint x="720" y="156" />
+        <di:waypoint x="720" y="700" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_WH_002_di" bpmnElement="Flow_WH_002">
+        <di:waypoint x="720" y="780" />
+        <di:waypoint x="720" y="860" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_WH_003_di" bpmnElement="Flow_WH_003">
+        <di:waypoint x="720" y="940" />
+        <di:waypoint x="720" y="1020" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_WH_004_di" bpmnElement="Flow_WH_004">
+        <di:waypoint x="720" y="1100" />
+        <di:waypoint x="720" y="1180" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_WH_005_di" bpmnElement="Flow_WH_005">
+        <di:waypoint x="720" y="1260" />
+        <di:waypoint x="720" y="1340" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Customer_001_di" bpmnElement="Flow_Customer_001">
+        <di:waypoint x="990" y="156" />
+        <di:waypoint x="990" y="1180" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Customer_002_di" bpmnElement="Flow_Customer_002">
+        <di:waypoint x="990" y="1260" />
+        <di:waypoint x="990" y="1340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Customer_003_di" bpmnElement="Flow_Customer_003">
+        <di:waypoint x="990" y="1420" />
+        <di:waypoint x="990" y="1500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Customer_004_di" bpmnElement="Flow_Customer_004">
+        <di:waypoint x="990" y="1580" />
+        <di:waypoint x="990" y="1820" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Customer_005_di" bpmnElement="Flow_Customer_005">
+        <di:waypoint x="990" y="1900" />
+        <di:waypoint x="990" y="1980" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="MsgFlow_SalesToSD_Order_di" bpmnElement="MsgFlow_SalesToSD_Order">
+        <di:waypoint x="235" y="420" />
+        <di:waypoint x="395" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MsgFlow_SDToWarehouse_DeliveryReq_di" bpmnElement="MsgFlow_SDToWarehouse_DeliveryReq">
+        <di:waypoint x="505" y="740" />
+        <di:waypoint x="665" y="740" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MsgFlow_WarehouseToSD_GI_di" bpmnElement="MsgFlow_WarehouseToSD_GI">
+        <di:waypoint x="665" y="1060" />
+        <di:waypoint x="505" y="1060" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MsgFlow_WarehouseToCustomer_Delivery_di" bpmnElement="MsgFlow_WarehouseToCustomer_Delivery">
+        <di:waypoint x="775" y="1220" />
+        <di:waypoint x="935" y="1220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MsgFlow_CustomerToSD_Acceptance_di" bpmnElement="MsgFlow_CustomerToSD_Acceptance">
+        <di:waypoint x="935" y="1540" />
+        <di:waypoint x="505" y="1540" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MsgFlow_SDToCustomer_Invoice_di" bpmnElement="MsgFlow_SDToCustomer_Invoice">
+        <di:waypoint x="505" y="1860" />
+        <di:waypoint x="935" y="1860" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Assoc_BillingTrigger_di" bpmnElement="Assoc_BillingTrigger">
+        <di:waypoint x="705" y="1500" />
+        <di:waypoint x="720" y="1540" />
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

@@ -1,0 +1,40 @@
+---
+# Template: value_canvas.yaml
+# Phase: phase_0_discovery
+# BABOK Source: KA6 Strategy Analysis / Technique 10.8 Business Model Canvas
+# Layered Requirements Modeling Source: n/a
+# Inspired by: value-driven discovery method 価値モデル (philosophical inspiration)
+# Rule-0: 正本は YAML フロントマター + 下記 YAML ブロック
+---
+
+artifact: "value_canvas.yaml"
+template_id: "TPL-UP-VLC-001"
+feature_id: "FEAT-XXX"
+upstream_artifact_id: "VLC-XXX"
+title: "Value Canvas - <Feature Name>"
+version: "{{TEMPLATE_VERSION}}"
+status: "draft"
+phase: "phase_0_discovery"
+profile_applicability: ["enterprise-erp", "saas-integration", "prototype"]
+owners: []
+reviewers: []
+links:
+  upstream_policy_ref: "shared/policies/upstream_policy.yaml"
+  baccm_completeness_ref: "shared/policies/baccm_completeness.yaml"
+  iteration_policy_ref: "shared/policies/upstream_iteration_policy.yaml"
+  constitution_ref: "memory/constitution.md"
+  amendment_ref: "memory/constitution_amendments/XV_baccm_completeness.md"
+created_at: "YYYY-MM-DD"
+updated_at: "YYYY-MM-DD"
+
+# Value Canvas 本体 (BACCM Change + Value 軸を支える)
+from_state: ""               # 変化前の状態 (Change 軸)
+to_state: ""                 # 変化後の状態 (Change 軸)
+potential_value: []          # 提供される正味の便益 (Value 軸、金銭的・非金銭的)
+anti_value: []               # 価値を毀損する要素・副作用 (Value 軸の負側)
+beneficiaries: []            # 価値を受け取るステークホルダー (id 参照)
+value_metrics: []            # 価値計測指標 (KPI / 定性指標)
+
+attributions:
+  - { source: "BABOK v3 (IIBA)", role: "framework backbone (KA6 / Technique 10.8)", license: "fair-use, names and section refs only" }
+  - { source: "value-driven discovery (philosophical foundation)", role: "value model inspiration", license: "fair-use, model name only" }

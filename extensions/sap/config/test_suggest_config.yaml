@@ -1,0 +1,50 @@
+# SAP 拡張テスト生成設定
+# sap_test_suggest.py が参照する設定ファイル
+#
+# テスト ID の規約は sdd-templates/config/id_conventions.yaml (test_id) を参照
+# このファイルは SAP 拡張固有の設定であり、テンプレート側には置かない
+
+# AC タグ → テスト種別 / ID プレフィックスのマッピング
+tag_mapping:
+  authorization: { type: "unit", prefix: "TS-UT" }
+  integration: { type: "integration", prefix: "TS-INT" }
+  data: { type: "unit", prefix: "TS-UT" }
+  e2e: { type: "e2e", prefix: "TS-E2E" }
+
+# 自動エビデンス対象テスト種別
+auto_evidence_types: ["unit", "contract", "integration", "gui", "e2e"]
+
+# プログラム種別 → デフォルトトランザクション
+default_transaction:
+  report: "SA38"
+  interface: "SA38"
+  rap_bo: "SE80"
+  fugr: "SE37"
+  enhancement: "SE80"
+
+# name / scope の最大文字数
+name_max_length: 120
+scope_max_length: 120
+
+# verify_data_strategy → field_strategies のデフォルトマッピング
+# YAML ルールに field_strategies が定義されていない場合、
+# verify_data_strategy の値からこのマッピングで field_strategies を推論する
+default_field_strategies:
+  default:
+    target_field: "valid"
+    other_db: "valid"
+    file: "test_value"
+    checkbox: "keep"
+    free: "skip"
+  nonexistent:
+    target_field: "nonexistent"
+    other_db: "nonexistent"
+    file: "test_value"
+    checkbox: "keep"
+    free: "skip"
+  filter_2nd:
+    target_field: "valid"
+    other_db: "valid"
+    file: "test_value"
+    checkbox: "keep"
+    free: "skip"

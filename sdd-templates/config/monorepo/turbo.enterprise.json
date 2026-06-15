@@ -1,0 +1,53 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [
+    "tsconfig.base.json"
+  ],
+  "// NOTE": "Enterprise tasks are identical to Standard. The difference is in CI configuration: remote cache via TURBO_TOKEN/TURBO_TEAM env vars, full differential execution, and extended Evidence Pack retention (90 days). See ci-enterprise.yml.",
+  "tasks": {
+    "lint": {
+      "dependsOn": [],
+      "outputs": [],
+      "cache": true,
+      "inputs": ["src/**/*.{ts,js,tsx,jsx}"]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "outputs": [],
+      "cache": true,
+      "inputs": ["src/**/*.{ts,tsx}", "tsconfig.json"]
+    },
+    "test": {
+      "dependsOn": ["^typecheck"],
+      "outputs": [],
+      "cache": true,
+      "inputs": ["src/**", "tests/**", "test/**", "vitest.config.*", "tsconfig.json"],
+      "env": ["NODE_ENV", "DATABASE_URL"]
+    },
+    "test:coverage": {
+      "dependsOn": ["^typecheck"],
+      "outputs": ["coverage/**"],
+      "cache": true,
+      "inputs": ["src/**", "tests/**", "test/**", "vitest.config.*", "tsconfig.json"],
+      "env": ["NODE_ENV", "DATABASE_URL"]
+    },
+    "test:contract": {
+      "dependsOn": ["^typecheck"],
+      "outputs": ["test-results/**"],
+      "cache": true,
+      "inputs": ["tests/**", "contracts/**"]
+    },
+    "spec:drift": {
+      "dependsOn": [],
+      "outputs": [],
+      "cache": true,
+      "inputs": ["contracts/**", "src/**"]
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"],
+      "cache": true,
+      "inputs": ["src/**", "tsconfig.json"]
+    }
+  }
+}

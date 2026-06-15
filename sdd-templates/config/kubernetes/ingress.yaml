@@ -1,0 +1,88 @@
+# =============================================================================
+# Kubernetes Ingress
+# External access with TLS termination
+# =============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ${APP_NAME}
+  namespace: ${NAMESPACE}
+  labels:
+    app: ${APP_NAME}
+  annotations:
+    # NGINX Ingress Controller
+    kubernetes.io/ingress.class: nginx
+
+    # TLS/SSL
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+
+    # Rate limiting
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-connections: "10"
+
+    # Security headers
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      add_header X-Frame-Options "SAMEORIGIN" always;
+      add_header X-Content-Type-Options "nosniff" always;
+      add_header X-XSS-Protection "1; mode=block" always;
+      add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # CORS (if needed)
+    # nginx.ingress.kubernetes.io/enable-cors: "true"
+    # nginx.ingress.kubernetes.io/cors-allow-origin: "https://example.com"
+
+    # Proxy settings
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+
+spec:
+  ingressClassName: nginx
+
+  tls:
+    - hosts:
+        - ${DOMAIN}
+      secretName: ${APP_NAME}-tls
+
+  rules:
+    - host: ${DOMAIN}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ${APP_NAME}
+                port:
+                  number: 80
+
+---
+# =============================================================================
+# Alternative: AWS ALB Ingress
+# =============================================================================
+
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: ${APP_NAME}-alb
+#   namespace: ${NAMESPACE}
+#   annotations:
+#     kubernetes.io/ingress.class: alb
+#     alb.ingress.kubernetes.io/scheme: internet-facing
+#     alb.ingress.kubernetes.io/target-type: ip
+#     alb.ingress.kubernetes.io/certificate-arn: ${ACM_CERTIFICATE_ARN}
+#     alb.ingress.kubernetes.io/ssl-redirect: "443"
+#     alb.ingress.kubernetes.io/healthcheck-path: /health
+# spec:
+#   rules:
+#     - host: ${DOMAIN}
+#       http:
+#         paths:
+#           - path: /
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: ${APP_NAME}
+#                 port:
+#                   number: 80

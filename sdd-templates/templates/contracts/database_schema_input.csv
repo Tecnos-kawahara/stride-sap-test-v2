@@ -1,0 +1,44 @@
+# Database Schema Input CSV Template,,,,,,,,,,,
+# Template ID: TPL-DB-INPUT-001,,,,,,,,,,,
+# Version: {{TEMPLATE_VERSION}},,,,,,,,,,,
+#,,,,,,,,,,,
+# Usage:,,,,,,,,,,,
+#   1. このCSVをコピーしてテーブル定義を記入,,,,,,,,,,,
+#   2. AIに「このCSVから database_schema.yaml を生成してください」と依頼,,,,,,,,,,,
+#   3. 生成されたYAMLを specs/<feature>/contracts/database_schema.yaml に保存,,,,,,,,,,,
+#,,,,,,,,,,,
+# Column Definitions:,,,,,,,,,,,
+#   table_name    - テーブル名（snake_case推奨）,,,,,,,,,,,
+#   column_name   - カラム名（snake_case推奨）,,,,,,,,,,,
+#   type          - データ型（Dialect準拠、例: postgresql の場合 varchar(50), uuid, timestamp with time zone）,,,,,,,,,
+#   nullable      - NULL許可（true/false）,,,,,,,,,,,
+#   pk            - 主キー（true/false）,,,,,,,,,,,
+#   uk            - ユニーク制約（true/false）,,,,,,,,,,,
+#   fk_table      - 外部キー参照先テーブル（空欄可）,,,,,,,,,,,
+#   fk_column     - 外部キー参照先カラム（空欄可）,,,,,,,,,,,
+#   default       - デフォルト値（空欄可、文字列は 'value' 形式）,,,,,,,,,,,
+#   description   - 説明（日本語可）,,,,,,,,,,,
+#   pii_flag      - PII該当（true/false）- 個人情報に該当する場合は true,,,,,,,,,,,
+#   audit_flag    - 監査対象（true/false）- 変更履歴を残す場合は true,,,,,,,,,,,
+#,,,,,,,,,,,
+# Notes:,,,,,,,,,,,
+#   - 監査カラム（created_at, updated_at, created_by, updated_by）は自動追加されるため省略可,,,,,,,,
+#   - pii_flag=true の列は自動的に暗号化対象に追加される,,,,,,,,,,,
+#   - fk_table を指定した場合、自動的にインデックスが追加される,,,,,,,,,,,
+#,,,,,,,,,,,
+table_name,column_name,type,nullable,pk,uk,fk_table,fk_column,default,description,pii_flag,audit_flag
+# === orders テーブル（サンプル） ===,,,,,,,,,,,
+orders,id,uuid,FALSE,TRUE,FALSE,,,gen_random_uuid(),主キー,FALSE,FALSE
+orders,customer_id,uuid,FALSE,FALSE,FALSE,customers,id,,顧客参照,FALSE,FALSE
+orders,order_number,varchar(50),FALSE,FALSE,TRUE,,,,受注番号（業務キー）,FALSE,TRUE
+orders,customer_name,varchar(100),FALSE,FALSE,FALSE,,,,顧客名,TRUE,FALSE
+orders,email,varchar(255),TRUE,FALSE,FALSE,,,,連絡先メール,TRUE,FALSE
+orders,total_amount,"decimal(12,2)",FALSE,FALSE,FALSE,,,0,合計金額,FALSE,FALSE
+orders,status,varchar(20),FALSE,FALSE,FALSE,,,'pending',ステータス（pending/confirmed/completed/cancelled）,FALSE,TRUE
+# === order_items テーブル（サンプル） ===,,,,,,,,,,,
+order_items,id,uuid,FALSE,TRUE,FALSE,,,gen_random_uuid(),主キー,FALSE,FALSE
+order_items,order_id,uuid,FALSE,FALSE,FALSE,orders,id,,受注参照,FALSE,FALSE
+order_items,product_id,uuid,FALSE,FALSE,FALSE,products,id,,商品参照,FALSE,FALSE
+order_items,quantity,integer,FALSE,FALSE,FALSE,,,1,数量,FALSE,FALSE
+order_items,unit_price,"decimal(10,2)",FALSE,FALSE,FALSE,,,0,単価,FALSE,FALSE
+order_items,line_total,"decimal(12,2)",FALSE,FALSE,FALSE,,,0,明細金額,FALSE,FALSE

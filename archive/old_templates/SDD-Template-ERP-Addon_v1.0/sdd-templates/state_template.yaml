@@ -1,0 +1,4 @@
+feature: FEAT-ERP-{{DOMAIN}}-{{NNN}}
+current_gate: Gate5
+work_items: []
+run_index: {}

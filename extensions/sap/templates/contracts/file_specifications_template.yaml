@@ -1,0 +1,31 @@
+# SAP Extension Pack v2 — file_specifications_template.yaml
+# 参照仕様: 05_テンプレート設計.md §B-6
+# 入出力ファイルの仕様
+
+version: "1.0.0"
+files:
+  - id: "FILE-001"
+    name: ""
+    direction: ""                     # input | output
+    format: ""                        # csv | excel | fixed_length | xml
+    encoding: ""                      # UTF-8 | Shift_JIS | SAP_INTERNAL
+    delimiter: ""
+    header_row: true
+    layout:
+      columns:
+        - position: 1
+          name: ""
+          technical_name: ""
+          data_type: ""               # CHAR | NUMC | DATS | CURR 等
+          length: 0
+          decimal: 0
+          required: false
+          description: ""
+    file_naming:
+      pattern: ""
+      variables:
+        - name: ""
+          source: ""
+    error_handling:
+      on_missing: ""                  # abort | skip | create_empty
+      on_format_error: ""             # abort | skip_row | log_and_continue

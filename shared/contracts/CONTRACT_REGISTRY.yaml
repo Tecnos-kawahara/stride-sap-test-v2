@@ -1,0 +1,124 @@
+# shared_contract_registry.yaml - Centralized registry for shared contracts across teams
+#
+# Purpose:
+#   Tracks all shared contracts (API/Event/File/Schema) within an Epic,
+#   including ownership, versioning, consumer adoption, and breaking changes.
+#
+# ID Conventions (from constitution.md):
+#   shared_contract_id: "^SC-(API|EVT|FILE)-[A-Z0-9]{3,}$"
+#   team_id: "^TEAM-[A-Z]{1,3}$"
+#   epic_id: "^EPIC-[A-Z]{3,}$"
+#   feature_id: "^FEAT-(?:[A-Z]{2,4}-)?[A-Z0-9]{3,}$"
+#   ccp_id: "^CCP-[0-9]{3}$"
+#
+# Usage:
+#   This registry lives at shared/contracts/registry.yaml within an Epic's directory.
+#   Each contract entry tracks the full lifecycle from draft through deprecation.
+
+shared_contract_registry:
+  meta:
+    epic_id: "{{EPIC_ID}}"
+    title: "Shared Contract Registry"
+    version: "1.0.0"
+    created_at: "{{DATE}}"
+    updated_at: "{{DATE}}"
+    maintainer: "{{Epic Lead Name}}"
+
+  # Registry of all shared contracts
+  contracts:
+    - contract_id: "SC-API-XXX"          # Unique ID per constitution id_conventions
+      name: "{{Contract Name}}"
+      description: "{{Brief description of what this contract provides}}"
+      type: "api"                         # api | event | file | schema
+      status: "draft"                     # draft | review | published | deprecated
+
+      # Ownership
+      owner_team: "{{TEAM_ID}}"
+      owner_feature: "{{FEATURE_ID}}"     # Feature that defines/maintains this contract
+      owner_contact: "{{Owner Contact}}"  # Person responsible for contract changes
+
+      # Versioning
+      current_version: "1.0.0"            # SemVer
+      published_at: ""                    # YYYY-MM-DD when first published
+      contract_path: "shared/contracts/api/{{contract_name}}.yaml"  # Path to contract file
+
+      # Consumers
+      consumers:
+        - team_id: "{{TEAM_ID}}"
+          features:
+            - "{{FEATURE_ID}}"
+          adoption_status: "pending"      # pending | integrating | adopted | deprecated
+          adopted_version: ""             # Version the consumer is currently using
+          adopted_at: ""                  # YYYY-MM-DD when adoption completed
+          notes: ""
+
+      # Contract testing
+      testing:
+        provider_test_ref: "TS-CON-01"   # Provider-side contract test ID
+        provider_test_status: "pending"   # pending | passing | failing
+        cdc_tests_required: true          # Consumer-Driven Contract tests required?
+        cdc_test_refs:
+          - test_id: "TS-CON-02"
+            consumer_team: "{{TEAM_ID}}"
+            status: "pending"             # pending | passing | failing
+
+      # Breaking changes history
+      breaking_changes:
+        - ccp_id: "CCP-001"              # Contract Change Proposal ID
+          version_from: "1.0.0"
+          version_to: "2.0.0"
+          description: "{{What changed}}"
+          reason: "{{Why the change was needed}}"
+          proposed_date: "YYYY-MM-DD"
+          approved_date: ""               # YYYY-MM-DD when approved
+          migration_deadline: ""          # YYYY-MM-DD deadline for consumers
+          status: "proposed"              # proposed | approved | migrating | completed | rejected
+          affected_consumers:
+            - team_id: "{{TEAM_ID}}"
+              migration_status: "pending" # pending | in_progress | completed
+              notes: ""
+          approvals:
+            owner_approved: false
+            consumers_acknowledged: false
+            arch_board_approved: false     # Required for breaking changes
+
+      # SLA (if applicable)
+      sla:
+        availability: ""                  # e.g., "99.9%"
+        latency_p99: ""                   # e.g., "200ms"
+        throughput: ""                    # e.g., "1000 req/min"
+
+      # Metadata
+      tags:
+        - "{{tag}}"                       # e.g., "critical", "auth", "billing"
+      related_contracts:
+        - "{{SC-XXX}}"                    # IDs of related/dependent contracts
+
+  # Registry-level summary (auto-computed by tooling)
+  summary:
+    total_contracts: 0
+    by_type:
+      api: 0
+      event: 0
+      file: 0
+      schema: 0
+    by_status:
+      draft: 0
+      review: 0
+      published: 0
+      deprecated: 0
+    pending_ccps: 0                       # Breaking changes awaiting approval
+    consumers_not_adopted: 0              # Consumer entries still in pending status
+
+  # Change protocol reference
+  change_protocol:
+    description: >
+      All shared contract changes follow the CCP (Contract Change Proposal) workflow:
+      1. Owner creates CCP with change description and rationale
+      2. Impact analysis is auto-generated from consumer list
+      3. Consumers are notified and review the change
+      4. Consumers acknowledge impact and plan migration
+      5. ARCH_BOARD approves (required for breaking changes)
+      6. Implementation and migration proceed
+      7. Migration deadline enforced; deprecated version removed
+    ccp_template_path: "sdd-templates/templates/ccp_template.md"

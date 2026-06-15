@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+    xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+    xmlns:modeler="http://camunda.org/schema/modeler/1.0"
+    id="Definitions_Advanced"
+    targetNamespace="http://tecnos.co.jp/sdd/advanced-example"
+    exporter="Camunda Modeler" exporterVersion="5.20.0"
+    modeler:executionPlatform="Camunda Cloud"
+    modeler:executionPlatformVersion="8.8.0">
+
+  <bpmn:error id="Error_ValidationRejected" name="Validation Rejected" errorCode="VALIDATION_REJECTED" />
+
+  <bpmn:process id="BPMN-PROC-ADV" name="Advanced Approval Process" isExecutable="true">
+    <bpmn:documentation>Advanced approval workflow: validate request, human review with timeout, external API call, DMN routing, and notification subprocess.
+Start: Request received
+End: Notification sent or request rejected/timed out</bpmn:documentation>
+
+    <bpmn:startEvent id="BPMN-EVT-001" name="申請受付">
+      <bpmn:outgoing>BPMN-FLOW-001</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:serviceTask id="BPMN-TASK-001" name="申請データ検証">
+      <bpmn:documentation>Purpose: Validate incoming request payload against business rules
+Input: requestPayload
+Output: isValid (boolean)</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-001</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-002</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="validate-request" retries="3" />
+        <zeebe:ioMapping>
+          <zeebe:input source="=requestPayload" target="request" />
+          <zeebe:output source="=validationResult" target="isValid" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="BPMN-GW-001" name="検証結果" default="BPMN-FLOW-003b">
+      <bpmn:documentation>Decision: Route based on validation result
+Default: BPMN-FLOW-003b (reject if validation fails)</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-002</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-003a</bpmn:outgoing>
+      <bpmn:outgoing>BPMN-FLOW-003b</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:userTask id="BPMN-TASK-002" name="承認レビュー">
+      <bpmn:documentation>Purpose: Human review and approval of validated request
+Input: request data, validation result
+Output: approval decision
+Timeout: 4H boundary timer triggers escalation</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-003a</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-004</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+        <zeebe:formDefinition formId="approval-review-form" />
+        <zeebe:assignmentDefinition assignee="=approverEmail" />
+        <zeebe:taskSchedule dueDate="=now() + duration(&quot;PT4H&quot;)" />
+        <zeebe:priorityDefinition priority="50" />
+      </bpmn:extensionElements>
+    </bpmn:userTask>
+
+    <bpmn:boundaryEvent id="BPMN-EVT-010" name="承認タイムアウト(4H)" attachedToRef="BPMN-TASK-002" cancelActivity="true">
+      <bpmn:outgoing>BPMN-FLOW-010</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>PT4H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <bpmn:serviceTask id="BPMN-TASK-003" name="外部API連携">
+      <bpmn:documentation>Purpose: Call external API with approved data
+Input: approvedData
+Output: apiResult (response body)</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-004</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-005</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="external-api-call" retries="3" />
+        <zeebe:ioMapping>
+          <zeebe:input source="=approvedData" target="payload" />
+          <zeebe:output source="=response.body" target="apiResult" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:businessRuleTask id="BPMN-TASK-004" name="ルーティング判定(DMN)">
+      <bpmn:documentation>Purpose: Determine routing via DMN decision table
+Input: API result, request metadata
+Output: routingResult</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-005</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-006</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:calledDecision decisionId="routing-decision" resultVariable="routingResult" />
+      </bpmn:extensionElements>
+    </bpmn:businessRuleTask>
+
+    <bpmn:callActivity id="BPMN-TASK-005" name="通知サブプロセス">
+      <bpmn:documentation>Purpose: Invoke reusable notification subprocess
+Input: routing result, request context
+Output: notification confirmation</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-006</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-007</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:calledElement processId="notification-process" propagateAllChildVariables="false" />
+      </bpmn:extensionElements>
+    </bpmn:callActivity>
+
+    <bpmn:endEvent id="BPMN-EVT-002" name="完了">
+      <bpmn:incoming>BPMN-FLOW-007</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="BPMN-EVT-003" name="検証不合格">
+      <bpmn:incoming>BPMN-FLOW-003b</bpmn:incoming>
+      <bpmn:errorEventDefinition errorRef="Error_ValidationRejected" />
+    </bpmn:endEvent>
+
+    <bpmn:serviceTask id="BPMN-TASK-006" name="エスカレーション通知">
+      <bpmn:documentation>Purpose: Send escalation notification when review times out
+Input: request data, timeout context
+Output: escalation confirmation</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-010</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-011</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="send-escalation" retries="1" />
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="BPMN-EVT-004" name="タイムアウト終了">
+      <bpmn:incoming>BPMN-FLOW-011</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="BPMN-FLOW-001" sourceRef="BPMN-EVT-001" targetRef="BPMN-TASK-001" />
+    <bpmn:sequenceFlow id="BPMN-FLOW-002" sourceRef="BPMN-TASK-001" targetRef="BPMN-GW-001" />
+    <bpmn:sequenceFlow id="BPMN-FLOW-003a" name="合格" sourceRef="BPMN-GW-001" targetRef="BPMN-TASK-002">
+      <bpmn:documentation>Validation passed, proceed to human approval review</bpmn:documentation>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=isValid = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="BPMN-FLOW-003b" sourceRef="BPMN-GW-001" targetRef="BPMN-EVT-003" />
+    <bpmn:sequenceFlow id="BPMN-FLOW-004" sourceRef="BPMN-TASK-002" targetRef="BPMN-TASK-003" />
+    <bpmn:sequenceFlow id="BPMN-FLOW-005" sourceRef="BPMN-TASK-003" targetRef="BPMN-TASK-004" />
+    <bpmn:sequenceFlow id="BPMN-FLOW-006" sourceRef="BPMN-TASK-004" targetRef="BPMN-TASK-005" />
+    <bpmn:sequenceFlow id="BPMN-FLOW-007" sourceRef="BPMN-TASK-005" targetRef="BPMN-EVT-002" />
+    <bpmn:sequenceFlow id="BPMN-FLOW-010" sourceRef="BPMN-EVT-010" targetRef="BPMN-TASK-006" />
+    <bpmn:sequenceFlow id="BPMN-FLOW-011" sourceRef="BPMN-TASK-006" targetRef="BPMN-EVT-004" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="BPMN-PROC-ADV">
+
+      <bpmndi:BPMNShape id="Shape_EVT_001" bpmnElement="BPMN-EVT-001">
+        <dc:Bounds x="160" y="200" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_TASK_001" bpmnElement="BPMN-TASK-001">
+        <dc:Bounds x="260" y="178" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_GW_001" bpmnElement="BPMN-GW-001" isMarkerVisible="true">
+        <dc:Bounds x="425" y="193" width="50" height="50" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_TASK_002" bpmnElement="BPMN-TASK-002">
+        <dc:Bounds x="540" y="178" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_EVT_010" bpmnElement="BPMN-EVT-010">
+        <dc:Bounds x="572" y="240" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_TASK_003" bpmnElement="BPMN-TASK-003">
+        <dc:Bounds x="700" y="178" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_TASK_004" bpmnElement="BPMN-TASK-004">
+        <dc:Bounds x="860" y="178" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_TASK_005" bpmnElement="BPMN-TASK-005">
+        <dc:Bounds x="1020" y="178" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_EVT_002" bpmnElement="BPMN-EVT-002">
+        <dc:Bounds x="1180" y="200" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_EVT_003" bpmnElement="BPMN-EVT-003">
+        <dc:Bounds x="432" y="320" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_TASK_006" bpmnElement="BPMN-TASK-006">
+        <dc:Bounds x="650" y="330" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_EVT_004" bpmnElement="BPMN-EVT-004">
+        <dc:Bounds x="810" y="352" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="Edge_FLOW_001" bpmnElement="BPMN-FLOW-001">
+        <di:waypoint x="196" y="218" />
+        <di:waypoint x="260" y="218" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_FLOW_002" bpmnElement="BPMN-FLOW-002">
+        <di:waypoint x="360" y="218" />
+        <di:waypoint x="425" y="218" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_FLOW_003a" bpmnElement="BPMN-FLOW-003a">
+        <di:waypoint x="475" y="218" />
+        <di:waypoint x="540" y="218" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_FLOW_003b" bpmnElement="BPMN-FLOW-003b">
+        <di:waypoint x="450" y="243" />
+        <di:waypoint x="450" y="320" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_FLOW_004" bpmnElement="BPMN-FLOW-004">
+        <di:waypoint x="640" y="218" />
+        <di:waypoint x="700" y="218" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_FLOW_005" bpmnElement="BPMN-FLOW-005">
+        <di:waypoint x="800" y="218" />
+        <di:waypoint x="860" y="218" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_FLOW_006" bpmnElement="BPMN-FLOW-006">
+        <di:waypoint x="960" y="218" />
+        <di:waypoint x="1020" y="218" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_FLOW_007" bpmnElement="BPMN-FLOW-007">
+        <di:waypoint x="1120" y="218" />
+        <di:waypoint x="1180" y="218" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_FLOW_010" bpmnElement="BPMN-FLOW-010">
+        <di:waypoint x="590" y="276" />
+        <di:waypoint x="590" y="370" />
+        <di:waypoint x="650" y="370" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_FLOW_011" bpmnElement="BPMN-FLOW-011">
+        <di:waypoint x="750" y="370" />
+        <di:waypoint x="810" y="370" />
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

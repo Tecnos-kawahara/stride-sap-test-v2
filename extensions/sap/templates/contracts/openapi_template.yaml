@@ -1,0 +1,31 @@
+# SAP Extension Pack v2 — openapi_template.yaml
+# 参照仕様: 05_テンプレート設計.md §B-6
+# SAP 外部連携 API の仕様（RFC/BAPI のラッパー API 等）
+
+version: "1.0.0"
+openapi: "3.0.3"
+info:
+  title: ""
+  version: ""
+  description: ""
+paths: {}
+components:
+  schemas: {}
+  securitySchemes:
+    sapBasicAuth:
+      type: http
+      scheme: basic
+    sapApiKey:
+      type: apiKey
+      in: header
+      name: X-SAP-API-KEY
+# SAP 固有拡張
+x-sap-integration:
+  rfc_function_module: ""             # 呼び出し先 RFC/BAPI
+  destination: ""                     # RFC 宛先
+  timeout: 30                         # タイムアウト（秒）
+  idoc_type: ""                       # IDoc タイプ（該当する場合）
+  error_mapping:
+    - sap_error: ""
+      http_status: 400
+      message: ""

@@ -1,0 +1,161 @@
+# Coverage Tiers Policy - Enterprise SDD Extension
+# Version: 1.0.0
+# Purpose: Define tiered coverage requirements based on feature criticality
+
+coverage_tiers:
+  meta:
+    version: "1.0.0"
+    effective_date: "2026-01-20"
+    description: |
+      階層化カバレッジポリシー。
+      Featureの重要度に応じてテストカバレッジ要件を段階化し、
+      開発速度と品質のバランスを最適化する。
+
+  tiers:
+    critical:
+      description: |
+        ビジネスクリティカルな機能。
+        収益に直結する顧客向けフロー、規制準拠機能、セキュリティ重要コンポーネント。
+      criteria:
+        - "顧客向け収益フロー"
+        - "規制準拠機能（SOX, GDPR等）"
+        - "セキュリティ重要コンポーネント"
+        - "基幹システム連携（ERP, SCM）"
+      coverage_requirements:
+        acceptance_coverage:
+          required: true
+          target_pct: 100
+        contract_coverage:
+          required: true
+          target_pct: 100
+        code_coverage:
+          lib:
+            line_pct: 85
+            branch_pct: 75
+          cmp:
+            line_pct: 70
+            branch_pct: 60
+        e2e:
+          required: true
+          critical_paths_only: false
+        integration:
+          required: true
+      approval_requirements:
+        required_approvers:
+          - "ARCH_BOARD"
+        review_required: true
+        security_review_required: true
+      quality_gates:
+        - "全ACにテストが紐付いていること"
+        - "全契約にContract Testがあること"
+        - "E2Eテストがクリティカルパスを網羅していること"
+        - "セキュリティレビューが完了していること"
+
+    standard:
+      description: |
+        標準的なビジネス機能。
+        通常の業務オペレーション、複数ユーザーが利用する内部ツール。
+      criteria:
+        - "標準的な業務オペレーション"
+        - "複数ユーザー利用の内部ツール"
+        - "非クリティカルな顧客向け機能"
+      coverage_requirements:
+        acceptance_coverage:
+          required: true
+          target_pct: 100
+        contract_coverage:
+          required: true
+          target_pct: 80
+        code_coverage:
+          lib:
+            line_pct: 70
+            branch_pct: 60
+          cmp:
+            line_pct: 60
+            branch_pct: 50
+        e2e:
+          required: false
+          critical_paths_only: true
+        integration:
+          required: true
+      approval_requirements:
+        required_approvers:
+          - "PM"
+          - "TECH_LEAD"
+        review_required: true
+        security_review_required: false
+      quality_gates:
+        - "全ACにテストが紐付いていること"
+        - "主要契約にContract Testがあること"
+        - "Integration Testが定義されていること"
+
+    experimental:
+      description: |
+        実験的・低影響の機能。
+        PoC、スパイク、内部実験、低ユーザー影響機能。
+      criteria:
+        - "Proof of Concept"
+        - "技術スパイク"
+        - "内部実験"
+        - "低ユーザー影響機能"
+      coverage_requirements:
+        acceptance_coverage:
+          required: true
+          target_pct: 80
+        contract_coverage:
+          required: false
+          target_pct: 60
+        code_coverage:
+          lib:
+            line_pct: 50
+            branch_pct: 40
+          cmp:
+            line_pct: 40
+            branch_pct: 30
+        e2e:
+          required: false
+          critical_paths_only: true
+        integration:
+          required: false
+      approval_requirements:
+        required_approvers:
+          - "TECH_LEAD"
+        review_required: false
+        security_review_required: false
+      quality_gates:
+        - "主要ACにテストが紐付いていること"
+        - "基本的な単体テストがあること"
+
+  # Tier判定ルール
+  tier_selection_rules:
+    - rule: "revenue_impacting == true"
+      result: "critical"
+      rationale: "収益に影響する機能はcritical"
+    - rule: "regulatory_compliance == true"
+      result: "critical"
+      rationale: "規制準拠機能はcritical"
+    - rule: "security_sensitive == true"
+      result: "critical"
+      rationale: "セキュリティ関連はcritical"
+    - rule: "erp_integration == true"
+      result: "critical"
+      rationale: "ERP連携はcritical"
+    - rule: "user_count > 100"
+      result: "standard"
+      rationale: "100人以上のユーザーがいる場合はstandard以上"
+    - rule: "poc == true OR spike == true"
+      result: "experimental"
+      rationale: "PoCやスパイクはexperimental"
+
+  # デフォルト設定
+  defaults:
+    unspecified_tier: "standard"
+    inherit_from_epic: true
+    allow_tier_override: false
+    override_requires_approval: "ARCH_BOARD"
+
+  # 監査・トレーサビリティ
+  audit:
+    tier_change_log_required: true
+    approval_record_required: true
+    retention_days: 365

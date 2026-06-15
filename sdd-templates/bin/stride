@@ -1,0 +1,2405 @@
+#!/usr/bin/env bash
+#
+# stride - SDD Template CLI Tool
+#
+# Usage:
+#   stride lint <feature_path>       Lint a feature directory
+#   stride init <feature_name>       Initialize a new feature with templates
+#   stride phase-status [feature]    Show phase gate status
+#   stride phase-check <file_path>   Check if file can be created
+#   stride auto-continue <feature>   Generate next-phase auto-continue sequence
+#   stride ddd-init <feature>        Scaffold DDD artifacts + ADR
+#   stride decisions <cmd>           Manage shared ADR decision index
+#   stride pr-check <project_root>   Run PR readiness check (7 checks + optional mutation)
+#   stride health <project_root>     Runtime sensors: dead code + coverage decay
+#   stride harness-report <root>     Harness coverage summary
+#   stride security <feature_path>   Run security audit (--daily or --audit)
+#   stride retro <feature_path>      Generate retrospective report
+#   stride output-rules              Show mandatory output rules
+#   stride help                      Show this help message
+#
+# Examples:
+#   stride lint specs/my_feature/
+#   stride init my_new_feature
+#   stride phase-status specs/my_feature/
+#
+
+set -e
+
+# Find the template directory (relative to this script)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TEMPLATE_DIR="$(dirname "$SCRIPT_DIR")"
+TOOLS_DIR="$TEMPLATE_DIR/tools"
+
+# Read version from VERSION file (single source of truth)
+VERSION_FILE="$TEMPLATE_DIR/VERSION"
+if [ -f "$VERSION_FILE" ]; then
+    TEMPLATE_VERSION=$(cat "$VERSION_FILE" | tr -d '\n')
+else
+    TEMPLATE_VERSION="unknown"
+fi
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Resolve Python interpreter (same strategy as tools/stride-lint wrapper)
+_resolve_python() {
+    local VENV_PY="$TEMPLATE_DIR/.venv/bin/python"
+    if [[ -x "$VENV_PY" ]]; then
+        echo "$VENV_PY"
+    else
+        echo "python3"
+    fi
+}
+
+check_enterprise_enabled() {
+    ENTERPRISE_CONFIG="$TEMPLATE_DIR/config/enterprise.yaml"
+    if [ ! -f "$ENTERPRISE_CONFIG" ]; then
+        echo -e "${RED}Error: Enterprise mode is not configured.${NC}"
+        echo "Create sdd-templates/config/enterprise.yaml with 'enterprise.enabled: true'"
+        return 1
+    fi
+    local PY
+    PY=$(_resolve_python)
+    local ENABLED
+    ENABLED=$("$PY" -c "
+import yaml, sys
+try:
+    data = yaml.safe_load(open('$ENTERPRISE_CONFIG'))
+    print('true' if data and data.get('enterprise', {}).get('enabled') is True else 'false')
+except Exception:
+    print('false')
+" 2>/dev/null) || ENABLED="false"
+
+    if [ "$ENABLED" = "true" ]; then
+        return 0
+    else
+        echo -e "${RED}Error: Enterprise mode is not enabled.${NC}"
+        echo "Set 'enterprise.enabled: true' in sdd-templates/config/enterprise.yaml"
+        return 1
+    fi
+}
+
+show_help() {
+    cat << EOF
+stride - SDD Template CLI Tool (v${TEMPLATE_VERSION})
+
+Usage:
+  stride <command> [options]
+
+Commands:
+  intake <feature_name>     Start a new feature with simplified intake form (RECOMMENDED)
+    Creates specs/<feature_name>/ with basic_design_intake.md
+    Use this as the FIRST STEP before full template generation
+
+  init <feature_name>       Initialize a new feature with full templates
+    Creates specs/<feature_name>/ with all template files
+    --lite                  Use Lite Mode (3-stage approval: Gate A/B/C)
+    --detect                Detect existing project stack and auto-fill templates
+    --scale <level>         Monorepo scale level: starter (default), standard, enterprise (v4.2)
+    --profile <name>        Reporting granularity + completeness thresholds (v5.4)
+                            enterprise-erp (default) | saas-integration | prototype
+                            Only switches task completion report verbosity + completeness
+                            thresholds. BPMN / Evidence / SEC-006 / Ops Pack / Coverage Tier
+                            remain unchanged. Details: shared/policies/profile_policy.yaml
+
+  lint <feature_path>       Lint a feature directory
+    -o, --format <fmt>      Output format: text (default), json, ndjson
+    --plain                 TSV output (1 line per finding, grep/awk/CI)
+    --no-color              Disable colored output
+    --coverage-report       Show coverage report
+    --warn-only             Exit 0 even with errors
+    --verbose               Verbose output (incompatible with -o/--plain)
+    --all                   Lint all features
+    --lite-mode             Use Lite Mode (3-stage approval)
+
+  phase-status [feature]    Show phase gate status for feature(s)
+
+  phase-check <file_path>   Check if a file can be created based on approvals
+
+  hooks                     Setup Phase Gate hooks for AI tool enforcement
+    --tool <name>           Target tool: claude (default), cursor, copilot, manual
+    --force                 Overwrite existing hook configuration (claude only)
+
+  auto-continue <feature>   Show next executable sequence and stop at HITL gate
+    Generates phase-specific checklist based on APPROVAL.md
+    --json                  Output machine-readable plan
+
+  evaluate <feature_path>   Multi-model LLM evaluation (semantic gaps, ERP blind spots)
+    --phase <phase>         design (default), specify, tasking
+    --format text|json      Output format
+    --allow-provider-degraded  Treat API errors as WARN (exit 0)
+    --force                 Run even if coverage_tier=starter (normally skipped)
+
+  ddd-init <feature>        Scaffold optional DDD artifacts for validate-mode work
+    Creates implementation-details/domain_model.md and technical_design.md
+    Creates initial ADR file under shared/decisions/ and refreshes decision index
+
+  decisions <command>       Manage Decision Index (ADR)
+    init                    Create shared/decisions/decision-index.md if missing
+    refresh                 Rebuild decision-index.md from ADR files
+
+  pr-check <project_root>   Run PR readiness check (7 checks + optional mutation) (v4.3/v5.1)
+    --json                  Output machine-readable JSON
+    --summary-line          Output single project-level 1-line summary (v5.4)
+                            Scope: 7 base checks (+ mutation when --mutation is set).
+                            task-ID / AC / NFR / scenarios are out of scope
+                            (those belong to bootstrap §5 composition, not pr-check).
+    --verbose, -v           Show additional details
+    --strict                Treat TODO/FIXME as FAIL
+    --coverage-threshold N  Override coverage threshold (default: auto from coverage_tier)
+    --mutation              Run optional mutation testing (requires cosmic-ray)
+
+  health <project_root>     Runtime sensors: dead code + coverage decay (v5.1)
+    --runtime               Run runtime sensors
+    --json                  Machine-readable output
+
+  harness-report <project_root>  Harness coverage summary: controls/gaps (v5.1)
+    --json                  Machine-readable output
+
+  security <feature_path>   Run security audit
+    --daily                 High-confidence security gate (confidence >= 8/10)
+    --audit                 Comprehensive security audit (confidence >= 2/10)
+    --json                  Machine-readable output
+
+  retro <feature_path>      Generate retrospective report
+    --json                  Machine-readable output
+    --solution-eval         BABOK KA8 post-deployment evaluation (v6.0 Phase C)
+    --kpi-source <path>     Path to actual KPI YAML (used with --solution-eval)
+    --adoption-survey <path>  Path to adoption survey YAML (used with --solution-eval)
+
+  upstream-bridge <feature> Bridge Phase 0/0.3/0.5 → Phase 1 (v6.0 Phase C)
+    --target phase1         Target section (default: phase1)
+    --apply                 Write ONLY to basic_design.md links (default: dry-run)
+                            ⚠ Does NOT modify process.bpmn (human responsibility)
+                            ⚠ Does NOT create implementation-details/* (Phase 2 territory)
+                            ⚠ Requires Gate 1/2 NOT yet approved (Phase 1 immutability)
+                            BPMN task candidates printed to stdout in both modes
+
+  symphony <command>        Symphony orchestration (GitHub Issues → Agent → PR)
+    run [--once] [--dry-run]  Start orchestration (polling or single-cycle)
+    dispatch --issue <N>      Manually dispatch a specific issue
+    status                    Show running/blocked/completed sessions
+    validate                  Validate SYMPHONY.md configuration
+    janitor [--dry-run]       Run a one-shot Janitor scan (v5.1)
+
+  project <command>         GitHub Project V2 binding (v5.3.1)
+    create <title>             Create (or find) a Project V2 → memory/github_project.yaml
+    list                       List Projects for owner
+    use <number>               Bind an existing Project by number
+    status                     Show current binding
+    Requires gh auth login (unauthenticated → graceful skip)
+
+  linear <command>          Linear Issue sync for Run artefacts (v5.3)
+    init <feature> <wi>       Create/find Linear Issue for a Work Item
+    findings <run_dir>        Post .planning/findings.md as Linear comment
+    evidence <run_dir>        Post walkthrough.md + test_results.md as comment
+    learn <run_dir>           Post .planning/lessons.md as Linear comment
+    sync <run_dir>            Idempotent: findings + evidence + learn
+    close <feature> <wi>      Transition Linear Issue to Done
+    status <feature> [<wi>]   Show WI → Linear Issue mapping
+    project create <name>     Create Linear Project → memory/linear.yaml (v5.3.1)
+    project list|use|status   Manage Linear Project binding (v5.3.1)
+    Requires LINEAR_API_KEY env (unset → graceful skip, exit 0)
+
+  new-project <name>        Initialize a new project from this template
+    --org <name>            GitHub organization
+    --scale <level>         Monorepo scale: starter (default), standard, enterprise
+    --epic-prefix <pfx>     Epic prefix (auto-derived if omitted)
+    --first-feature <name>  Create initial feature with stride init
+    --keep-samples          Keep sample specs/epics/archive
+    --skip-git              Don't make initial commit
+    --dry-run               Preview changes without executing
+
+  output-rules              Print mandatory output formatting rules
+
+  help                      Show this help message
+
+  # Enterprise Hierarchy (requires config/enterprise.yaml enabled: true)
+  epic init <epic_id>          Initialize an Epic (epics/<epic_id>/)
+  epic validate <epic_id>      Validate an Epic
+  epic gates <epic_id>         Show Epic gate status
+  epic features <epic_id>      List features in an Epic
+  epic progress <epic_id>      Show progress summary (add --format markdown --output <path> for file)
+  epic list                    List all Epics
+
+  init <feature> --epic <id>   Create Feature under an Epic (auto-sets epic_ref & team_id)
+    --team <TEAM_ID>           Override team_id (default: auto-detect from epic_design.md)
+  lint <path> --enterprise     Also run enterprise validation (epic_ref, coverage_tier)
+  lint --all --enterprise      Lint all Features + all Epics
+
+Recommended Workflow (New Project):
+  1. GitHub: "Use this template" to create new repo
+  2. git clone <new-repo> && cd <new-repo>
+  3. stride new-project <name> --first-feature <feat>
+  4. Edit specs/<feat>/basic_design.md
+  5. stride lint specs/<feat>/ --warn-only
+
+Recommended Workflow (Existing Project):
+  1. stride intake my_feature     # Start with simple questionnaire
+  2. Fill in basic_design_intake.md (10-15 min)
+  3. Ask AI: "Generate basic_design.md from this intake"
+  4. stride lint specs/my_feature/ --warn-only
+
+Examples:
+  stride new-project my_erp --org my-org --scale enterprise
+  stride new-project my_app --first-feature user_mgmt --dry-run
+  stride intake my_feature        # Simplified first step
+  stride init my_feature          # Full templates (advanced)
+  stride init my_feature --detect # Auto-detect existing stack (v3.3)
+  stride init my_feature --scale standard  # Monorepo scale: standard (v4.2)
+  stride init my_feature --scale enterprise # Monorepo scale: enterprise (v4.2)
+  stride init my_feature --profile saas-integration  # CBP-style reporting (v5.4)
+  stride init my_feature --profile prototype          # 1-line reporting (v5.4)
+  stride auto-continue specs/my_feature/
+  stride ddd-init my_feature
+  stride decisions refresh
+  stride pr-check .                   # PR readiness check (v4.3)
+  stride lint specs/my_feature/
+  stride phase-status specs/my_feature/
+EOF
+}
+
+# Internal function to setup hooks without prompts (used by cmd_init)
+# Uses canonical hook config from sdd-templates/hooks/settings.json
+_setup_hooks_internal() {
+    # Find project root (walk up to find .git or use current directory)
+    PROJECT_ROOT="$(pwd)"
+
+    # Create .claude directory if not exists
+    CLAUDE_DIR="$PROJECT_ROOT/.claude"
+    mkdir -p "$CLAUDE_DIR"
+
+    SETTINGS_FILE="$CLAUDE_DIR/settings.json"
+    CANONICAL_HOOKS="$TEMPLATE_DIR/hooks/settings.json"
+
+    # Check if canonical hook config exists
+    if [ ! -f "$CANONICAL_HOOKS" ]; then
+        echo -e "    ${RED}Error: Canonical hook config not found at $CANONICAL_HOOKS${NC}"
+        return 1
+    fi
+
+    if [ ! -f "$SETTINGS_FILE" ]; then
+        # No existing settings - copy canonical config
+        cp "$CANONICAL_HOOKS" "$SETTINGS_FILE"
+        echo -e "    ${GREEN}Created: $SETTINGS_FILE${NC}"
+        return 0
+    else
+        # Check and merge using Python (unified logic for all cases)
+        MERGE_RESULT=$(python3 - "$SETTINGS_FILE" "$CANONICAL_HOOKS" << 'PYEOF'
+import json
+import sys
+
+settings_path = sys.argv[1]
+hooks_path = sys.argv[2]
+
+def has_phase_gate_hook(pre_tool_use_list):
+    """Check if phase_gate_hook.py is already configured in PreToolUse"""
+    if not isinstance(pre_tool_use_list, list):
+        return False
+    for entry in pre_tool_use_list:
+        if not isinstance(entry, dict):
+            continue
+        hooks = entry.get('hooks', [])
+        if not isinstance(hooks, list):
+            continue
+        for hook in hooks:
+            if not isinstance(hook, dict):
+                continue
+            command = hook.get('command', '')
+            if isinstance(command, str) and 'phase_gate_hook.py' in command:
+                return True
+    return False
+
+try:
+    # Load existing settings
+    with open(settings_path, 'r') as f:
+        content = f.read().strip()
+        if not content:
+            print("EMPTY")
+            sys.exit(0)
+        settings = json.loads(content)
+except json.JSONDecodeError as e:
+    print(f"INVALID:{e}")
+    sys.exit(0)
+
+# Validate settings is a dict
+if not isinstance(settings, dict):
+    print(f"NOT_DICT:{type(settings).__name__}")
+    sys.exit(0)
+
+try:
+    # Load canonical hook config
+    with open(hooks_path, 'r') as f:
+        hook_config = json.load(f)
+except json.JSONDecodeError:
+    print("CANONICAL_ERROR")
+    sys.exit(1)
+
+# Ensure hooks structure exists and is correct type
+if 'hooks' not in settings:
+    settings['hooks'] = {}
+elif not isinstance(settings['hooks'], dict):
+    print(f"HOOKS_NOT_DICT:{type(settings['hooks']).__name__}")
+    sys.exit(0)
+
+if 'PreToolUse' not in settings['hooks']:
+    settings['hooks']['PreToolUse'] = []
+elif not isinstance(settings['hooks']['PreToolUse'], list):
+    print(f"PRETOOLUSE_NOT_LIST:{type(settings['hooks']['PreToolUse']).__name__}")
+    sys.exit(0)
+
+# Check if phase_gate_hook is already properly configured
+if has_phase_gate_hook(settings['hooks']['PreToolUse']):
+    print("ALREADY_CONFIGURED")
+    sys.exit(0)
+
+# Get the Phase Gate hook entry from canonical config
+try:
+    phase_gate_hook = hook_config['hooks']['PreToolUse'][0]
+except (KeyError, IndexError, TypeError) as e:
+    print(f"CANONICAL_STRUCTURE_ERROR:{e}")
+    sys.exit(1)
+
+# Add Phase Gate hook (duplicate check already done above)
+settings['hooks']['PreToolUse'].append(phase_gate_hook)
+
+# Write back
+with open(settings_path, 'w') as f:
+    json.dump(settings, f, indent=2)
+    f.write('\n')
+
+print("OK")
+PYEOF
+        ) || true
+        # Note: || true prevents set -e from exiting on Python sys.exit(1)
+        # The actual result is captured in MERGE_RESULT for case handling
+        case "$MERGE_RESULT" in
+            OK)
+                echo -e "    ${GREEN}Phase Gate hook added to existing settings${NC}"
+                return 0
+                ;;
+            ALREADY_CONFIGURED)
+                echo -e "    ${GREEN}Phase Gate hooks already configured${NC}"
+                return 0
+                ;;
+            EMPTY)
+                # Empty file - overwrite with canonical config
+                cp "$CANONICAL_HOOKS" "$SETTINGS_FILE"
+                echo -e "    ${GREEN}Replaced empty settings with Phase Gate hooks${NC}"
+                return 0
+                ;;
+            INVALID:*)
+                # Invalid JSON - warn and skip
+                echo -e "    ${YELLOW}Warning: .claude/settings.json contains invalid JSON${NC}"
+                echo -e "    ${YELLOW}  Error: ${MERGE_RESULT#INVALID:}${NC}"
+                echo -e "    ${YELLOW}  Phase Gate hooks NOT configured.${NC}"
+                echo -e "    ${YELLOW}  Fix the JSON manually, then run: stride hooks --force${NC}"
+                return 2
+                ;;
+            NOT_DICT:*)
+                # Valid JSON but not an object
+                echo -e "    ${YELLOW}Warning: .claude/settings.json is not a JSON object (found ${MERGE_RESULT#NOT_DICT:})${NC}"
+                echo -e "    ${YELLOW}  Phase Gate hooks NOT configured.${NC}"
+                echo -e "    ${YELLOW}  Fix the JSON manually, then run: stride hooks --force${NC}"
+                return 2
+                ;;
+            HOOKS_NOT_DICT:*|PRETOOLUSE_NOT_LIST:*)
+                # Wrong structure
+                echo -e "    ${YELLOW}Warning: .claude/settings.json has unexpected structure${NC}"
+                echo -e "    ${YELLOW}  Phase Gate hooks NOT configured.${NC}"
+                echo -e "    ${YELLOW}  Fix the JSON manually, then run: stride hooks --force${NC}"
+                return 2
+                ;;
+            CANONICAL_ERROR)
+                echo -e "    ${RED}Error: Canonical hook config is invalid JSON${NC}"
+                return 1
+                ;;
+            CANONICAL_STRUCTURE_ERROR:*)
+                echo -e "    ${RED}Error: Canonical hook config has invalid structure${NC}"
+                echo -e "    ${RED}  ${MERGE_RESULT#CANONICAL_STRUCTURE_ERROR:}${NC}"
+                return 1
+                ;;
+            *)
+                echo -e "    ${RED}Unexpected error during merge${NC}"
+                return 1
+                ;;
+        esac
+    fi
+}
+
+cmd_lint() {
+    "$TOOLS_DIR/stride-lint" "$@"
+}
+
+# v5.5 Phase B: VALUE Upstream Extension subcommand
+cmd_upstream() {
+    local PY
+    PY=$(_resolve_python)
+    local SUBCMD="$1"
+    case "$SUBCMD" in
+        init)
+            shift
+            "$PY" "$TOOLS_DIR/upstream_scaffolder.py" "$@"
+            ;;
+        validate)
+            shift
+            local FEATURE="$1"
+            if [ -z "$FEATURE" ]; then
+                echo -e "${RED}Error: feature name required${NC}"
+                echo "Usage: stride upstream validate <feature> [--phase <phase>]"
+                exit 1
+            fi
+            shift  # consume FEATURE so "$@" only carries remaining flags (e.g. --phase)
+            "$PY" "$TOOLS_DIR/baccm_completeness_checker.py" "specs/$FEATURE/" "$@"
+            ;;
+        --help|-h|"")
+            cat <<EOF
+stride upstream — VALUE Upstream Extension (Phase B)
+
+Usage:
+  stride upstream init <feature> --phase <phase> [--profile <profile>]
+                                       Scaffold Phase 0/0.3/0.5 artifacts
+                                       phase: discovery | elicit | context_modelling
+                                       profile: enterprise-erp | saas-integration | prototype
+
+  stride upstream validate <feature>   Run BACCM 6-axis completeness check + structure lint
+                                       (alias: stride lint --upstream specs/<feature>/)
+
+See manual/43_upstream_cli_guide.md and manual/44_upstream_iteration_workflow.md
+EOF
+            ;;
+        *)
+            echo -e "${RED}Unknown subcommand: stride upstream $SUBCMD${NC}"
+            cmd_upstream --help
+            exit 1
+            ;;
+    esac
+}
+
+cmd_intake() {
+    if [ -z "$1" ]; then
+        echo -e "${RED}Error: Feature name required${NC}"
+        echo "Usage: stride intake <feature_name>"
+        exit 1
+    fi
+
+    FEATURE_NAME="$1"
+    FEATURE_DIR="specs/$FEATURE_NAME"
+
+    if [ -d "$FEATURE_DIR" ]; then
+        echo -e "${YELLOW}Warning: Directory $FEATURE_DIR already exists${NC}"
+        read -p "Add intake template? (y/N) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo "Aborted."
+            exit 1
+        fi
+    fi
+
+    echo -e "${GREEN}Creating intake for: $FEATURE_NAME${NC}"
+
+    # Create minimal directory structure
+    mkdir -p "$FEATURE_DIR"
+
+    # Copy intake template
+    TEMPLATES_DIR="$TEMPLATE_DIR/templates"
+    if [ -f "$TEMPLATES_DIR/basic_design_intake.md" ]; then
+        echo "  Copying basic_design_intake.md..."
+        cp "$TEMPLATES_DIR/basic_design_intake.md" "$FEATURE_DIR/basic_design_intake.md"
+    else
+        echo -e "${RED}Error: basic_design_intake.md template not found${NC}"
+        exit 1
+    fi
+
+    # Replace placeholders (feature name and template version)
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' "s/web_edi_order_import/$FEATURE_NAME/g" "$FEATURE_DIR/basic_design_intake.md"
+        sed -i '' "s/{{TEMPLATE_VERSION}}/$TEMPLATE_VERSION/g" "$FEATURE_DIR/basic_design_intake.md"
+    else
+        sed -i "s/web_edi_order_import/$FEATURE_NAME/g" "$FEATURE_DIR/basic_design_intake.md"
+        sed -i "s/{{TEMPLATE_VERSION}}/$TEMPLATE_VERSION/g" "$FEATURE_DIR/basic_design_intake.md"
+    fi
+
+    echo ""
+    echo -e "${GREEN}Intake template created!${NC}"
+    echo ""
+    echo "Next steps:"
+    echo "  1. Edit $FEATURE_DIR/basic_design_intake.md (10-15 min)"
+    echo "  2. Ask Claude Code: 'Generate basic_design.md from this intake'"
+    echo "  3. Or run: stride init $FEATURE_NAME (for full templates)"
+    echo ""
+    echo -e "${YELLOW}Tip: The intake form is simpler than the full template.${NC}"
+    echo "     Let AI generate the complete basic_design.md from your answers."
+    echo ""
+}
+
+cmd_init() {
+    # Parse arguments
+    LITE_MODE=false
+    DETECT_MODE=false
+    SCALE="starter"
+    PROFILE="enterprise-erp"  # v5.4: default preserves existing behavior
+    FEATURE_NAME=""
+    EPIC_REF=""
+    TEAM_ID=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --lite)
+                LITE_MODE=true
+                shift
+                ;;
+            --detect)
+                DETECT_MODE=true
+                shift
+                ;;
+            --scale)
+                if [ -z "$2" ] || [[ "$2" == -* ]]; then
+                    echo -e "${RED}Error: --scale requires a value: starter, standard, or enterprise${NC}"
+                    exit 1
+                fi
+                case "$2" in
+                    starter|standard|enterprise)
+                        SCALE="$2"
+                        ;;
+                    *)
+                        echo -e "${RED}Error: Invalid scale level: $2${NC}"
+                        echo "Valid values: starter, standard, enterprise"
+                        exit 1
+                        ;;
+                esac
+                shift 2
+                ;;
+            --profile)
+                if [ -z "$2" ] || [[ "$2" == -* ]]; then
+                    echo -e "${RED}Error: --profile requires a value: enterprise-erp, saas-integration, or prototype${NC}"
+                    exit 1
+                fi
+                case "$2" in
+                    enterprise-erp|saas-integration|prototype)
+                        PROFILE="$2"
+                        ;;
+                    *)
+                        echo -e "${RED}Error: Invalid profile: $2${NC}"
+                        echo "Valid values: enterprise-erp (default), saas-integration, prototype"
+                        echo "Details: shared/policies/profile_policy.yaml"
+                        exit 1
+                        ;;
+                esac
+                shift 2
+                ;;
+            --epic)
+                if [ -z "$2" ] || [[ "$2" == -* ]]; then
+                    echo -e "${RED}Error: --epic requires an Epic ID (e.g., EPIC-ORDER)${NC}"
+                    exit 1
+                fi
+                EPIC_REF="$2"
+                shift 2
+                ;;
+            --team)
+                if [ -z "$2" ] || [[ "$2" == -* ]]; then
+                    echo -e "${RED}Error: --team requires a Team ID (e.g., TEAM-A)${NC}"
+                    exit 1
+                fi
+                TEAM_ID="$2"
+                shift 2
+                ;;
+            -*)
+                echo -e "${RED}Error: Unknown option: $1${NC}"
+                exit 1
+                ;;
+            *)
+                if [ -z "$FEATURE_NAME" ]; then
+                    FEATURE_NAME="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [ -z "$FEATURE_NAME" ]; then
+        echo -e "${RED}Error: Feature name required${NC}"
+        echo "Usage: stride init <feature_name> [--lite] [--detect] [--scale starter|standard|enterprise] [--profile enterprise-erp|saas-integration|prototype]"
+        exit 1
+    fi
+
+    # Enterprise: validate epic + resolve team_id BEFORE scaffolding (fail early)
+    if [ -n "$EPIC_REF" ]; then
+        check_enterprise_enabled || exit 1
+        # Validate epic exists
+        if [ ! -d "epics/$EPIC_REF" ]; then
+            echo -e "${RED}Error: Epic not found: epics/$EPIC_REF/${NC}"
+            echo "Create it first: stride epic init $EPIC_REF"
+            exit 1
+        fi
+
+        # Resolve and validate team_id BEFORE scaffolding
+        local PY
+        PY=$(_resolve_python)
+
+        local TEAM_DETECT_RESULT
+        TEAM_DETECT_RESULT=$("$PY" -c "
+import yaml, sys, re
+try:
+    with open('epics/$EPIC_REF/epic_design.md') as f:
+        match = re.search(r'\`\`\`yaml\s*(.*?)\`\`\`', f.read(), re.DOTALL)
+    if match:
+        data = yaml.safe_load(match.group(1))
+        teams = data.get('epic', {}).get('ownership', {}).get('teams', [])
+        team_ids = [t.get('team_id', '') for t in teams if t.get('team_id')]
+        if len(team_ids) == 1:
+            print('ONE:' + team_ids[0])
+        elif len(team_ids) > 1:
+            print('MULTI:' + ','.join(team_ids))
+        else:
+            print('NONE:')
+except Exception:
+    print('ERROR:')
+" 2>/dev/null) || TEAM_DETECT_RESULT="ERROR:"
+
+        if [ -z "$TEAM_ID" ]; then
+            case "$TEAM_DETECT_RESULT" in
+                ONE:*)
+                    TEAM_ID="${TEAM_DETECT_RESULT#ONE:}"
+                    echo "  Auto-detected team_id: $TEAM_ID (single team in $EPIC_REF)"
+                    ;;
+                MULTI:*)
+                    local AVAILABLE_TEAMS="${TEAM_DETECT_RESULT#MULTI:}"
+                    echo -e "${RED}Error: $EPIC_REF has multiple teams: $AVAILABLE_TEAMS${NC}"
+                    echo "Specify --team explicitly: stride init $FEATURE_NAME --epic $EPIC_REF --team <TEAM_ID>"
+                    exit 1
+                    ;;
+                *)
+                    echo -e "${YELLOW}Warning: Could not detect team_id from $EPIC_REF.${NC}"
+                    echo "Set team_id manually after creation, or use: stride init $FEATURE_NAME --epic $EPIC_REF --team TEAM-A"
+                    ;;
+            esac
+        else
+            case "$TEAM_DETECT_RESULT" in
+                ONE:*|MULTI:*)
+                    local ALL_TEAMS="${TEAM_DETECT_RESULT#*:}"
+                    if ! echo ",$ALL_TEAMS," | grep -Fq ",$TEAM_ID,"; then
+                        echo -e "${RED}Error: Team '$TEAM_ID' is not defined in $EPIC_REF.${NC}"
+                        echo "Available teams: $ALL_TEAMS"
+                        exit 1
+                    fi
+                    ;;
+                *)
+                    echo -e "${YELLOW}Warning: Could not read teams from $EPIC_REF to validate --team $TEAM_ID.${NC}"
+                    ;;
+            esac
+        fi
+    fi
+
+    FEATURE_DIR="specs/$FEATURE_NAME"
+
+    if [ -d "$FEATURE_DIR" ]; then
+        echo -e "${YELLOW}Warning: Directory $FEATURE_DIR already exists${NC}"
+        read -p "Overwrite templates? (y/N) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo "Aborted."
+            exit 1
+        fi
+    fi
+
+    if [ "$LITE_MODE" = true ]; then
+        echo -e "${GREEN}Creating feature: $FEATURE_NAME (Lite Mode, Scale: $SCALE)${NC}"
+    else
+        echo -e "${GREEN}Creating feature: $FEATURE_NAME (Scale: $SCALE)${NC}"
+    fi
+
+    # Create directories
+    mkdir -p "$FEATURE_DIR/contracts"
+    mkdir -p "$FEATURE_DIR/tests/e2e"
+    mkdir -p "$FEATURE_DIR/tests/integration"
+    mkdir -p "$FEATURE_DIR/implementation-details"
+
+    # Copy templates - track copied files for placeholder replacement
+    # This ensures only copied templates are modified, not user-created files
+    TEMPLATES_DIR="$TEMPLATE_DIR/templates"
+    COPIED_FILES=()
+
+    # Copy approval template (Lite or Full mode)
+    if [ "$LITE_MODE" = true ]; then
+        if [ -f "$TEMPLATES_DIR/APPROVAL_LITE.md" ]; then
+            echo "  Copying APPROVAL.md (Lite Mode)..."
+            cp "$TEMPLATES_DIR/APPROVAL_LITE.md" "$FEATURE_DIR/APPROVAL.md"
+            COPIED_FILES+=("$FEATURE_DIR/APPROVAL.md")
+        else
+            echo -e "${YELLOW}Warning: APPROVAL_LITE.md not found, using standard APPROVAL.md${NC}"
+            cp "$TEMPLATES_DIR/APPROVAL.md" "$FEATURE_DIR/APPROVAL.md"
+            COPIED_FILES+=("$FEATURE_DIR/APPROVAL.md")
+        fi
+    else
+        echo "  Copying APPROVAL.md..."
+        cp "$TEMPLATES_DIR/APPROVAL.md" "$FEATURE_DIR/APPROVAL.md"
+        COPIED_FILES+=("$FEATURE_DIR/APPROVAL.md")
+    fi
+
+    echo "  Copying basic_design.md..."
+    cp "$TEMPLATES_DIR/basic_design_template.md" "$FEATURE_DIR/basic_design.md"
+    COPIED_FILES+=("$FEATURE_DIR/basic_design.md")
+
+    echo "  Copying process.bpmn..."
+    cp "$TEMPLATES_DIR/process_bpmn_template.bpmn" "$FEATURE_DIR/process.bpmn"
+    COPIED_FILES+=("$FEATURE_DIR/process.bpmn")
+
+    echo "  Copying spec.md..."
+    cp "$TEMPLATES_DIR/spec_template.md" "$FEATURE_DIR/spec.md"
+    COPIED_FILES+=("$FEATURE_DIR/spec.md")
+
+    echo "  Copying plan.md..."
+    cp "$TEMPLATES_DIR/plan_template.md" "$FEATURE_DIR/plan.md"
+    COPIED_FILES+=("$FEATURE_DIR/plan.md")
+
+    echo "  Copying tasks.md..."
+    cp "$TEMPLATES_DIR/tasks_template.md" "$FEATURE_DIR/tasks.md"
+    COPIED_FILES+=("$FEATURE_DIR/tasks.md")
+
+    echo "  Copying evidence_pack.md..."
+    cp "$TEMPLATES_DIR/evidence_pack_template.md" "$FEATURE_DIR/implementation-details/evidence_pack.md"
+    COPIED_FILES+=("$FEATURE_DIR/implementation-details/evidence_pack.md")
+
+    # Copy ops template if exists
+    if [ -f "$TEMPLATES_DIR/ops_template.md" ]; then
+        echo "  Copying ops.md..."
+        cp "$TEMPLATES_DIR/ops_template.md" "$FEATURE_DIR/implementation-details/ops.md"
+        COPIED_FILES+=("$FEATURE_DIR/implementation-details/ops.md")
+    fi
+
+    # Copy openapi template if exists
+    if [ -f "$TEMPLATES_DIR/contracts/openapi_template.yaml" ]; then
+        echo "  Copying openapi.yaml..."
+        cp "$TEMPLATES_DIR/contracts/openapi_template.yaml" "$FEATURE_DIR/contracts/openapi.yaml"
+        COPIED_FILES+=("$FEATURE_DIR/contracts/openapi.yaml")
+    fi
+
+    # Copy e2e-triage template
+    if [ -f "$TEMPLATE_DIR/specs/sample_feature/implementation-details/e2e-triage.md" ]; then
+        echo "  Copying e2e-triage.md..."
+        cp "$TEMPLATE_DIR/specs/sample_feature/implementation-details/e2e-triage.md" "$FEATURE_DIR/implementation-details/e2e-triage.md"
+        COPIED_FILES+=("$FEATURE_DIR/implementation-details/e2e-triage.md")
+    fi
+
+    # Copy Playwright templates (TypeScript)
+    if [ -f "$TEMPLATES_DIR/tests/playwright.config.template.ts" ]; then
+        echo "  Copying playwright.config.ts..."
+        cp "$TEMPLATES_DIR/tests/playwright.config.template.ts" "$FEATURE_DIR/tests/e2e/playwright.config.ts"
+        COPIED_FILES+=("$FEATURE_DIR/tests/e2e/playwright.config.ts")
+    fi
+    if [ -f "$TEMPLATES_DIR/tests/e2e.spec.template.ts" ]; then
+        echo "  Copying e2e.spec.template.ts..."
+        cp "$TEMPLATES_DIR/tests/e2e.spec.template.ts" "$FEATURE_DIR/tests/e2e/e2e.spec.template.ts"
+        COPIED_FILES+=("$FEATURE_DIR/tests/e2e/e2e.spec.template.ts")
+    fi
+
+    # Copy Python E2E templates (pytest-playwright)
+    if [ -f "$TEMPLATES_DIR/tests/e2e.spec.template.py" ]; then
+        echo "  Copying e2e.spec.template.py..."
+        cp "$TEMPLATES_DIR/tests/e2e.spec.template.py" "$FEATURE_DIR/tests/e2e/e2e.spec.template.py"
+        COPIED_FILES+=("$FEATURE_DIR/tests/e2e/e2e.spec.template.py")
+    fi
+    if [ -f "$TEMPLATES_DIR/tests/conftest_e2e.template.py" ]; then
+        echo "  Copying conftest.py..."
+        cp "$TEMPLATES_DIR/tests/conftest_e2e.template.py" "$FEATURE_DIR/tests/e2e/conftest.py"
+        COPIED_FILES+=("$FEATURE_DIR/tests/e2e/conftest.py")
+    fi
+
+    # Copy scenarios.yaml template (v1.2.5 - 完了検証チェックリスト)
+    if [ -f "$TEMPLATES_DIR/tests/scenarios_template.yaml" ]; then
+        echo "  Copying scenarios.yaml..."
+        cp "$TEMPLATES_DIR/tests/scenarios_template.yaml" "$FEATURE_DIR/tests/scenarios.yaml"
+        COPIED_FILES+=("$FEATURE_DIR/tests/scenarios.yaml")
+    fi
+
+    # Create memory/artifact_registry.md if not exists
+    if [ ! -f "memory/artifact_registry.md" ]; then
+        if [ -f "$TEMPLATE_DIR/memory/artifact_registry.md" ]; then
+            echo "  Copying memory/artifact_registry.md..."
+            mkdir -p memory
+            cp "$TEMPLATE_DIR/memory/artifact_registry.md" "memory/artifact_registry.md"
+            # Note: artifact_registry.md is not in COPIED_FILES as it's outside FEATURE_DIR
+        fi
+    fi
+
+    # Replace placeholders
+    echo "  Replacing placeholders..."
+
+    # Determine sed -i syntax (macOS vs Linux)
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        SED_I="sed -i ''"
+    else
+        SED_I="sed -i"
+    fi
+
+    # Generate feature ID (use uppercase of feature name, remove hyphens and underscores)
+    # Constitution regex: ^FEAT-[A-Z0-9]{3,}$ (only A-Z and 0-9 allowed)
+    FEATURE_ID=$(echo "$FEATURE_NAME" | tr '[:lower:]' '[:upper:]' | tr -d '[:punct:]' | tr -d '_')
+
+    # Validate feature ID length (minimum 3 characters required by Constitution)
+    if [ ${#FEATURE_ID} -lt 3 ]; then
+        echo -e "${RED}Error: Feature ID '$FEATURE_ID' is too short (minimum 3 characters)${NC}"
+        echo "The Constitution requires: FEAT-[A-Z0-9]{3,}"
+        echo "Example: stride init my_feature  -> FEAT-MYFEATURE"
+        echo "         stride init abc         -> FEAT-ABC"
+        exit 1
+    fi
+
+    # Replace placeholders only in copied template files
+    # This prevents modification of user-created files when re-running init
+    for f in "${COPIED_FILES[@]}"; do
+        if [ -f "$f" ]; then
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i '' "s/FEAT-XXX/FEAT-$FEATURE_ID/g" "$f"
+                sed -i '' "s/FEATXXX/$FEATURE_ID/g" "$f"
+                sed -i '' "s/XXX_feature_name/$FEATURE_NAME/g" "$f"
+                sed -i '' "s/{{FEATURE_NAME}}/$FEATURE_NAME/g" "$f"
+                sed -i '' "s/{{FEATURE_ID}}/$FEATURE_ID/g" "$f"
+                sed -i '' "s/{{TEMPLATE_VERSION}}/$TEMPLATE_VERSION/g" "$f"
+                # BPMN-specific: replace process ID placeholder
+                sed -i '' "s/BPMN-PROC-XXX/BPMN-PROC-$FEATURE_ID/g" "$f"
+            else
+                sed -i "s/FEAT-XXX/FEAT-$FEATURE_ID/g" "$f"
+                sed -i "s/FEATXXX/$FEATURE_ID/g" "$f"
+                sed -i "s/XXX_feature_name/$FEATURE_NAME/g" "$f"
+                sed -i "s/{{FEATURE_NAME}}/$FEATURE_NAME/g" "$f"
+                sed -i "s/{{FEATURE_ID}}/$FEATURE_ID/g" "$f"
+                sed -i "s/{{TEMPLATE_VERSION}}/$TEMPLATE_VERSION/g" "$f"
+                # BPMN-specific: replace process ID placeholder
+                sed -i "s/BPMN-PROC-XXX/BPMN-PROC-$FEATURE_ID/g" "$f"
+            fi
+        fi
+    done
+
+    # Enterprise: set epic_ref and team_id in basic_design.md
+    if [ -n "$EPIC_REF" ]; then
+        echo "  Setting epic_ref to $EPIC_REF..."
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "s/epic_ref: null/epic_ref: \"$EPIC_REF\"/" "$FEATURE_DIR/basic_design.md"
+        else
+            sed -i "s/epic_ref: null/epic_ref: \"$EPIC_REF\"/" "$FEATURE_DIR/basic_design.md"
+        fi
+
+        if [ -n "$TEAM_ID" ]; then
+            echo "  Setting team_id to $TEAM_ID..."
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i '' "s/team_id: null/team_id: \"$TEAM_ID\"/" "$FEATURE_DIR/basic_design.md"
+            else
+                sed -i "s/team_id: null/team_id: \"$TEAM_ID\"/" "$FEATURE_DIR/basic_design.md"
+            fi
+        fi
+    fi
+
+    # v5.4: Profile (reporting + completeness threshold switch)
+    # Only overwrite basic_design.profile when a non-default profile is requested.
+    # Template default is "enterprise-erp"; re-running with the default is a no-op.
+    if [ "$PROFILE" != "enterprise-erp" ]; then
+        echo "  Setting profile to $PROFILE..."
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "s/profile: \"enterprise-erp\"/profile: \"$PROFILE\"/" "$FEATURE_DIR/basic_design.md"
+        else
+            sed -i "s/profile: \"enterprise-erp\"/profile: \"$PROFILE\"/" "$FEATURE_DIR/basic_design.md"
+        fi
+    fi
+
+    # v5.4: Synchronize state/state.yaml top-level profile (flat-schema cache of
+    # basic_design.profile, per shared/policies/profile_policy.yaml).
+    # - SSoT is basic_design.md's basic_design.profile; state.yaml is the cache.
+    # - Created now (not deferred to Phase 4) so that Phase 4 tools and stride-lint
+    #   see a profile-consistent pair from day one — avoiding PROFILE_MISMATCH drift
+    #   when state.yaml is later produced from a template that still reads default.
+    # - Idempotent: if state.yaml already exists (re-run, or user-authored), we only
+    #   update the top-level `profile:` line and warn. The user's work_items/run_index
+    #   are preserved.
+    mkdir -p "$FEATURE_DIR/state"
+    STATE_FILE="$FEATURE_DIR/state/state.yaml"
+    if [ ! -f "$STATE_FILE" ]; then
+        echo "  Creating state/state.yaml (profile: $PROFILE)..."
+        cat > "$STATE_FILE" <<EOF
+# state/state.yaml - Work Item state SSoT (created by stride init, v5.4)
+#
+# profile: synced cache of basic_design.md's basic_design.profile (flat schema).
+# SSoT is basic_design.md side; stride-lint emits PROFILE_MISMATCH on drift.
+# workspace.* nesting is forbidden — keep flat.
+
+feature: FEAT-$FEATURE_ID
+current_gate: Gate1
+autonomy_bias: balanced
+profile: $PROFILE
+
+work_items: []
+
+run_index: {}
+EOF
+    else
+        echo "  Updating state/state.yaml profile cache (profile: $PROFILE)..."
+        if grep -q "^profile:" "$STATE_FILE"; then
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i '' "s/^profile:.*/profile: $PROFILE/" "$STATE_FILE"
+            else
+                sed -i "s/^profile:.*/profile: $PROFILE/" "$STATE_FILE"
+            fi
+        else
+            # Pre-v5.4 state.yaml without profile field — append it.
+            printf '\n# v5.4: profile cache synced from basic_design.md\nprofile: %s\n' "$PROFILE" >> "$STATE_FILE"
+        fi
+    fi
+
+    # Brownfield detection (v3.3: --detect flag)
+    if [ "$DETECT_MODE" = true ]; then
+        echo ""
+        echo "  Running brownfield detection..."
+        DETECT_SCRIPT="$TOOLS_DIR/brownfield_detector.py"
+        if [ -f "$DETECT_SCRIPT" ]; then
+            DETECT_JSON=$(python3 "$DETECT_SCRIPT" "$(pwd)" --json 2>/dev/null) || true
+            if [ -n "$DETECT_JSON" ]; then
+                # Extract key fields
+                DETECTED_TYPE=$(echo "$DETECT_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('type','greenfield'))" 2>/dev/null) || DETECTED_TYPE="greenfield"
+                DETECTED_LANGS=$(echo "$DETECT_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(', '.join(d.get('languages',[])))" 2>/dev/null) || DETECTED_LANGS=""
+                DETECTED_STRUCTURE=$(echo "$DETECT_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('structure','monolith'))" 2>/dev/null) || DETECTED_STRUCTURE="monolith"
+
+                echo -e "    Type:      ${GREEN}${DETECTED_TYPE}${NC}"
+                echo -e "    Structure: ${DETECTED_STRUCTURE}"
+                echo -e "    Languages: ${DETECTED_LANGS:-none}"
+
+                # Save detection JSON as evidence artifact
+                DETECT_OUT="$FEATURE_DIR/implementation-details/brownfield_detection.json"
+                echo "$DETECT_JSON" | python3 -c "import sys,json; json.dump(json.load(sys.stdin),sys.stdout,indent=2); print()" > "$DETECT_OUT"
+                echo -e "    ${GREEN}Saved: $DETECT_OUT${NC}"
+
+                # Auto-fill delivery_model in basic_design.md
+                BD_FILE="$FEATURE_DIR/basic_design.md"
+                if [ -f "$BD_FILE" ]; then
+                    if [ "$DETECTED_TYPE" = "brownfield" ]; then
+                        DM_VALUE="requirement_driven"
+                    else
+                        DM_VALUE="fit_to_standard"
+                    fi
+                    if [[ "$OSTYPE" == "darwin"* ]]; then
+                        sed -i '' "s/delivery_model: \"TBD\"/delivery_model: \"$DM_VALUE\"/" "$BD_FILE"
+                        sed -i '' "s/delivery_model: \"fit_to_standard\"/delivery_model: \"$DM_VALUE\"/" "$BD_FILE"
+                    else
+                        sed -i "s/delivery_model: \"TBD\"/delivery_model: \"$DM_VALUE\"/" "$BD_FILE"
+                        sed -i "s/delivery_model: \"fit_to_standard\"/delivery_model: \"$DM_VALUE\"/" "$BD_FILE"
+                    fi
+                    echo -e "    ${GREEN}Set delivery_model: $DM_VALUE${NC}"
+                fi
+            else
+                echo -e "    ${YELLOW}Detection returned empty result${NC}"
+            fi
+        else
+            echo -e "    ${YELLOW}brownfield_detector.py not found — skipping detection${NC}"
+        fi
+    fi
+
+    # Extension Pack scaffold injection (v6.0: apply active extension scaffolds)
+    EXT_CONFIG=".stride-extensions.yaml"
+    if [ -f "$EXT_CONFIG" ]; then
+        echo ""
+        echo "  Checking Extension Packs..."
+        local PY
+        PY=$(_resolve_python)
+
+        # Parse active_extensions from .stride-extensions.yaml
+        ACTIVE_EXTS=$("$PY" -c "
+import yaml, sys
+try:
+    with open('$EXT_CONFIG', encoding='utf-8') as f:
+        data = yaml.safe_load(f)
+    exts = data.get('active_extensions', [])
+    print(' '.join(exts) if exts else '')
+except Exception as e:
+    print('', file=sys.stderr)
+    print('')
+" 2>/dev/null | tr -d '\r') || ACTIVE_EXTS=""
+
+        if [ -n "$ACTIVE_EXTS" ]; then
+            for EXT_NAME in $ACTIVE_EXTS; do
+                EXT_DIR="extensions/$EXT_NAME"
+                EXT_MANIFEST="$EXT_DIR/MANIFEST.yaml"
+
+                if [ ! -f "$EXT_MANIFEST" ]; then
+                    echo -e "    ${YELLOW}Warning: $EXT_MANIFEST not found — skipping $EXT_NAME${NC}"
+                    continue
+                fi
+
+                echo -e "    ${GREEN}Applying extension: $EXT_NAME${NC}"
+
+                # Parse scaffold.files from MANIFEST.yaml and copy to feature dir
+                SCAFFOLD_FILES=$("$PY" -c "
+import yaml, sys
+try:
+    with open('$EXT_MANIFEST', encoding='utf-8') as f:
+        manifest = yaml.safe_load(f)
+    scaffold = manifest.get('scaffold', {})
+    files = scaffold.get('files', [])
+    files_dir = scaffold.get('files_dir', 'scaffold')
+    for entry in files:
+        path = entry.get('path', '')
+        if path.startswith(files_dir + '/'):
+            # Strip scaffold/ prefix to get relative target path
+            rel = path[len(files_dir) + 1:]
+            print(path + '|' + rel)
+except Exception as e:
+    print('ERROR:' + str(e), file=sys.stderr)
+" 2>/dev/null | tr -d '\r') || SCAFFOLD_FILES=""
+
+                # Apply extension template substitutions
+                # Extensions can provide complete templates that replace standard ones.
+                # MANIFEST.yaml templates.substitutions maps target → source.
+                TEMPLATE_SUBS=$("$PY" -c "
+import yaml, sys
+try:
+    with open('$EXT_MANIFEST', encoding='utf-8') as f:
+        manifest = yaml.safe_load(f)
+    subs = manifest.get('templates', {}).get('substitutions', {})
+    for target_name, cfg in subs.items():
+        src = cfg.get('source', '')
+        print(target_name + '|' + src)
+except Exception as e:
+    print('ERROR:' + str(e), file=sys.stderr)
+" 2>/dev/null | tr -d '\r') || TEMPLATE_SUBS=""
+
+                if [ -n "$TEMPLATE_SUBS" ]; then
+                    while IFS='|' read -r SUB_TARGET SUB_SRC; do
+                        SUB_SRC_PATH="$EXT_DIR/$SUB_SRC"
+                        # Map target name to feature directory file
+                        case "$SUB_TARGET" in
+                            evidence_pack)
+                                SUB_DST_PATH="$FEATURE_DIR/implementation-details/evidence_pack.md"
+                                ;;
+                            scenarios)
+                                SUB_DST_PATH="$FEATURE_DIR/tests/scenarios.yaml"
+                                ;;
+                            *)
+                                SUB_DST_PATH="$FEATURE_DIR/${SUB_TARGET}.md"
+                                ;;
+                        esac
+                        if [ -f "$SUB_SRC_PATH" ] && [ -f "$SUB_DST_PATH" ]; then
+                            echo "      Template substitution: $SUB_TARGET ← $SUB_SRC"
+                            cp "$SUB_SRC_PATH" "$SUB_DST_PATH"
+                            COPIED_FILES+=("$SUB_DST_PATH")
+                        fi
+                    done <<< "$TEMPLATE_SUBS"
+                fi
+
+                if [ -n "$SCAFFOLD_FILES" ]; then
+                    EXT_SCAFFOLD_COUNT=0
+                    while IFS= read -r line; do
+                        SRC_REL="${line%%|*}"
+                        DST_REL="${line##*|}"
+                        SRC_PATH="$EXT_DIR/$SRC_REL"
+                        DST_PATH="$FEATURE_DIR/$DST_REL"
+
+                        if [ ! -f "$SRC_PATH" ]; then
+                            echo -e "      ${YELLOW}Warning: $SRC_PATH not found — skipping${NC}"
+                            continue
+                        fi
+
+                        # Handle state.yaml specially: merge extension fields into existing
+                        if [ "$DST_REL" = "state/state.yaml" ] && [ -f "$DST_PATH" ]; then
+                            echo "      Merging extension state into state.yaml..."
+                            "$PY" -c "
+import yaml
+with open('$DST_PATH', encoding='utf-8') as f:
+    state = yaml.safe_load(f) or {}
+with open('$SRC_PATH', encoding='utf-8') as f:
+    ext_state = yaml.safe_load(f) or {}
+# Merge extension fields (don't overwrite existing keys)
+for k, v in ext_state.items():
+    if k not in state:
+        state[k] = v
+with open('$DST_PATH', 'w', encoding='utf-8') as f:
+    yaml.dump(state, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+" 2>/dev/null && echo -e "      ${GREEN}Merged: $DST_REL${NC}" \
+                            || echo -e "      ${YELLOW}Warning: Could not merge $DST_REL${NC}"
+                            EXT_SCAFFOLD_COUNT=$((EXT_SCAFFOLD_COUNT + 1))
+                            continue
+                        fi
+
+                        # Create target directory and copy
+                        mkdir -p "$(dirname "$DST_PATH")"
+                        cp "$SRC_PATH" "$DST_PATH"
+                        COPIED_FILES+=("$DST_PATH")
+                        EXT_SCAFFOLD_COUNT=$((EXT_SCAFFOLD_COUNT + 1))
+                        echo "      Copying $DST_REL..."
+                    done <<< "$SCAFFOLD_FILES"
+                    echo -e "    ${GREEN}Extension $EXT_NAME: $EXT_SCAFFOLD_COUNT scaffold files applied${NC}"
+                fi
+            done
+        else
+            echo -e "    ${YELLOW}No active extensions found${NC}"
+        fi
+    fi
+
+    # Monorepo setup (v4.2: always enabled, scale-specific)
+    echo ""
+    echo "  Setting up Turborepo monorepo configuration (scale: $SCALE)..."
+    MONOREPO_CONFIG_DIR="$TEMPLATE_DIR/config/monorepo"
+
+    if [ ! -d "$MONOREPO_CONFIG_DIR" ]; then
+        echo -e "    ${RED}Error: Monorepo config templates not found at $MONOREPO_CONFIG_DIR${NC}"
+    else
+        MONOREPO_COPIED=0
+
+        # turbo.json → project root (scale-specific)
+        if [ ! -f "turbo.json" ]; then
+            TURBO_SRC="$MONOREPO_CONFIG_DIR/turbo.${SCALE}.json"
+            if [ -f "$TURBO_SRC" ]; then
+                cp "$TURBO_SRC" "turbo.json"
+                echo -e "    ${GREEN}Created: turbo.json (from turbo.${SCALE}.json)${NC}"
+                MONOREPO_COPIED=$((MONOREPO_COPIED + 1))
+            else
+                echo -e "    ${RED}Error: turbo.${SCALE}.json not found${NC}"
+            fi
+        else
+            echo -e "    ${YELLOW}Skipped (exists): turbo.json${NC}"
+        fi
+
+        # tsconfig.base.json → project root (all scales)
+        if [ ! -f "tsconfig.base.json" ]; then
+            cp "$MONOREPO_CONFIG_DIR/tsconfig.base.json" "tsconfig.base.json"
+            echo -e "    ${GREEN}Created: tsconfig.base.json${NC}"
+            MONOREPO_COPIED=$((MONOREPO_COPIED + 1))
+        else
+            echo -e "    ${YELLOW}Skipped (exists): tsconfig.base.json${NC}"
+        fi
+
+        # vitest.workspace.ts → project root (standard/enterprise only)
+        if [ "$SCALE" = "standard" ] || [ "$SCALE" = "enterprise" ]; then
+            if [ ! -f "vitest.workspace.ts" ]; then
+                cp "$MONOREPO_CONFIG_DIR/vitest.workspace.ts" "vitest.workspace.ts"
+                echo -e "    ${GREEN}Created: vitest.workspace.ts${NC}"
+                MONOREPO_COPIED=$((MONOREPO_COPIED + 1))
+            else
+                echo -e "    ${YELLOW}Skipped (exists): vitest.workspace.ts${NC}"
+            fi
+        fi
+
+        # CI/CD template → .github/workflows/ (scale-specific)
+        mkdir -p ".github/workflows"
+        CI_DEST=".github/workflows/ci.yml"
+        if [ ! -f "$CI_DEST" ]; then
+            CI_SRC="$MONOREPO_CONFIG_DIR/github-actions/ci-${SCALE}.yml"
+            if [ -f "$CI_SRC" ]; then
+                cp "$CI_SRC" "$CI_DEST"
+                echo -e "    ${GREEN}Created: $CI_DEST (from ci-${SCALE}.yml)${NC}"
+                MONOREPO_COPIED=$((MONOREPO_COPIED + 1))
+            else
+                echo -e "    ${RED}Error: ci-${SCALE}.yml not found${NC}"
+            fi
+        else
+            echo -e "    ${YELLOW}Skipped (exists): $CI_DEST${NC}"
+        fi
+
+        # Inject workspaces into package.json if it exists and has no workspaces
+        if [ -f "package.json" ]; then
+            HAS_WORKSPACES=$(python3 -c "
+import json, sys
+try:
+    with open('package.json') as f:
+        pkg = json.load(f)
+    print('yes' if 'workspaces' in pkg else 'no')
+except:
+    print('error')
+" 2>/dev/null) || HAS_WORKSPACES="error"
+
+            if [ "$HAS_WORKSPACES" = "no" ]; then
+                python3 -c "
+import json
+with open('package.json') as f:
+    pkg = json.load(f)
+pkg['workspaces'] = ['packages/*', 'libs/*', 'services/*', 'apps/*']
+# Add turbo scripts if not present
+scripts = pkg.get('scripts', {})
+if 'build' not in scripts:
+    scripts['build'] = 'turbo run build'
+if 'test' not in scripts:
+    scripts['test'] = 'turbo run test'
+if 'lint' not in scripts:
+    scripts['lint'] = 'turbo run lint'
+if 'sdd:lint' not in scripts:
+    scripts['sdd:lint'] = 'sdd-templates/bin/stride lint --all --warn-only'
+pkg['scripts'] = scripts
+with open('package.json', 'w') as f:
+    json.dump(pkg, f, indent=2)
+    f.write('\n')
+" 2>/dev/null && echo -e "    ${GREEN}Updated: package.json (added workspaces + turbo scripts)${NC}" \
+                || echo -e "    ${YELLOW}Warning: Could not update package.json${NC}"
+            elif [ "$HAS_WORKSPACES" = "yes" ]; then
+                echo -e "    ${YELLOW}Skipped: package.json already has workspaces${NC}"
+            fi
+        else
+            echo -e "    ${YELLOW}Note: No package.json found. See config/monorepo/package.json.snippet for reference.${NC}"
+        fi
+
+        echo -e "    ${GREEN}Monorepo setup complete ($MONOREPO_COPIED new files, scale: $SCALE)${NC}"
+    fi
+
+    # Auto-configure Phase Gate hooks (v1.2.5: auto-enable)
+    echo ""
+    echo "  Configuring Phase Gate hooks..."
+    HOOKS_STATUS=0
+    _setup_hooks_internal || HOOKS_STATUS=$?
+
+    echo ""
+    echo -e "${GREEN}Feature initialized successfully!${NC}"
+    echo ""
+    if [ "$LITE_MODE" = true ]; then
+        echo "Next steps (Lite Mode - 3 gates):"
+        echo "  1. Edit $FEATURE_DIR/basic_design.md"
+        echo "  2. Run: stride lint $FEATURE_DIR --warn-only --lite-mode"
+        echo "  3. Approve Gate A in $FEATURE_DIR/APPROVAL.md"
+    else
+        echo "Next steps:"
+        echo "  1. Edit $FEATURE_DIR/basic_design.md"
+        echo "  2. Run: stride lint $FEATURE_DIR --warn-only"
+        echo "  3. Approve Gate 1 in $FEATURE_DIR/APPROVAL.md"
+    fi
+    if [ "$DETECT_MODE" = true ] && [ -f "$FEATURE_DIR/implementation-details/brownfield_detection.json" ]; then
+        echo ""
+        echo -e "${YELLOW}Brownfield detection results saved to:${NC}"
+        echo "  $FEATURE_DIR/implementation-details/brownfield_detection.json"
+        echo "  Use these results to fill in systems[], tech_stack in basic_design.md"
+    fi
+    echo ""
+    echo -e "${YELLOW}Turborepo monorepo configuration (scale: $SCALE):${NC}"
+    echo "  - turbo.json, tsconfig.base.json at project root"
+    if [ "$SCALE" = "standard" ] || [ "$SCALE" = "enterprise" ]; then
+        echo "  - vitest.workspace.ts at project root"
+    fi
+    echo "  - CI template at .github/workflows/ci.yml"
+    echo "  - Package templates: sdd-templates/config/monorepo/package-templates/"
+    if [ "$SCALE" = "starter" ]; then
+        echo "  - Upgrade: stride init <feature> --scale standard"
+    fi
+    echo ""
+    # Only show "hooks active" message if hooks were successfully configured
+    if [ "$HOOKS_STATUS" -eq 0 ]; then
+        echo -e "${YELLOW}IMPORTANT: Phase Gate hooks are now active.${NC}"
+        if [ "$LITE_MODE" = true ]; then
+            echo "  - Phase 2 files (spec.md, plan.md) require Gate A approval"
+            echo "  - Phase 3 files (tasks.md, src/*) require Gate B approval"
+        else
+            echo "  - Phase 2 files (spec.md, plan.md) require Gate 1+2 approval"
+            echo "  - Phase 3 files (tasks.md) require Gate 3+4 approval"
+        fi
+        echo "  - This prevents creating files before proper approval"
+    else
+        echo -e "${YELLOW}WARNING: Phase Gate hooks are NOT active.${NC}"
+        echo "  - File creation will NOT be blocked by approval gates"
+        echo "  - Fix .claude/settings.json and run: stride hooks --force"
+    fi
+    echo ""
+}
+
+cmd_phase_status() {
+    python3 "$TOOLS_DIR/phase_gate.py" status "$@"
+}
+
+cmd_phase_check() {
+    if [ -z "$1" ]; then
+        echo -e "${RED}Error: File path required${NC}"
+        echo "Usage: stride phase-check <file_path>"
+        exit 1
+    fi
+    python3 "$TOOLS_DIR/phase_gate.py" check "$1"
+}
+
+cmd_hooks() {
+    FORCE=false
+    TOOL_NAME=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --force)
+                FORCE=true
+                shift
+                ;;
+            --tool)
+                TOOL_NAME="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+
+    # Default to claude if no --tool specified (backward compat)
+    if [ -z "$TOOL_NAME" ]; then
+        TOOL_NAME="claude"
+    fi
+
+    case "$TOOL_NAME" in
+        claude)
+            _hooks_claude "$FORCE"
+            ;;
+        cursor)
+            _hooks_cursor
+            ;;
+        copilot)
+            _hooks_copilot
+            ;;
+        manual)
+            _hooks_manual
+            ;;
+        *)
+            echo -e "${RED}Error: Unknown tool: $TOOL_NAME${NC}"
+            echo "Supported tools: claude, cursor, copilot, manual"
+            exit 1
+            ;;
+    esac
+}
+
+_hooks_claude() {
+    local FORCE="${1:-false}"
+
+    # Find project root
+    PROJECT_ROOT="$(pwd)"
+
+    # Check if templates directory exists
+    if [ ! -d "$PROJECT_ROOT/sdd-templates" ]; then
+        echo -e "${RED}Error: sdd-templates not found in current directory${NC}"
+        echo "Please run this command from the project root."
+        exit 1
+    fi
+
+    # Create .claude directory
+    CLAUDE_DIR="$PROJECT_ROOT/.claude"
+    mkdir -p "$CLAUDE_DIR"
+    echo -e "${GREEN}Created directory: $CLAUDE_DIR${NC}"
+
+    # Check if settings.json exists
+    SETTINGS_FILE="$CLAUDE_DIR/settings.json"
+    if [ -f "$SETTINGS_FILE" ] && [ "$FORCE" = false ]; then
+        # Check if hooks already configured
+        if grep -q "PreToolUse" "$SETTINGS_FILE" 2>/dev/null; then
+            echo -e "${YELLOW}Warning: PreToolUse hooks already configured.${NC}"
+            read -p "Overwrite existing hook configuration? [y/N]: " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                echo "Aborted."
+                exit 0
+            fi
+        fi
+    fi
+
+    # Copy hook configuration from template
+    HOOKS_DIR="$TEMPLATE_DIR/hooks"
+    if [ -f "$HOOKS_DIR/settings.json" ]; then
+        cp "$HOOKS_DIR/settings.json" "$SETTINGS_FILE"
+        echo -e "${GREEN}Created: $SETTINGS_FILE${NC}"
+    else
+        # Create hook configuration inline
+        cat > "$SETTINGS_FILE" << 'HOOKEOF'
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/sdd-templates/hooks/phase_gate_hook.py\""
+          }
+        ]
+      }
+    ]
+  }
+}
+HOOKEOF
+        echo -e "${GREEN}Created: $SETTINGS_FILE${NC}"
+    fi
+
+    echo ""
+    echo -e "${GREEN}Phase Gate hooks have been configured successfully!${NC}"
+    echo ""
+    echo "How it works:"
+    echo "  - When Claude tries to Write/Edit files in specs/ directory,"
+    echo "    the hook will check APPROVAL.md for gate approvals."
+    echo "  - Phase 1 files (basic_design.md, process.bpmn) are always allowed."
+    echo "  - Phase 2+ files require previous phase gates to be approved."
+    echo ""
+    echo "To check current phase status:"
+    echo "  stride phase-status specs/<feature>/"
+}
+
+_hooks_cursor() {
+    echo -e "${GREEN}Generating Cursor Phase Gate rules...${NC}"
+    RULES_DIR=".cursor/rules"
+    mkdir -p "$RULES_DIR"
+
+    cat > "$RULES_DIR/phase-gate.md" << 'CURSOREOF'
+# Phase Gate Rules for Cursor (Auto-generated by stride)
+
+## INVIOLABLE RULES
+
+1. **Phase Order**: Files must be created in phase order:
+   - Phase 1 (Design): basic_design.md, process.bpmn, APPROVAL.md
+   - Phase 2 (Specify): spec.md, plan.md, contracts/*, implementation-details/*
+   - Phase 3 (Tasking): tasks.md, tests/*
+   - Phase 4 (Execute): src/*
+
+2. **Before creating Phase 2+ files**: Run `stride phase-check <file_path>`
+   - If BLOCKED: Do NOT create the file. Inform the user that approval is needed.
+
+3. **APPROVAL.md**: NEVER edit this file. It is human-only.
+
+4. **After each phase**: Run `stride lint specs/<feature>/`
+   - If APPROVAL_PENDING: STOP. Ask user to approve in APPROVAL.md.
+
+5. **Post-Approval Changes**: Never modify approved files without re-approval.
+
+6. **SSoT Hierarchy**: Intent → Specs → Contracts → Code. Never change code without updating specs.
+
+7. **Pre-Approval Lint**: Always run `stride lint` BEFORE requesting approval.
+
+For full SDD rules, read `SDD_MANIFESTO.md` in the project root.
+CURSOREOF
+
+    echo -e "${GREEN}Created: $RULES_DIR/phase-gate.md${NC}"
+    echo ""
+    echo "Cursor will automatically read .cursor/rules/phase-gate.md"
+}
+
+_hooks_copilot() {
+    echo -e "${GREEN}Generating GitHub Copilot Phase Gate instructions...${NC}"
+    COPILOT_DIR=".github/copilot"
+    mkdir -p "$COPILOT_DIR"
+
+    cat > "$COPILOT_DIR/phase-gate.md" << 'COPILOTEOF'
+# Phase Gate Rules for GitHub Copilot (Auto-generated by stride)
+
+## INVIOLABLE RULES
+
+1. **Phase Order**: Files must be created in phase order:
+   - Phase 1 (Design): basic_design.md, process.bpmn, APPROVAL.md
+   - Phase 2 (Specify): spec.md, plan.md, contracts/*, implementation-details/*
+   - Phase 3 (Tasking): tasks.md, tests/*
+   - Phase 4 (Execute): src/*
+
+2. **Before creating Phase 2+ files**: Run `stride phase-check <file_path>`
+   - If BLOCKED: Do NOT create the file. Inform the user that approval is needed.
+
+3. **APPROVAL.md**: NEVER edit this file. It is human-only.
+
+4. **After each phase**: Run `stride lint specs/<feature>/`
+   - If APPROVAL_PENDING: STOP. Ask user to approve in APPROVAL.md.
+
+5. **Post-Approval Changes**: Never modify approved files without re-approval.
+
+6. **SSoT Hierarchy**: Intent → Specs → Contracts → Code. Never change code without updating specs.
+
+7. **Pre-Approval Lint**: Always run `stride lint` BEFORE requesting approval.
+
+For full SDD rules, read `SDD_MANIFESTO.md` in the project root.
+COPILOTEOF
+
+    echo -e "${GREEN}Created: $COPILOT_DIR/phase-gate.md${NC}"
+    echo ""
+    echo "GitHub Copilot will read .github/copilot/phase-gate.md as instructions."
+}
+
+_hooks_manual() {
+    echo -e "${GREEN}Generating manual Phase Gate checklist...${NC}"
+    DOCS_DIR="docs"
+    mkdir -p "$DOCS_DIR"
+
+    cat > "$DOCS_DIR/phase-gate-checklist.md" << 'MANUALEOF'
+# Phase Gate Checklist (Non-AI Environment)
+> Auto-generated by `stride hooks --tool manual`
+
+## Before Creating Files
+
+### Phase 1 (Design)
+- [ ] Create `specs/<feature>/` directory
+- [ ] Create basic_design.md from template
+- [ ] Create process.bpmn
+- [ ] Create APPROVAL.md
+- [ ] Run: `stride lint specs/<feature>/ --warn-only`
+- [ ] Get Gate 1, 2 approval in APPROVAL.md
+
+### Phase 2 (Specify)
+- [ ] Verify Gate 1, 2 are approved: `stride phase-status specs/<feature>/`
+- [ ] Create spec.md, plan.md
+- [ ] Create contracts/ artifacts
+- [ ] Run: `stride lint specs/<feature>/`
+- [ ] Get Gate 3, 4 approval in APPROVAL.md
+
+### Phase 3 (Tasking)
+- [ ] Verify Gate 3, 4 are approved
+- [ ] Create tasks.md
+- [ ] Create test scenarios
+- [ ] Run: `stride lint specs/<feature>/`
+- [ ] Get Gate 5 approval in APPROVAL.md
+
+### Phase 4 (Execute)
+- [ ] Verify Gate 5 is approved
+- [ ] Implement one task at a time
+- [ ] Verify all ACs for each task
+- [ ] Run: `stride lint specs/<feature>/`
+- [ ] Update evidence_pack.md
+- [ ] Get Final approval in APPROVAL.md
+
+## Key Rules
+- **APPROVAL.md**: Only humans may edit
+- **SSoT**: Spec → Code, never the reverse
+- **Pre-Approval Lint**: Run stride-lint before requesting any approval
+- **Post-Approval Changes**: Require re-approval via change_log.md
+MANUALEOF
+
+    echo -e "${GREEN}Created: $DOCS_DIR/phase-gate-checklist.md${NC}"
+    echo ""
+    echo "Use this checklist for manual Phase Gate tracking."
+}
+
+cmd_pr_check() {
+    python3 "$TOOLS_DIR/pr_readiness_checker.py" "$@"
+}
+
+cmd_auto_continue() {
+    if [ -z "$1" ]; then
+        echo -e "${RED}Error: Feature path required${NC}"
+        echo "Usage: stride auto-continue <specs/<feature>/> [--json]"
+        exit 1
+    fi
+
+    FEATURE_PATH="$1"
+    shift
+
+    # Allow short feature name input
+    if [ -d "specs/$FEATURE_PATH" ]; then
+        FEATURE_PATH="specs/$FEATURE_PATH"
+    fi
+
+    python3 "$TOOLS_DIR/auto_continue_runner.py" "$FEATURE_PATH" "$@"
+}
+
+cmd_evaluate() {
+    local FEATURE_DIR=""
+    local PHASE="design"
+    local FORMAT="text"
+    local ALLOW_DEGRADED=""
+    local FORCE=""
+    local REVIEW=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --phase) PHASE="$2"; shift 2 ;;
+            --format) FORMAT="$2"; shift 2 ;;
+            --allow-provider-degraded) ALLOW_DEGRADED="--allow-provider-degraded"; shift ;;
+            --force) FORCE="--force"; shift ;;
+            --review) REVIEW="--review"; shift ;;
+            --lite-mode|--enterprise)
+                echo -e "${RED}Error: '$1' is not yet supported by stride evaluate.${NC}"
+                echo "stride evaluate does not have mode-specific rubrics yet."
+                echo "Remove '$1' to proceed, or wait for a future release."
+                exit 1
+                ;;
+            -*) echo -e "${RED}Unknown option: $1${NC}"; exit 1 ;;
+            *) FEATURE_DIR="$1"; shift ;;
+        esac
+    done
+
+    if [ -z "$FEATURE_DIR" ]; then
+        echo -e "${RED}Error: feature path required${NC}"
+        echo "Usage: stride evaluate specs/<feature>/ --phase design|specify|tasking"
+        exit 1
+    fi
+
+    local PY; PY=$(_resolve_python)
+    "$PY" "$TOOLS_DIR/multi_model_evaluator.py" \
+        "$FEATURE_DIR" \
+        --phase "$PHASE" \
+        --format "$FORMAT" \
+        $ALLOW_DEGRADED \
+        $FORCE \
+        $REVIEW
+}
+
+cmd_output_rules() {
+    cat << 'EOF'
+Mandatory Output Rules
+
+1 - **No ASCII Tables**: Avoid fixed-width ASCII tables in AI output.
+2 - **Numbered Options**: Use `N - **Option**: Description` format for choices.
+3 - **Status Labels**: Use only PASS / FAIL / WARN / SKIP.
+4 - **Progress Labels**: Use `[n/N]` style progress indicators for multi-step output.
+5 - **HITL Checkpoints**: Explicitly mark human approval boundaries as WARN.
+
+Reference:
+- roadmap.md section 6.2
+- agent_docs/sdd_guidelines.md section 11
+EOF
+}
+
+cmd_decisions() {
+    if [ -z "$1" ]; then
+        echo -e "${RED}Error: decisions subcommand required${NC}"
+        echo "Usage: stride decisions <init|refresh> [--root <path>]"
+        exit 1
+    fi
+
+    SUBCOMMAND="$1"
+    shift
+
+    case "$SUBCOMMAND" in
+        init|refresh)
+            python3 "$TOOLS_DIR/decision_index.py" "$SUBCOMMAND" "$@"
+            ;;
+        *)
+            echo -e "${RED}Error: Unknown decisions subcommand: $SUBCOMMAND${NC}"
+            echo "Supported: init, refresh"
+            exit 1
+            ;;
+    esac
+}
+
+cmd_ddd_init() {
+    if [ -z "$1" ]; then
+        echo -e "${RED}Error: Feature path required${NC}"
+        echo "Usage: stride ddd-init <feature|specs/<feature>>"
+        exit 1
+    fi
+
+    FEATURE_INPUT="$1"
+    FEATURE_DIR=""
+    if [ -d "$FEATURE_INPUT" ]; then
+        FEATURE_DIR="$FEATURE_INPUT"
+    elif [ -d "specs/$FEATURE_INPUT" ]; then
+        FEATURE_DIR="specs/$FEATURE_INPUT"
+    else
+        echo -e "${RED}Error: Feature directory not found: $FEATURE_INPUT${NC}"
+        echo "Expected: specs/<feature>/"
+        exit 1
+    fi
+
+    TEMPLATES_DIR="$TEMPLATE_DIR/templates"
+    mkdir -p "$FEATURE_DIR/implementation-details"
+
+    DOMAIN_TEMPLATE="$TEMPLATES_DIR/ddd_domain_model_template.md"
+    TECH_TEMPLATE="$TEMPLATES_DIR/ddd_technical_design_template.md"
+    ADR_TEMPLATE="$TEMPLATES_DIR/adr_template.md"
+
+    if [ ! -f "$DOMAIN_TEMPLATE" ] || [ ! -f "$TECH_TEMPLATE" ] || [ ! -f "$ADR_TEMPLATE" ]; then
+        echo -e "${RED}Error: DDD templates are missing under sdd-templates/templates${NC}"
+        exit 1
+    fi
+
+    DOMAIN_OUT="$FEATURE_DIR/implementation-details/domain_model.md"
+    TECH_OUT="$FEATURE_DIR/implementation-details/technical_design.md"
+
+    if [ ! -f "$DOMAIN_OUT" ]; then
+        cp "$DOMAIN_TEMPLATE" "$DOMAIN_OUT"
+        echo -e "${GREEN}Created: $DOMAIN_OUT${NC}"
+    else
+        echo -e "${YELLOW}Skipped (exists): $DOMAIN_OUT${NC}"
+    fi
+
+    if [ ! -f "$TECH_OUT" ]; then
+        cp "$TECH_TEMPLATE" "$TECH_OUT"
+        echo -e "${GREEN}Created: $TECH_OUT${NC}"
+    else
+        echo -e "${YELLOW}Skipped (exists): $TECH_OUT${NC}"
+    fi
+
+    mkdir -p "shared/decisions"
+    FEATURE_NAME="$(basename "$FEATURE_DIR")"
+    FEATURE_SLUG="$(echo "$FEATURE_NAME" | tr '[:upper:]' '[:lower:]' | tr '_' '-' | tr -cd 'a-z0-9-')"
+    if [ -z "$FEATURE_SLUG" ]; then
+        FEATURE_SLUG="feature"
+    fi
+
+    EXISTING_ADR="$(find shared/decisions -maxdepth 1 -type f -name "ADR-*-${FEATURE_SLUG}-*.md" | head -n 1 || true)"
+    if [ -z "$EXISTING_ADR" ]; then
+        NEXT_NUM=$(python3 - << 'PYEOF'
+from pathlib import Path
+import re
+
+decisions_dir = Path("shared/decisions")
+max_num = 0
+for p in decisions_dir.glob("ADR-*.md"):
+    m = re.match(r"ADR-(\d+)-", p.name)
+    if not m:
+        continue
+    max_num = max(max_num, int(m.group(1)))
+print(max_num + 1)
+PYEOF
+)
+        ADR_ID=$(printf "ADR-%03d" "$NEXT_NUM")
+        ADR_FILE="shared/decisions/${ADR_ID}-${FEATURE_SLUG}-domain-model-boundary.md"
+        cp "$ADR_TEMPLATE" "$ADR_FILE"
+
+        TODAY="$(date +%Y-%m-%d)"
+        ADR_TITLE="Define domain boundaries for ${FEATURE_NAME}"
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "s/{{ADR_ID}}/$ADR_ID/g" "$ADR_FILE"
+            sed -i '' "s/{{ADR_TITLE}}/$ADR_TITLE/g" "$ADR_FILE"
+            sed -i '' "s/{{FEATURE_NAME}}/$FEATURE_NAME/g" "$ADR_FILE"
+            sed -i '' "s/{{DATE}}/$TODAY/g" "$ADR_FILE"
+        else
+            sed -i "s/{{ADR_ID}}/$ADR_ID/g" "$ADR_FILE"
+            sed -i "s/{{ADR_TITLE}}/$ADR_TITLE/g" "$ADR_FILE"
+            sed -i "s/{{FEATURE_NAME}}/$FEATURE_NAME/g" "$ADR_FILE"
+            sed -i "s/{{DATE}}/$TODAY/g" "$ADR_FILE"
+        fi
+        echo -e "${GREEN}Created: $ADR_FILE${NC}"
+    else
+        echo -e "${YELLOW}Existing ADR for feature found: $EXISTING_ADR${NC}"
+    fi
+
+    if python3 "$TOOLS_DIR/decision_index.py" refresh >/dev/null 2>&1; then
+        echo -e "${GREEN}Refreshed: shared/decisions/decision-index.md${NC}"
+    else
+        echo -e "${YELLOW}Warning: Failed to refresh decision index. Run: stride decisions refresh${NC}"
+    fi
+
+    echo ""
+    echo "DDD scaffolding complete."
+    echo "Next steps:"
+    echo "  1. Fill $DOMAIN_OUT"
+    echo "  2. Fill $TECH_OUT"
+    echo "  3. Update ADR status and rationale in shared/decisions/"
+}
+
+# =========================================================================
+# Enterprise Epic Commands
+# =========================================================================
+
+cmd_epic() {
+    check_enterprise_enabled || exit 1
+
+    local SUBCMD="${1:-}"
+    shift || true
+
+    case "$SUBCMD" in
+        init)
+            cmd_epic_init "$@"
+            ;;
+        validate)
+            cmd_epic_validate "$@"
+            ;;
+        gates)
+            cmd_epic_gates "$@"
+            ;;
+        features)
+            cmd_epic_features "$@"
+            ;;
+        progress)
+            cmd_epic_progress "$@"
+            ;;
+        list)
+            cmd_epic_list "$@"
+            ;;
+        *)
+            echo -e "${RED}Unknown epic subcommand: $SUBCMD${NC}"
+            echo "Usage: stride epic <init|validate|gates|features|progress|list> [args]"
+            exit 1
+            ;;
+    esac
+}
+
+cmd_epic_init() {
+    local EPIC_ID="$1"
+    if [ -z "$EPIC_ID" ]; then
+        echo -e "${RED}Error: Epic ID required${NC}"
+        echo "Usage: stride epic init <EPIC_ID>"
+        echo "Example: stride epic init EPIC-ORDER"
+        exit 1
+    fi
+
+    # Validate EPIC_ID format (must match ^EPIC-[A-Z]{3,}$)
+    if ! echo "$EPIC_ID" | grep -qE '^EPIC-[A-Z]{3,}$'; then
+        echo -e "${RED}Error: Invalid Epic ID format: $EPIC_ID${NC}"
+        echo "Expected: EPIC-<3+ uppercase letters> (e.g., EPIC-ORDER, EPIC-PRICE)"
+        exit 1
+    fi
+
+    local EPIC_DIR="epics/$EPIC_ID"
+
+    if [ -d "$EPIC_DIR" ]; then
+        echo -e "${YELLOW}Warning: $EPIC_DIR already exists${NC}"
+        read -p "Overwrite templates? (y/N) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo "Aborted."
+            exit 1
+        fi
+    fi
+
+    echo -e "${GREEN}Creating Epic: $EPIC_ID${NC}"
+
+    # Create directories
+    mkdir -p "$EPIC_DIR"/{features,docs}
+
+    # Copy templates
+    local TEMPLATES_DIR="$TEMPLATE_DIR/templates"
+    local COPIED_FILES=()
+
+    echo "  Copying epic_design.md..."
+    cp "$TEMPLATES_DIR/epic_design_template.md" "$EPIC_DIR/epic_design.md"
+    COPIED_FILES+=("$EPIC_DIR/epic_design.md")
+
+    if [ -f "$TEMPLATES_DIR/feature_breakdown_template.md" ]; then
+        echo "  Copying feature_breakdown.md..."
+        cp "$TEMPLATES_DIR/feature_breakdown_template.md" "$EPIC_DIR/feature_breakdown.md"
+        COPIED_FILES+=("$EPIC_DIR/feature_breakdown.md")
+    fi
+
+    echo "  Copying EPIC_APPROVAL.md..."
+    cp "$TEMPLATES_DIR/EPIC_APPROVAL.md" "$EPIC_DIR/EPIC_APPROVAL.md"
+    COPIED_FILES+=("$EPIC_DIR/EPIC_APPROVAL.md")
+
+    if [ -f "$TEMPLATES_DIR/epic_flow_template.bpmn" ]; then
+        echo "  Copying epic_flow.bpmn..."
+        cp "$TEMPLATES_DIR/epic_flow_template.bpmn" "$EPIC_DIR/epic_flow.bpmn"
+        COPIED_FILES+=("$EPIC_DIR/epic_flow.bpmn")
+    fi
+
+    if [ -f "$TEMPLATES_DIR/epic_progress_report_template.md" ]; then
+        echo "  Copying EPIC_PROGRESS_REPORT.md..."
+        cp "$TEMPLATES_DIR/epic_progress_report_template.md" "$EPIC_DIR/EPIC_PROGRESS_REPORT.md"
+        COPIED_FILES+=("$EPIC_DIR/EPIC_PROGRESS_REPORT.md")
+    fi
+
+    # Multi-team scaffolding
+    if [ -f "$TEMPLATES_DIR/cross_team_dependency_manifest_template.yaml" ]; then
+        echo "  Copying DEPENDENCY_MANIFEST.yaml..."
+        cp "$TEMPLATES_DIR/cross_team_dependency_manifest_template.yaml" "$EPIC_DIR/DEPENDENCY_MANIFEST.yaml"
+        COPIED_FILES+=("$EPIC_DIR/DEPENDENCY_MANIFEST.yaml")
+    fi
+    if [ -f "$TEMPLATES_DIR/ops_pack_registry_template.yaml" ]; then
+        echo "  Copying OPS_PACK_REGISTRY.yaml..."
+        cp "$TEMPLATES_DIR/ops_pack_registry_template.yaml" "$EPIC_DIR/OPS_PACK_REGISTRY.yaml"
+        COPIED_FILES+=("$EPIC_DIR/OPS_PACK_REGISTRY.yaml")
+    fi
+
+    # Shared contracts directory and registry (global — NOT added to COPIED_FILES
+    # so epic-specific placeholder replacement does not stamp it with this epic's ID)
+    mkdir -p shared/contracts/{api,events}
+    if [ ! -f "shared/contracts/CONTRACT_REGISTRY.yaml" ]; then
+        if [ -f "$TEMPLATES_DIR/shared_contract_registry_template.yaml" ]; then
+            cp "$TEMPLATES_DIR/shared_contract_registry_template.yaml" "shared/contracts/CONTRACT_REGISTRY.yaml"
+            echo "  Copying CONTRACT_REGISTRY.yaml..."
+        fi
+    else
+        echo "  CONTRACT_REGISTRY.yaml already exists, skipping"
+    fi
+
+    # Replace placeholders
+    echo "  Replacing placeholders..."
+    for f in "${COPIED_FILES[@]}"; do
+        if [ -f "$f" ]; then
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i '' "s/EPIC-XXX/$EPIC_ID/g" "$f"
+                sed -i '' "s/{{EPIC_ID}}/$EPIC_ID/g" "$f"
+                sed -i '' "s/{{TEMPLATE_VERSION}}/$TEMPLATE_VERSION/g" "$f"
+            else
+                sed -i "s/EPIC-XXX/$EPIC_ID/g" "$f"
+                sed -i "s/{{EPIC_ID}}/$EPIC_ID/g" "$f"
+                sed -i "s/{{TEMPLATE_VERSION}}/$TEMPLATE_VERSION/g" "$f"
+            fi
+        fi
+    done
+
+    echo ""
+    echo -e "${GREEN}Epic initialized: $EPIC_DIR/${NC}"
+    echo ""
+    echo "Next steps:"
+    echo "  1. Edit $EPIC_DIR/epic_design.md (define features, teams, dependencies)"
+    echo "  2. Edit $EPIC_DIR/epic_flow.bpmn (define collaboration overview)"
+    echo "  3. stride epic validate $EPIC_ID"
+    echo "  4. Create features: stride init <feature> --epic $EPIC_ID"
+    echo ""
+}
+
+cmd_epic_validate() {
+    local EPIC_ID="$1"
+    if [ -z "$EPIC_ID" ]; then
+        echo -e "${RED}Error: Epic ID required${NC}"
+        exit 1
+    fi
+    local PY; PY=$(_resolve_python)
+    "$PY" "$TOOLS_DIR/epic_validator.py" validate "epics/$EPIC_ID/"
+}
+
+cmd_epic_gates() {
+    local EPIC_ID="$1"
+    if [ -z "$EPIC_ID" ]; then
+        echo -e "${RED}Error: Epic ID required${NC}"
+        exit 1
+    fi
+    local PY; PY=$(_resolve_python)
+    "$PY" "$TOOLS_DIR/epic_validator.py" gates "epics/$EPIC_ID/"
+}
+
+cmd_epic_features() {
+    local EPIC_ID="$1"
+    if [ -z "$EPIC_ID" ]; then
+        echo -e "${RED}Error: Epic ID required${NC}"
+        exit 1
+    fi
+    local PY; PY=$(_resolve_python)
+    "$PY" "$TOOLS_DIR/epic_validator.py" features "epics/$EPIC_ID/"
+}
+
+cmd_epic_progress() {
+    local EPIC_ID="$1"
+    if [ -z "$EPIC_ID" ]; then
+        echo -e "${RED}Error: Epic ID required${NC}"
+        exit 1
+    fi
+    shift
+    local PY; PY=$(_resolve_python)
+    "$PY" "$TOOLS_DIR/epic_progress_aggregator.py" "epics/$EPIC_ID/" "$@"
+}
+
+cmd_epic_list() {
+    echo "Epics:"
+    echo "======"
+    local FOUND=false
+    for epic_dir in epics/EPIC-*/; do
+        if [ -d "$epic_dir" ] && [ -f "$epic_dir/epic_design.md" ]; then
+            FOUND=true
+            local eid=$(basename "$epic_dir")
+            echo "  $eid/"
+        fi
+    done
+    if [ "$FOUND" = false ]; then
+        echo "  (no epics found)"
+    fi
+}
+
+# Resolve a Python interpreter that can import the `symphony` package.
+# Prefers the project root .venv (PyYAML + Jinja2 installed), falls back to python3.
+_resolve_symphony_python() {
+    local REPO_ROOT="$1"
+    local PROJ_VENV="$REPO_ROOT/.venv/bin/python"
+    if [[ -x "$PROJ_VENV" ]]; then
+        echo "$PROJ_VENV"
+    else
+        echo "python3"
+    fi
+}
+
+cmd_project() {
+    local PY
+    PY=$(_resolve_python)
+    case "${1:-}" in
+        --help|-h|help|"")
+            cat <<EOF
+Usage: stride project <subcommand> [options]
+
+Manage the GitHub Project V2 binding for this STRIDE project.
+Persisted to memory/github_project.yaml (SSoT for project-wide binding).
+
+Subcommands:
+  create <title> [--owner <owner>]     Create (or find) a GitHub Project V2
+  list [--owner <owner>]               List GitHub Projects for owner
+  use <project_number> [--owner <o>]   Bind an existing Project
+  status                               Show current project binding
+
+Flags:
+  --dry-run                            Preview without calling gh
+  --test                               Run self-tests (offline, 10 tests)
+
+Environment:
+  GITHUB_OWNER             Default owner (user/org); overrides nothing, only fills --owner
+  GITHUB_PROJECT_NUMBER    Overrides memory/github_project.yaml at resolution time
+
+Requires:
+  gh CLI authenticated (gh auth status). Unauthenticated → graceful skip (exit 0).
+
+Examples:
+  stride project create "my-erp SDD Board" --owner tecnos-japan-cbp
+  stride project use 7 --owner tecnos-japan-cbp
+  stride project status
+EOF
+            return 0
+            ;;
+    esac
+    "$PY" "$TOOLS_DIR/github_project_bridge.py" "$@"
+}
+
+cmd_linear() {
+    local PY
+    PY=$(_resolve_python)
+    case "${1:-}" in
+        --help|-h|help|"")
+            cat <<EOF
+Usage: stride linear <subcommand> [options]
+
+Sync Tecnos-STRIDE Run artefacts to Linear Issues.
+
+Subcommands:
+  init <feature_dir> <wi_id>       Create/find Linear Issue for a Work Item
+  findings <run_dir>               Post .planning/findings.md as Linear comment
+  evidence <run_dir>               Post walkthrough + test_results as comment
+  learn <run_dir>                  Post .planning/lessons.md as comment
+  sync <run_dir>                   Idempotent: findings + evidence + learn
+  close <feature_dir> <wi_id>      Transition Linear Issue to Done
+  status <feature_dir> [<wi_id>]   Show WI → Linear Issue mapping
+
+Project binding (v5.3.1):
+  project create <name>            Create a Linear Project → memory/linear.yaml
+  project list                     List Linear Projects for team
+  project use <project_id>         Bind an existing Linear Project
+  project status                   Show current Linear Project binding
+
+Flags:
+  --dry-run                        Preview actions without calling the API
+  --test                           Run self-tests (19 tests, offline)
+
+Environment:
+  LINEAR_API_KEY     Personal API key (required; unset → graceful skip)
+  LINEAR_TEAM_KEY    Default team key (default: TEC)
+  LINEAR_PROJECT_ID  Optional default project
+
+Examples:
+  stride linear init specs/FEAT-ERPSAMPLE WI-ERP-SAMPLE-001
+  stride linear sync specs/FEAT-ERPSAMPLE/runs/WI-ERP-SAMPLE-001/RUN-20260419-0900
+  stride linear close specs/FEAT-ERPSAMPLE WI-ERP-SAMPLE-001
+  stride linear --test
+EOF
+            return 0
+            ;;
+    esac
+    "$PY" "$TOOLS_DIR/linear_bridge.py" "$@"
+}
+
+cmd_symphony() {
+    local REPO_ROOT
+    REPO_ROOT="$(dirname "$TEMPLATE_DIR")"
+
+    # Stride-level help: list the 5 supported subcommands in one place.
+    case "${1:-}" in
+        --help|-h|help|"")
+            cat <<EOF
+Usage: stride symphony <subcommand> [options]
+
+Subcommands:
+  run [--once] [--dry-run]          Start the polling orchestration loop
+  dispatch --issue <N> [--dry-run]  Dispatch a single GitHub issue
+  status                            Show ready issues and orchestrator status
+  validate                          Validate SYMPHONY.md configuration
+  janitor [--dry-run]               Run a one-shot Janitor scan (v5.1)
+
+Top-level options:
+  --config <path>                   SYMPHONY.md path (default: SYMPHONY.md)
+
+Examples:
+  stride symphony run --once --dry-run
+  stride symphony dispatch --issue 42
+  stride symphony janitor --dry-run
+EOF
+            return 0
+            ;;
+    esac
+
+    # Delegate to the Python CLI. Run from REPO_ROOT so SYMPHONY.md resolves
+    # relative to the project root, not the current working directory.
+    local PY
+    PY=$(_resolve_symphony_python "$REPO_ROOT")
+    ( cd "$REPO_ROOT" && "$PY" -m symphony "$@" )
+}
+
+# Main command dispatcher
+case "${1:-}" in
+    intake)
+        shift
+        cmd_intake "$@"
+        ;;
+    lint)
+        shift
+        cmd_lint "$@"
+        ;;
+    init)
+        shift
+        cmd_init "$@"
+        ;;
+    phase-status)
+        shift
+        cmd_phase_status "$@"
+        ;;
+    phase-check)
+        shift
+        cmd_phase_check "$@"
+        ;;
+    hooks)
+        shift
+        cmd_hooks "$@"
+        ;;
+    pr-check)
+        shift
+        cmd_pr_check "$@"
+        ;;
+    health)
+        shift
+        PY=$(_resolve_python)
+        if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+            "$PY" "$TOOLS_DIR/stride_health.py" --help
+            exit $?
+        fi
+        if [[ "${1:-}" == "--test" ]]; then
+            "$PY" "$TOOLS_DIR/stride_health.py" --test
+            exit $?
+        fi
+        if [[ $# -eq 0 ]]; then
+            echo "Usage: stride health <project_root> [--runtime] [--json]" >&2
+            exit 1
+        fi
+        PROJECT_ROOT="$1"
+        shift
+        "$PY" "$TOOLS_DIR/stride_health.py" "$PROJECT_ROOT" "$@"
+        ;;
+    harness-report)
+        shift
+        PY=$(_resolve_python)
+        if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+            "$PY" "$TOOLS_DIR/stride_harness_report.py" --help
+            exit $?
+        fi
+        if [[ "${1:-}" == "--test" ]]; then
+            "$PY" "$TOOLS_DIR/stride_harness_report.py" --test
+            exit $?
+        fi
+        if [[ $# -eq 0 ]]; then
+            echo "Usage: stride harness-report <project_root> [--json]" >&2
+            exit 1
+        fi
+        PROJECT_ROOT="$1"
+        shift
+        "$PY" "$TOOLS_DIR/stride_harness_report.py" "$PROJECT_ROOT" "$@"
+        ;;
+    security)
+        shift
+        PY=$(_resolve_python)
+        if [[ "${1:-}" == "--help" || "${1:-}" == "-h" || $# -eq 0 ]]; then
+            "$PY" "$TOOLS_DIR/stride_security_checker.py" --help
+            exit $?
+        fi
+        if [[ "${1:-}" == "--test" ]]; then
+            "$PY" "$TOOLS_DIR/stride_security_checker.py" --test
+            exit $?
+        fi
+        FEATURE_DIR="$1"
+        shift
+        # Note: exit 1 = NOT_SECURE (FAIL findings exist) — this is normal, not an error.
+        # exit 0 = SECURE, exit 2 = ERROR (bad args, YAML parse failure, etc.)
+        "$PY" "$TOOLS_DIR/stride_security_checker.py" "$FEATURE_DIR" "$@"
+        ;;
+    retro)
+        shift
+        PY=$(_resolve_python)
+        if [[ "${1:-}" == "--help" || "${1:-}" == "-h" || $# -eq 0 ]]; then
+            "$PY" "$TOOLS_DIR/stride_retro.py" --help
+            exit $?
+        fi
+        if [[ "${1:-}" == "--test" ]]; then
+            "$PY" "$TOOLS_DIR/stride_retro.py" --test
+            exit $?
+        fi
+        TARGET="$1"
+        shift
+        "$PY" "$TOOLS_DIR/stride_retro.py" "$TARGET" "$@"
+        ;;
+    auto-continue)
+        shift
+        cmd_auto_continue "$@"
+        ;;
+    evaluate)
+        shift
+        cmd_evaluate "$@"
+        ;;
+    ddd-init)
+        shift
+        cmd_ddd_init "$@"
+        ;;
+    decisions)
+        shift
+        cmd_decisions "$@"
+        ;;
+    new-project)
+        shift
+        # Find the new-project script (relative to template root)
+        NEW_PROJECT_SCRIPT="$(dirname "$(dirname "$TEMPLATE_DIR")")/scripts/stride-new-project.sh"
+        if [ ! -f "$NEW_PROJECT_SCRIPT" ]; then
+            # Fallback: look in project root
+            NEW_PROJECT_SCRIPT="$(pwd)/scripts/stride-new-project.sh"
+        fi
+        if [ -f "$NEW_PROJECT_SCRIPT" ]; then
+            bash "$NEW_PROJECT_SCRIPT" "$@"
+        else
+            echo -e "${RED}Error: stride-new-project.sh not found${NC}"
+            echo "Expected at: scripts/stride-new-project.sh"
+            exit 1
+        fi
+        ;;
+    epic)
+        shift
+        cmd_epic "$@"
+        ;;
+    symphony)
+        shift
+        cmd_symphony "$@"
+        ;;
+    linear)
+        shift
+        cmd_linear "$@"
+        ;;
+    project)
+        shift
+        cmd_project "$@"
+        ;;
+    upstream)
+        # v5.5 Phase B: VALUE Upstream Extension subcommands
+        shift
+        cmd_upstream "$@"
+        ;;
+    method)
+        # FEAT-METHODSSOTEXTERNALIZATION (Phase 4 G-04): Method labeling subcommand.
+        # See contracts/cli_method_subcommand.yaml (CT-CLI-01) for the contract.
+        shift
+        PY=$(_resolve_python)
+        SUBCMD="${1:-}"
+        case "$SUBCMD" in
+            labels)
+                shift
+                # stride method labels --check / --suggest <path>
+                if [[ "${1:-}" == "--check" ]]; then
+                    shift
+                    "$PY" "$TOOLS_DIR/method_labels_checker.py" "$@"
+                elif [[ "${1:-}" == "--suggest" ]]; then
+                    shift
+                    if [ -z "${1:-}" ]; then
+                        echo -e "${RED}Error: --suggest requires a path argument${NC}" >&2
+                        exit 2
+                    fi
+                    "$PY" "$TOOLS_DIR/method_labels_checker.py" --root "$(dirname "$1")" --format text
+                else
+                    cat <<'EOF_LABELS_HELP'
+Usage: stride method labels --check [--root <path>] [--format text|json]
+       stride method labels --suggest <file_path>
+
+Validates plane / visibility / return_policy frontmatter across all Method content.
+Exit codes: 0=PASS, 1=violations detected, 2=usage error, 3=path not found.
+See contracts/cli_method_subcommand.yaml for the full contract.
+EOF_LABELS_HELP
+                    exit 0
+                fi
+                ;;
+            audit)
+                shift
+                "$PY" "$TOOLS_DIR/method_audit.py" "$@"
+                ;;
+            preview)
+                # FEAT-METHODSTOREPUBLISHING (Phase 4 G-01): Method snapshot preview.
+                shift
+                PYTHONPATH="$TOOLS_DIR${PYTHONPATH:+:$PYTHONPATH}" "$PY" -m method_publish.preview "$@"
+                ;;
+            validate)
+                # FEAT-METHODSTOREPUBLISHING (Phase 4 G-01): Strict validate gate.
+                shift
+                PYTHONPATH="$TOOLS_DIR${PYTHONPATH:+:$PYTHONPATH}" "$PY" -m method_publish.validate "$@"
+                ;;
+            diff)
+                # FEAT-METHODSTOREPUBLISHING (Phase 4 G-01): Method Store diff.
+                shift
+                PYTHONPATH="$TOOLS_DIR${PYTHONPATH:+:$PYTHONPATH}" "$PY" -m method_publish.diff "$@"
+                ;;
+            publish)
+                # FEAT-METHODSTOREPUBLISHING (Phase 4 G-02): publish orchestrator.
+                shift
+                PYTHONPATH="$TOOLS_DIR${PYTHONPATH:+:$PYTHONPATH}" "$PY" -m method_publish.publish "$@"
+                ;;
+            rollback)
+                # FEAT-METHODSTOREPUBLISHING (Phase 4 G-04): Emergency rollback.
+                shift
+                PYTHONPATH="$TOOLS_DIR${PYTHONPATH:+:$PYTHONPATH}" "$PY" -m method_publish.rollback "$@"
+                ;;
+            drift)
+                # FEAT-METHODSTOREPUBLISHING (Phase 4 G-04): Source ↔ deployed drift.
+                shift
+                PYTHONPATH="$TOOLS_DIR${PYTHONPATH:+:$PYTHONPATH}" "$PY" -m method_publish.drift_detector "$@"
+                ;;
+            ""|--help|-h)
+                cat <<'EOF_METHOD_HELP'
+stride method — Method content labeling, audit, and publishing (FEAT-METHODSSOTEXTERNALIZATION + FEAT-METHODSTOREPUBLISHING)
+
+Subcommands (Feature ① — labeling/audit):
+  stride method labels --check                       — CI gate completeness check
+  stride method labels --suggest <path>              — AI-style suggestion
+  stride method audit [--root <p>] [--output <f>]    — Emit method-store.lock.json
+                                       [--format text|json|ndjson] [--strict]
+
+Subcommands (Feature ② — publishing):
+  stride method preview [--serve] [--root <p>]       — Local snapshot preview (no push)
+  stride method validate --strict [--root <p>]       — Strict pre-publish gate
+  stride method diff --against=<tag> [--output <f>]  — Diff vs. previous tag, draft RELEASE_NOTES
+  stride method publish --target=<edge|staging|stable> [--dry-run]
+                                                     — Publish to OCI registry (cosign signed)
+  stride method rollback --to=<tag> --reason=<txt>   — Emergency rollback (5 min MTTR)
+  stride method drift                                — Detect source ↔ deployed drift
+
+Contracts:
+  CT-CLI-01 — specs/method_ssot_externalization/contracts/cli_method_subcommand.yaml
+  CT-CLI-02 — specs/method_store_publishing/contracts/cli_method_publish_schema.yaml
+  CT-FILE-01 — specs/method_ssot_externalization/contracts/method-store-schema.json
+  CT-FILE-02 — specs/method_store_publishing/contracts/release_notes_schema.yaml
+  CT-FILE-03 — specs/method_store_publishing/contracts/sdd_tenant_policy_schema.yaml
+EOF_METHOD_HELP
+                ;;
+            *)
+                echo -e "${RED}Unknown subcommand: stride method $SUBCMD${NC}" >&2
+                exit 2
+                ;;
+        esac
+        ;;
+    upstream-bridge)
+        # v6.0 Phase C: Phase 0/0.3/0.5 → Phase 1 自動 populate
+        shift
+        PY=$(_resolve_python)
+        if [[ "${1:-}" == "--help" || "${1:-}" == "-h" || $# -eq 0 ]]; then
+            cat <<'EOF_UB_HELP'
+Usage: stride upstream-bridge <feature> [--target phase1] [--apply]
+
+Phase 0/0.3/0.5 で作った成果物を Phase 1 の basic_design.md links と BPMN Task 候補に
+自動 populate (Discovery → Design 翻訳ロス防止)。
+
+Default:  dry-run (populate 計画 + BPMN Task 候補を Markdown で stdout 出力、書き換えなし)
+--apply:  basic_design.md links のみに実書込
+          ⚠ process.bpmn は変更しない (BPMN は人間責務)
+          ⚠ implementation-details/* には何も書かない (Phase 2 領域)
+          ⚠ Gate 1/2 が未承認 feature にのみ許可 (Phase 1 immutability)
+Task candidates は両モードで stdout に出力される。
+
+Exit code: 0 = OK, 1 = upstream/ 不在 or Gate 1/2 承認済 violation, 2 = ERROR
+EOF_UB_HELP
+            exit 0
+        fi
+        TARGET_FEATURE="$1"
+        shift
+        "$PY" "$TOOLS_DIR/upstream_bridge.py" "specs/$TARGET_FEATURE/" "$@"
+        ;;
+    output-rules)
+        shift
+        cmd_output_rules "$@"
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    "")
+        show_help
+        ;;
+    *)
+        echo -e "${RED}Unknown command: $1${NC}"
+        echo ""
+        show_help
+        exit 1
+        ;;
+esac

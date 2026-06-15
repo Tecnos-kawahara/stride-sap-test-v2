@@ -1,0 +1,46 @@
+---
+# Template: risk_register.yaml
+# Phase: phase_0_discovery
+# BABOK Source: KA6 Strategy Analysis / Technique 10.38 Risk Analysis and Management
+# Layered Requirements Modeling Source: n/a
+# Inspired by: n/a
+# Rule-0: 正本は YAML フロントマター + 下記 YAML ブロック
+---
+
+artifact: "risk_register.yaml"
+template_id: "TPL-UP-RRG-001"
+feature_id: "FEAT-XXX"
+upstream_artifact_id: "RRG-XXX"
+title: "Risk Register - <Feature Name>"
+version: "{{TEMPLATE_VERSION}}"
+status: "draft"
+phase: "phase_0_discovery"
+profile_applicability: ["enterprise-erp", "saas-integration", "prototype"]
+owners: []
+reviewers: []
+links:
+  upstream_policy_ref: "shared/policies/upstream_policy.yaml"
+  baccm_completeness_ref: "shared/policies/baccm_completeness.yaml"
+  iteration_policy_ref: "shared/policies/upstream_iteration_policy.yaml"
+  constitution_ref: "memory/constitution.md"
+  amendment_ref: "memory/constitution_amendments/XV_baccm_completeness.md"
+created_at: "YYYY-MM-DD"
+updated_at: "YYYY-MM-DD"
+
+# Risk Register 本体
+risks: []
+# 例:
+# - id: "R-001"
+#   description: "ERP 連携 API のレート制限"
+#   category: "technical"          # technical | business | regulatory | organizational | external
+#   impact: "高"
+#   likelihood: "medium"            # low | medium | high
+#   mitigation: "バルクキューイング + リトライ + 別経路フォールバック"
+#   owner: ""                       # SH-* 参照
+#   status: "open"                  # open | mitigated | accepted | closed
+#   detected_iteration: 1
+
+review_cadence: ""                  # リスク見直し頻度 (例: 週次 / イテレーション毎)
+
+attributions:
+  - { source: "BABOK v3 (IIBA)", role: "framework backbone (KA6 / Technique 10.38)", license: "fair-use, names and section refs only" }

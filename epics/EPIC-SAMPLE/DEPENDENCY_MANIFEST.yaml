@@ -1,0 +1,112 @@
+# cross_team_dependency_manifest.yaml - EPIC-SAMPLE
+#
+# Epic: mcframe受注管理アドオン
+# Single-team epic with external dependency on mcframe API
+
+cross_team_dependency_manifest:
+  meta:
+    epic_id: "EPIC-SAMPLE"
+    title: "Cross-Team Dependency Manifest"
+    version: "1.0.0"
+    created_at: "2026-02-01"
+    updated_at: "2026-02-15"
+    maintainer: "佐藤三郎"
+
+  dependencies:
+    - dependency_id: "DEP-001"
+      description: "受注登録時にmcframe在庫引当APIを呼び出し。在庫引当結果に基づきステータスを決定"
+
+      # Source and target
+      from_feature: "FEAT-ERPSAMPLE"
+      from_team: "TEAM-SLS"
+      to_feature: "mcframe-core"
+      to_team: "PLATFORM"
+
+      # Dependency characteristics
+      type: "blocking"
+      criticality: "high"
+
+      # Interface / contract reference
+      interface:
+        type: "api"
+        contract_ref: "SC-API-MCFRAME"
+        integration_point_ref: "IP-001"
+        specification_path: "specs/FEAT-ERPSAMPLE/contracts/api.yaml#/paths/~1mcframe~1stock-allocation"
+        description: "mcframe在庫引当API（POST /mcframe/stock-allocation）— 受注明細の在庫引当を実行し、ALLOCATED/PARTIAL/INSUFFICIENT ステータスを返却"
+
+      # Scheduling
+      scheduling:
+        required_by_date: "2026-02-05"
+        required_by_phase: "Execute"
+        scheduled_availability: "2026-02-01"
+        actual_availability: "2026-02-01"
+        buffer_days: 4
+
+      # Status tracking
+      status: "adopted"
+      last_status_update: "2026-02-10"
+
+      # Blockers
+      blockers: []
+
+      # Communication log
+      coordination_notes:
+        - date: "2026-01-25"
+          note: "PLATFORMチームとmcframe API v2仕様確認完了。SLA合意（99.5%, P99 5s）"
+          participants:
+            - "TEAM-SLS"
+            - "PLATFORM"
+        - date: "2026-02-01"
+          note: "staging環境でmcframe API v2接続確認OK。TS-INT-02で在庫引当テスト6件PASS"
+          participants:
+            - "TEAM-SLS"
+        - date: "2026-02-10"
+          note: "WI-001完了時点で在庫引当連携の正常系・異常系テスト全PASS。月次締め期間のリトライ設定も完了"
+          participants:
+            - "TEAM-SLS"
+
+  # Dependency graph validation rules
+  validation:
+    no_circular_dependencies: true
+    all_blocking_scheduled: true
+    all_providers_acknowledged: true
+    scheduling_conflicts: []
+
+  # Summary
+  summary:
+    total_dependencies: 1
+    by_type:
+      blocking: 1
+      soft: 0
+    by_status:
+      identified: 0
+      agreed: 0
+      in_progress: 0
+      delivered: 0
+      adopted: 1
+      blocked: 0
+    by_criticality:
+      critical: 0
+      high: 1
+      medium: 0
+      low: 0
+    teams_involved:
+      - team_id: "TEAM-SLS"
+        provides: 0
+        consumes: 1
+      - team_id: "PLATFORM"
+        provides: 1
+        consumes: 0
+
+  # Dependency review cadence
+  review_cadence:
+    frequency: "weekly"
+    next_review_date: "2026-02-22"
+    review_owner: "佐藤三郎"
+    escalation_path:
+      - level: 1
+        contact: "佐藤三郎 (Epic Lead)"
+        condition: "Dependency blocked > 3 days"
+      - level: 2
+        contact: "田中太郎 (Sponsor)"
+        condition: "Dependency blocked > 7 days or milestone at risk"

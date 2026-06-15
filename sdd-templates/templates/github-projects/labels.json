@@ -1,0 +1,217 @@
+[
+  {
+    "name": "epic",
+    "color": "5319E7",
+    "description": "SDD: Epic レベルトラッカー"
+  },
+  {
+    "name": "milestone",
+    "color": "0075CA",
+    "description": "SDD: マイルストーントラッカー"
+  },
+  {
+    "name": "work-item",
+    "color": "1D76DB",
+    "description": "SDD: Work Item（実行単位）"
+  },
+  {
+    "name": "risk",
+    "color": "D93F0B",
+    "description": "SDD: リスク登録"
+  },
+  {
+    "name": "blocker",
+    "color": "B60205",
+    "description": "SDD: ブロッカー（即時対応必要）"
+  },
+  {
+    "name": "dependency",
+    "color": "FBCA04",
+    "description": "SDD: チーム間依存"
+  },
+  {
+    "name": "mode:autopilot",
+    "color": "0E8A16",
+    "description": "SDD: AI自律実行（低リスク・低複雑度）"
+  },
+  {
+    "name": "mode:confirm",
+    "color": "FBCA04",
+    "description": "SDD: AI実行＋人間確認（中リスク）"
+  },
+  {
+    "name": "mode:validate",
+    "color": "D93F0B",
+    "description": "SDD: 人間主導で検証必須（高リスク）"
+  },
+  {
+    "name": "tier:starter",
+    "color": "C5DEF5",
+    "description": "SDD: Starter スケール（小規模プロジェクト）"
+  },
+  {
+    "name": "tier:standard",
+    "color": "0075CA",
+    "description": "SDD: Standard スケール（標準プロジェクト）"
+  },
+  {
+    "name": "tier:enterprise",
+    "color": "5319E7",
+    "description": "SDD: Enterprise スケール（大規模プロジェクト）"
+  },
+  {
+    "name": "risk:authz",
+    "color": "D93F0B",
+    "description": "リスク: 認可ロジック変更"
+  },
+  {
+    "name": "risk:audit_log",
+    "color": "E99695",
+    "description": "リスク: 監査ログ影響"
+  },
+  {
+    "name": "risk:data_migration",
+    "color": "B60205",
+    "description": "リスク: データ移行を伴う"
+  },
+  {
+    "name": "risk:external_api",
+    "color": "D93F0B",
+    "description": "リスク: 外部API連携"
+  },
+  {
+    "name": "risk:ui_only",
+    "color": "0E8A16",
+    "description": "リスク: UI変更のみ（低リスク）"
+  },
+  {
+    "name": "status:done",
+    "color": "0E8A16",
+    "description": "完了"
+  },
+  {
+    "name": "status:in-progress",
+    "color": "1D76DB",
+    "description": "実行中"
+  },
+  {
+    "name": "status:pending",
+    "color": "EDEDED",
+    "description": "待機中"
+  },
+  {
+    "name": "status:blocked",
+    "color": "B60205",
+    "description": "ブロック中"
+  },
+  {
+    "name": "priority:high",
+    "color": "D93F0B",
+    "description": "優先度: 高"
+  },
+  {
+    "name": "priority:medium",
+    "color": "FBCA04",
+    "description": "優先度: 中"
+  },
+  {
+    "name": "priority:low",
+    "color": "0E8A16",
+    "description": "優先度: 低"
+  },
+  {
+    "name": "gate:1-design",
+    "color": "EDEDED",
+    "description": "Gate 1: Design Review"
+  },
+  {
+    "name": "gate:2-bpmn",
+    "color": "EDEDED",
+    "description": "Gate 2: BPMN Review"
+  },
+  {
+    "name": "gate:3-spec",
+    "color": "EDEDED",
+    "description": "Gate 3: Spec Review"
+  },
+  {
+    "name": "gate:4-plan",
+    "color": "EDEDED",
+    "description": "Gate 4: Plan Review"
+  },
+  {
+    "name": "gate:5-tasking",
+    "color": "EDEDED",
+    "description": "Gate 5: Tasking Review"
+  },
+  {
+    "name": "gate:final",
+    "color": "006B75",
+    "description": "Final: Evidence Review"
+  },
+  {
+    "name": "sdd-reference-miss",
+    "color": "B60205",
+    "description": "参照漏れ起因の再作業（Need Gate計測用）"
+  },
+  {
+    "name": "ops-ready",
+    "color": "0E8A16",
+    "description": "Ops準備完了"
+  },
+  {
+    "name": "ops-not-ready",
+    "color": "E99695",
+    "description": "Ops準備未完了"
+  },
+  {
+    "name": "symphony:ready",
+    "color": "0E8A16",
+    "description": "Symphony auto-dispatch target"
+  },
+  {
+    "name": "symphony:running",
+    "color": "1D76DB",
+    "description": "Symphony agent is executing"
+  },
+  {
+    "name": "symphony:blocked",
+    "color": "D93F0B",
+    "description": "Waiting for human approval"
+  },
+  {
+    "name": "symphony:done",
+    "color": "5319E7",
+    "description": "Symphony completed"
+  },
+  {
+    "name": "symphony:failed",
+    "color": "B60205",
+    "description": "Symphony execution failed"
+  },
+  {
+    "name": "symphony:janitor",
+    "color": "C2E0C6",
+    "description": "Janitor cleanup proposal"
+  },
+  {
+    "name": "phase:design",
+    "color": "FBCA04",
+    "description": "SDD Phase 1: Design"
+  },
+  {
+    "name": "phase:specify",
+    "color": "F9D0C4",
+    "description": "SDD Phase 2: Specify"
+  },
+  {
+    "name": "phase:tasking",
+    "color": "C5DEF5",
+    "description": "SDD Phase 3: Tasking"
+  },
+  {
+    "name": "phase:execute",
+    "color": "BFD4F2",
+    "description": "SDD Phase 4: Execute"
+  }
+]

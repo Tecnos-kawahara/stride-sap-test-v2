@@ -1,0 +1,9 @@
+version: 1.0
+transports:
+  - id: "{{TR-001}}"
+    type: "customizing|development"
+    source: "DEV"
+    target: "QAS"
+    objects: []
+notes:
+  - "ERP製品ごとの輸送/移送手順に合わせて記載"

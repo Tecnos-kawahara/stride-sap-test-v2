@@ -1,0 +1,209 @@
+# Dependency Manifest Template - Enterprise SDD Extension
+# Version: 1.0.0
+# Purpose: Declare cross-feature dependencies for a feature
+# Location: specs/<feature>/dependencies/dependency_manifest.yaml
+
+dependency_manifest:
+  meta:
+    feature_id: "FEAT-XXX"
+    manifest_version: "1.0.0"
+    created_at: "YYYY-MM-DD"
+    updated_at: "YYYY-MM-DD"
+    validated_by_lint: false
+    last_lint_date: null
+
+  # Featureのチーム情報
+  feature_info:
+    team_id: "TEAM-A"
+    epic_id: "EPIC-XXX"  # optional
+    coverage_tier: "standard"
+
+  # 外部依存（このFeatureが消費する契約）
+  external_dependencies:
+    - dependency_id: "DEP-001"
+      contract_ref: "specs/FEAT-YYY/contracts/openapi.yaml"
+      contract_id: "CT-API-01"
+      local_alias: "feature-y-api"
+      owner_team: "TEAM-B"
+      owner_feature: "FEAT-YYY"
+      version_constraint: "^1.0.0"  # semver constraint
+      dependency_type: "runtime"  # runtime | build | test | data
+      criticality: "high"  # high | medium | low
+      usage_description: "{{How this contract is used}}"
+      usage_locations:
+        - file: "spec.md"
+          section: "use_cases[0].main_flow[2]"
+        - file: "plan.md"
+          section: "contracts.apis_events[0]"
+      integration_tests:
+        - "TS-INT-01"
+        - "TS-INT-03"
+      error_handling:
+        fallback_behavior: "return_cached_or_error"
+        timeout_ms: 5000
+        retry_policy:
+          max_retries: 3
+          backoff: "exponential"
+          initial_delay_ms: 100
+        circuit_breaker:
+          enabled: true
+          failure_threshold: 5
+          reset_timeout_ms: 30000
+      mock_available: true
+      mock_location: "tests/mocks/feature_y_api_mock.yaml"
+
+    - dependency_id: "DEP-002"
+      contract_ref: "shared/contracts/api/auth_service.yaml"
+      contract_id: "SC-API-AUTH"
+      local_alias: "auth-service"
+      owner_team: "PLATFORM"
+      owner_feature: null  # Shared/platform contract
+      version_constraint: ">=2.0.0 <3.0.0"
+      dependency_type: "runtime"
+      criticality: "high"
+      usage_description: "User authentication and authorization"
+      usage_locations:
+        - file: "spec.md"
+          section: "use_cases[*].preconditions"
+      integration_tests:
+        - "TS-INT-02"
+      error_handling:
+        fallback_behavior: "reject_request"
+        timeout_ms: 3000
+        retry_policy:
+          max_retries: 2
+          backoff: "fixed"
+          initial_delay_ms: 500
+        circuit_breaker:
+          enabled: true
+          failure_threshold: 3
+          reset_timeout_ms: 60000
+      mock_available: true
+      mock_location: "tests/mocks/auth_service_mock.yaml"
+
+    - dependency_id: "DEP-003"
+      contract_ref: "shared/contracts/events/order_events.yaml"
+      contract_id: "SC-EVT-ORDER"
+      local_alias: "order-events"
+      owner_team: "TEAM-C"
+      owner_feature: "FEAT-ZZZ"
+      version_constraint: "^1.2.0"
+      dependency_type: "runtime"
+      criticality: "medium"
+      usage_description: "Subscribe to order status change events"
+      usage_locations:
+        - file: "spec.md"
+          section: "use_cases[1].triggers"
+      integration_tests:
+        - "TS-INT-04"
+      error_handling:
+        fallback_behavior: "queue_for_retry"
+        timeout_ms: null  # N/A for events
+        retry_policy:
+          max_retries: 5
+          backoff: "exponential"
+          initial_delay_ms: 1000
+        circuit_breaker:
+          enabled: false
+      mock_available: true
+      mock_location: "tests/mocks/order_events_mock.yaml"
+
+  # 公開契約（このFeatureが提供する契約）
+  exposed_contracts:
+    - contract_id: "CT-API-01"
+      name: "{{Contract Name}}"
+      type: "api"
+      path: "contracts/openapi.yaml"
+      consumers_registry: "contracts/CONSUMERS.yaml"
+      stability: "stable"  # experimental | beta | stable | deprecated
+      breaking_change_policy: "ccp_required"
+
+    - contract_id: "CT-EVT-01"
+      name: "{{Event Contract Name}}"
+      type: "event"
+      path: "contracts/events.yaml"
+      consumers_registry: "contracts/CONSUMERS.yaml"
+      stability: "beta"
+      breaking_change_policy: "notification_required"
+
+  # 依存関係の制約
+  constraints:
+    max_runtime_dependencies: 10
+    max_critical_dependencies: 3
+    max_dependency_depth: 5
+    allowed_dependency_types:
+      - "runtime"
+      - "build"
+      - "test"
+      - "data"
+    forbidden_patterns:
+      - pattern: "circular_dependency"
+        message: "Circular dependencies are not allowed"
+      - pattern: "direct_db_access"
+        message: "Direct database access to other features is forbidden"
+
+  # 検証ルール
+  validation:
+    rules:
+      - rule_id: "VAL-001"
+        name: "Version constraint format"
+        check: "all version_constraints match semver pattern"
+        severity: "error"
+      - rule_id: "VAL-002"
+        name: "Contract reference exists"
+        check: "all contract_refs point to existing files"
+        severity: "error"
+      - rule_id: "VAL-003"
+        name: "Mock available for high criticality"
+        check: "high criticality dependencies have mock_available == true"
+        severity: "warning"
+      - rule_id: "VAL-004"
+        name: "Integration tests defined"
+        check: "all runtime dependencies have integration_tests defined"
+        severity: "warning"
+      - rule_id: "VAL-005"
+        name: "Fallback defined for high criticality"
+        check: "high criticality dependencies have fallback_behavior defined"
+        severity: "error"
+
+  # クロスチームテスト
+  cross_team_tests:
+    - test_id: "TS-CROSS-001"
+      name: "{{Cross-team test name}}"
+      type: "integration"
+      participating_features:
+        - "FEAT-XXX"
+        - "FEAT-YYY"
+      owner_team: "TEAM-A"
+      schedule: "nightly"
+      environment: "staging"
+      prerequisites:
+        - "FEAT-XXX deployed to staging"
+        - "FEAT-YYY deployed to staging"
+      test_scenarios:
+        - "Happy path: {{scenario 1}}"
+        - "Error handling: {{scenario 2}}"
+
+  # 依存関係の健全性チェック
+  health_check:
+    enabled: true
+    check_interval_minutes: 5
+    endpoints_to_check:
+      - dependency_id: "DEP-001"
+        health_endpoint: "/health"
+        expected_status: 200
+      - dependency_id: "DEP-002"
+        health_endpoint: "/health"
+        expected_status: 200
+    alerting:
+      on_failure:
+        notify: ["team_lead", "on_call"]
+        channel: "#{{team-alerts}}"
+
+  # 変更ログ
+  change_log:
+    - date: "YYYY-MM-DD"
+      version: "1.0.0"
+      author: "{{Author}}"
+      changes:
+        - "Initial dependency manifest"

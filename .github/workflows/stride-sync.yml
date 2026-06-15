@@ -1,0 +1,111 @@
+# STRIDE → GitHub Projects 同期ワークフロー
+# state.yaml / work_items 変更時に自動同期
+
+name: Sync STRIDE to GitHub Projects
+
+on:
+  # push トリガーは Project 設定完了後に有効化
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - 'specs/**/state/state.yaml'
+  #     - 'specs/**/work_items/*.md'
+  #     - 'specs/**/runs/**/*.md'
+  workflow_dispatch:
+    inputs:
+      feature:
+        description: 'Feature directory (e.g., specs/my_feature/) or "all"'
+        required: false
+        default: 'all'
+      dry_run:
+        description: 'Dry run (no changes)'
+        type: boolean
+        default: false
+
+env:
+  GITHUB_PROJECT_NUMBER: ${{ vars.STRIDE_PROJECT_NUMBER }}
+  GITHUB_OWNER: ${{ github.repository_owner }}
+  GITHUB_OWNER_TYPE: organization
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pyyaml requests
+
+      - name: Detect changed features
+        id: detect
+        if: github.event_name == 'push'
+        run: |
+          # 変更されたファイルから feature ディレクトリを抽出
+          FEATURES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | \
+            grep -E '^specs/[^/]+/' | \
+            sed 's|^\(specs/[^/]*\)/.*|\1|' | \
+            sort -u | \
+            tr '\n' ' ')
+          echo "features=$FEATURES" >> $GITHUB_OUTPUT
+          echo "Detected features: $FEATURES"
+
+      - name: Sync to GitHub Projects (push event)
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ secrets.STRIDE_PROJECT_TOKEN }}
+          DETECTED_FEATURES: ${{ steps.detect.outputs.features }}
+        run: |
+          for feature in $DETECTED_FEATURES; do
+            echo "Syncing $feature..."
+            python scripts/sync_stride_to_projects.py "$feature"
+          done
+
+      - name: Update Process Metrics (push event)
+        if: github.event_name == 'push'
+        env:
+          DETECTED_FEATURES: ${{ steps.detect.outputs.features }}
+        run: |
+          for feature in $DETECTED_FEATURES; do
+            echo "Updating Process Metrics for $feature..."
+            python scripts/stride_process_metrics.py \
+              --feature "$feature" \
+              --update-dashboard \
+              --output markdown || echo "WARN: Process Metrics update skipped for $feature"
+          done
+
+      - name: Sync to GitHub Projects (manual trigger)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.STRIDE_PROJECT_TOKEN }}
+        run: |
+          if [ "${{ inputs.feature }}" = "all" ]; then
+            FLAGS="--all"
+          else
+            FLAGS="${{ inputs.feature }}"
+          fi
+
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            FLAGS="$FLAGS --dry-run"
+          fi
+
+          python scripts/sync_stride_to_projects.py $FLAGS
+
+      - name: Summary
+        run: |
+          echo "## STRIDE Sync Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Project:** #${{ env.GITHUB_PROJECT_NUMBER }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "- **Features:** ${{ steps.detect.outputs.features }}" >> $GITHUB_STEP_SUMMARY
+          fi

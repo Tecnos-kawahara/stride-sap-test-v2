@@ -1,0 +1,65 @@
+{
+  "_comment_purpose": "Tecnos-STRIDE VALUE Cowork Plugin v0.2.0-stable 推奨 .claude/settings.json template (Phase F WI-VALF01-015 / 改善要望-14)。Plugin install 後、上位コンサル環境の .claude/settings.json コピー元として配布される。reference_files = 49 不変 (.claude-template/ は別ディレクトリ計上)。",
+  "_comment_usage": "コンサル PJ ローカル環境で 'cp cowork-plugin/.claude-template/settings.json .claude/settings.json' で導入。既存 .claude/settings.json がある場合は手動マージを推奨。",
+
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "WebFetch",
+      "WebSearch",
+      "Bash(python3 cowork-plugin/scripts/*:*)",
+      "Bash(python3 scripts/build_basic_design_html.py:*)",
+      "Bash(python3 -m pytest:*)",
+      "Bash(sdd-templates/bin/stride lint:*)",
+      "Bash(claude plugin validate:*)",
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(wc:*)"
+    ],
+    "ask": [
+      "Edit(specs/**)",
+      "Write(specs/**)",
+      "Edit(cowork-plugin/**)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(gh pr create:*)"
+    ],
+    "deny": [
+      "Edit(specs/**/APPROVAL.md)",
+      "Edit(specs/**/work_items/*.approval.md)",
+      "Write(specs/**/APPROVAL.md)",
+      "Write(specs/**/work_items/*.approval.md)",
+      "Bash(rm -rf:*)",
+      "Bash(git push --force:*)",
+      "Bash(git reset --hard:*)"
+    ]
+  },
+
+  "_comment_hooks": "推奨 Phase Gate Hook (sdd-templates/hooks/phase_gate_hook.py)。本 hook は Phase 範囲外のファイル編集を機械検出 + ブロックする。",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 sdd-templates/hooks/phase_gate_hook.py",
+            "timeout_ms": 5000
+          }
+        ]
+      }
+    ]
+  },
+
+  "_comment_env": "Plugin が依存する環境変数の説明 (実値はコンサル環境で個別設定)。",
+  "env": {
+    "_comment_GITHUB_PERSONAL_ACCESS_TOKEN": "github MCP server 用 PAT。scope: repo (read/write) + pull_request (read/write) + metadata (read)。実値は別途設定。",
+    "_comment_WORKSPACE": "filesystem MCP server のアクセス制限 root。デフォルト = repo root。"
+  }
+}

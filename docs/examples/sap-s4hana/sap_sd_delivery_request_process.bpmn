@@ -1,0 +1,321 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+    xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+    xmlns:modeler="http://camunda.org/schema/modeler/1.0"
+    id="Definitions_SAPSD_DeliveryRequest"
+    targetNamespace="http://tecnos.co.jp/sdd/docs/sap-sd-delivery-request-process"
+    exporter="Camunda Modeler"
+    exporterVersion="5.20.0"
+    modeler:executionPlatform="Camunda Cloud"
+    modeler:executionPlatformVersion="8.8.0">
+
+  <bpmn:collaboration id="Collaboration_BPMN-PROC-SAPSD-DELREQ">
+    <bpmn:participant id="Participant_BPMN-PROC-SAPSD-DELREQ" name="SAP SD 出庫依頼送信プロセス" processRef="BPMN-PROC-SAPSD-DELREQ" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="BPMN-PROC-SAPSD-DELREQ" name="SAP SD 出庫依頼送信詳細フロー" isExecutable="true">
+    <bpmn:documentation>SAP SD の ATP/在庫引当確定後、納品伝票生成から出庫依頼送信、ACK 受信、状態更新までを詳細化したアドオンフロー。
+開始条件: ATP/在庫引当が確定し、出荷対象の受注であること
+完了条件: 倉庫連携 ACK を受けて出庫依頼が送信完了または保留状態になること
+対応EPIC: docs/sap_sd_order_to_cash_epic_flow.bpmn の Task_SD_SendDeliveryReq / MsgFlow_SDToWarehouse_DeliveryReq</bpmn:documentation>
+
+    <bpmn:laneSet id="LaneSet_DELREQ_1">
+      <bpmn:lane id="Lane_SD_OrderMgmt" name="SAP SD 受注管理">
+        <bpmn:flowNodeRef>BPMN-EVT-001</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-001</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_SD_Shipping" name="SAP SD 出荷管理">
+        <bpmn:flowNodeRef>BPMN-TASK-002</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-GW-001</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-003</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-006</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-EVT-002</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_SD_Interface" name="物流連携">
+        <bpmn:flowNodeRef>BPMN-TASK-004</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-005</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-GW-002</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-TASK-007</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BPMN-EVT-003</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="BPMN-EVT-001" name="ATP確定">
+      <bpmn:outgoing>BPMN-FLOW-001</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:serviceTask id="BPMN-TASK-001" name="納品伝票生成">
+      <bpmn:documentation>目的: 出荷対象の受注から納品伝票を起票し、倉庫連携の元データを準備する
+入力: 受注伝票、ATP 確定結果、出荷条件
+出力: 納品伝票、出荷対象明細
+関連Contract: EPIC MsgFlow_SDToWarehouse_DeliveryReq 参照</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-001</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-002</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="sd-create-delivery-document" retries="3" />
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="BPMN-TASK-002" name="出庫依頼データ組成">
+      <bpmn:documentation>目的: 倉庫連携に必要な出庫依頼メッセージを組成する
+入力: 納品伝票、出荷対象明細、出荷拠点マスタ
+出力: 出庫依頼データ
+関連Contract: EPIC MsgFlow_SDToWarehouse_DeliveryReq 参照</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-002</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-003</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="sd-build-delivery-request" retries="3" />
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="BPMN-GW-001" name="手動確認要否" default="BPMN-FLOW-005">
+      <bpmn:documentation>判定: 危険物、分納、代替倉庫などの条件で手動確認が必要か判定する
+デフォルト: BPMN-FLOW-005 (通常ケースは自動送信)</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-003</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-004</bpmn:outgoing>
+      <bpmn:outgoing>BPMN-FLOW-005</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:userTask id="BPMN-TASK-003" name="出庫依頼内容確認">
+      <bpmn:documentation>目的: 自動判定で例外扱いとなった出庫依頼を人が確認する
+入力: 出庫依頼データ、例外判定理由
+出力: 送信承認済み出庫依頼
+関連Contract: EPIC MsgFlow_SDToWarehouse_DeliveryReq 参照</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-004</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-006</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+        <zeebe:formDefinition formId="delivery-request-review-form" />
+        <zeebe:assignmentDefinition assignee="=shippingControllerEmail" />
+      </bpmn:extensionElements>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="BPMN-TASK-004" name="倉庫連携メッセージ送信">
+      <bpmn:documentation>目的: 組成済みの出庫依頼を倉庫/WMS へ送信する
+入力: 出庫依頼データ
+出力: 送信要求、連携トランザクション ID
+関連Contract: EPIC MsgFlow_SDToWarehouse_DeliveryReq 参照</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-005</bpmn:incoming>
+      <bpmn:incoming>BPMN-FLOW-006</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-007</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="sd-send-delivery-request-to-wms" retries="3" />
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="BPMN-TASK-005" name="送信ACK受信">
+      <bpmn:documentation>目的: WMS からの受信 ACK を取得し、受付結果を判定可能にする
+入力: 連携トランザクション ID
+出力: ACK ステータス、エラーコード</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-007</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-008</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="sd-receive-delivery-request-ack" retries="5" />
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="BPMN-GW-002" name="ACK判定" default="BPMN-FLOW-010">
+      <bpmn:documentation>判定: WMS が出庫依頼を正常受付したか判定する
+デフォルト: BPMN-FLOW-010 (ACK 異常時は保留/再送待ち)</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-008</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-009</bpmn:outgoing>
+      <bpmn:outgoing>BPMN-FLOW-010</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="BPMN-TASK-006" name="出庫依頼状態更新">
+      <bpmn:documentation>目的: ACK 成功時に出庫依頼を送信済みへ更新し、後続 PGI 待ちに進める
+入力: ACK ステータス、連携トランザクション ID
+出力: 送信済み出庫依頼状態</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-009</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-011</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="sd-update-delivery-request-status" retries="3" />
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="BPMN-TASK-007" name="エラー記録・保留">
+      <bpmn:documentation>目的: ACK 異常時にエラーを記録し、再送または手動対応待ちへ移す
+入力: ACK ステータス、エラーコード
+出力: 保留状態、運用通知</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-010</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-012</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="sd-hold-delivery-request" retries="3" />
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="BPMN-EVT-002" name="出庫依頼送信完了">
+      <bpmn:incoming>BPMN-FLOW-011</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="BPMN-EVT-003" name="保留/再送待ち">
+      <bpmn:incoming>BPMN-FLOW-012</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:textAnnotation id="TextAnnotation_ManualReview">
+      <bpmn:text>手動確認条件: 危険物、分納、代替倉庫、緊急便</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_ManualReview" sourceRef="TextAnnotation_ManualReview" targetRef="BPMN-GW-001" />
+
+    <bpmn:textAnnotation id="TextAnnotation_EpicLink">
+      <bpmn:text>対応EPIC: Task_SD_SendDeliveryReq / MsgFlow_SDToWarehouse_DeliveryReq</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_EpicLink" sourceRef="TextAnnotation_EpicLink" targetRef="BPMN-TASK-004" />
+
+    <bpmn:sequenceFlow id="BPMN-FLOW-001" sourceRef="BPMN-EVT-001" targetRef="BPMN-TASK-001" />
+    <bpmn:sequenceFlow id="BPMN-FLOW-002" sourceRef="BPMN-TASK-001" targetRef="BPMN-TASK-002" />
+    <bpmn:sequenceFlow id="BPMN-FLOW-003" sourceRef="BPMN-TASK-002" targetRef="BPMN-GW-001" />
+
+    <bpmn:sequenceFlow id="BPMN-FLOW-004" name="手動確認要" sourceRef="BPMN-GW-001" targetRef="BPMN-TASK-003">
+      <bpmn:documentation>例外条件に該当するため、出荷管理担当の確認を経て送信する</bpmn:documentation>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=requiresManualReview = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:sequenceFlow id="BPMN-FLOW-005" sourceRef="BPMN-GW-001" targetRef="BPMN-TASK-004" />
+    <bpmn:sequenceFlow id="BPMN-FLOW-006" sourceRef="BPMN-TASK-003" targetRef="BPMN-TASK-004" />
+    <bpmn:sequenceFlow id="BPMN-FLOW-007" sourceRef="BPMN-TASK-004" targetRef="BPMN-TASK-005" />
+    <bpmn:sequenceFlow id="BPMN-FLOW-008" sourceRef="BPMN-TASK-005" targetRef="BPMN-GW-002" />
+
+    <bpmn:sequenceFlow id="BPMN-FLOW-009" name="ACK成功" sourceRef="BPMN-GW-002" targetRef="BPMN-TASK-006">
+      <bpmn:documentation>WMS が出庫依頼を受理したため、送信済み状態へ更新する</bpmn:documentation>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=ackStatus = "ACCEPTED"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:sequenceFlow id="BPMN-FLOW-010" sourceRef="BPMN-GW-002" targetRef="BPMN-TASK-007" />
+    <bpmn:sequenceFlow id="BPMN-FLOW-011" sourceRef="BPMN-TASK-006" targetRef="BPMN-EVT-002" />
+    <bpmn:sequenceFlow id="BPMN-FLOW-012" sourceRef="BPMN-TASK-007" targetRef="BPMN-EVT-003" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_BPMN-PROC-SAPSD-DELREQ">
+      <bpmndi:BPMNShape id="Participant_di" bpmnElement="Participant_BPMN-PROC-SAPSD-DELREQ" isHorizontal="false">
+        <dc:Bounds x="80" y="80" width="900" height="1580" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Lane_SD_OrderMgmt" bpmnElement="Lane_SD_OrderMgmt" isHorizontal="false">
+        <dc:Bounds x="110" y="110" width="220" height="1500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_SD_Shipping" bpmnElement="Lane_SD_Shipping" isHorizontal="false">
+        <dc:Bounds x="330" y="110" width="280" height="1500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_SD_Interface" bpmnElement="Lane_SD_Interface" isHorizontal="false">
+        <dc:Bounds x="610" y="110" width="320" height="1500" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_EVT_001" bpmnElement="BPMN-EVT-001">
+        <dc:Bounds x="192" y="140" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TASK_001" bpmnElement="BPMN-TASK-001">
+        <dc:Bounds x="160" y="240" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TASK_002" bpmnElement="BPMN-TASK-002">
+        <dc:Bounds x="420" y="360" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_001" bpmnElement="BPMN-GW-001" isMarkerVisible="true">
+        <dc:Bounds x="435" y="510" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TASK_003" bpmnElement="BPMN-TASK-003">
+        <dc:Bounds x="400" y="650" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TASK_004" bpmnElement="BPMN-TASK-004">
+        <dc:Bounds x="710" y="760" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TASK_005" bpmnElement="BPMN-TASK-005">
+        <dc:Bounds x="710" y="920" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_002" bpmnElement="BPMN-GW-002" isMarkerVisible="true">
+        <dc:Bounds x="745" y="1070" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TASK_006" bpmnElement="BPMN-TASK-006">
+        <dc:Bounds x="400" y="1200" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TASK_007" bpmnElement="BPMN-TASK-007">
+        <dc:Bounds x="710" y="1200" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EVT_002" bpmnElement="BPMN-EVT-002">
+        <dc:Bounds x="442" y="1360" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EVT_003" bpmnElement="BPMN-EVT-003">
+        <dc:Bounds x="752" y="1360" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_TextAnnotation_ManualReview" bpmnElement="TextAnnotation_ManualReview">
+        <dc:Bounds x="520" y="620" width="180" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TextAnnotation_EpicLink" bpmnElement="TextAnnotation_EpicLink">
+        <dc:Bounds x="620" y="700" width="220" height="50" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="Edge_FLOW_001" bpmnElement="BPMN-FLOW-001">
+        <di:waypoint x="210" y="176" />
+        <di:waypoint x="210" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_FLOW_002" bpmnElement="BPMN-FLOW-002">
+        <di:waypoint x="260" y="280" />
+        <di:waypoint x="470" y="280" />
+        <di:waypoint x="470" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_FLOW_003" bpmnElement="BPMN-FLOW-003">
+        <di:waypoint x="470" y="440" />
+        <di:waypoint x="470" y="510" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_FLOW_004" bpmnElement="BPMN-FLOW-004">
+        <di:waypoint x="460" y="560" />
+        <di:waypoint x="460" y="650" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_FLOW_005" bpmnElement="BPMN-FLOW-005">
+        <di:waypoint x="485" y="535" />
+        <di:waypoint x="770" y="535" />
+        <di:waypoint x="770" y="760" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_FLOW_006" bpmnElement="BPMN-FLOW-006">
+        <di:waypoint x="520" y="690" />
+        <di:waypoint x="600" y="690" />
+        <di:waypoint x="600" y="800" />
+        <di:waypoint x="710" y="800" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_FLOW_007" bpmnElement="BPMN-FLOW-007">
+        <di:waypoint x="770" y="840" />
+        <di:waypoint x="770" y="920" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_FLOW_008" bpmnElement="BPMN-FLOW-008">
+        <di:waypoint x="770" y="1000" />
+        <di:waypoint x="770" y="1070" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_FLOW_009" bpmnElement="BPMN-FLOW-009">
+        <di:waypoint x="745" y="1095" />
+        <di:waypoint x="460" y="1095" />
+        <di:waypoint x="460" y="1200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_FLOW_010" bpmnElement="BPMN-FLOW-010">
+        <di:waypoint x="795" y="1095" />
+        <di:waypoint x="770" y="1095" />
+        <di:waypoint x="770" y="1200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_FLOW_011" bpmnElement="BPMN-FLOW-011">
+        <di:waypoint x="460" y="1280" />
+        <di:waypoint x="460" y="1360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_FLOW_012" bpmnElement="BPMN-FLOW-012">
+        <di:waypoint x="770" y="1280" />
+        <di:waypoint x="770" y="1360" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Association_ManualReview" bpmnElement="Association_ManualReview">
+        <di:waypoint x="610" y="650" />
+        <di:waypoint x="485" y="535" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Association_EpicLink" bpmnElement="Association_EpicLink">
+        <di:waypoint x="730" y="750" />
+        <di:waypoint x="770" y="760" />
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

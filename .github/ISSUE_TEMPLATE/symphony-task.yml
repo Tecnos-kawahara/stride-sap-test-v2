@@ -1,0 +1,64 @@
+name: "Symphony Task"
+description: "Symphony オーケストレーターで自動処理するタスク"
+labels: ["symphony:ready"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Symphony Task
+        このIssueは `symphony:ready` ラベルにより、Symphony オーケストレーターが
+        自動的にエージェント（Claude Code / Codex）を起動して処理します。
+
+        Phase / Feature Name / Priority は本文から自動抽出されます。
+
+  - type: dropdown
+    id: phase
+    attributes:
+      label: "Phase"
+      description: "エージェントが実行するSDDフェーズ"
+      options:
+        - "design"
+        - "specify"
+        - "tasking"
+        - "execute"
+    validations:
+      required: true
+
+  - type: input
+    id: feature_name
+    attributes:
+      label: "Feature Name"
+      description: "specs/<feature_name>/ のディレクトリ名"
+      placeholder: "e.g. order_import"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: "Priority"
+      options:
+        - "P0-Critical"
+        - "P1-High"
+        - "P2-Medium"
+        - "P3-Low"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Description"
+      description: |
+        実装内容の詳細。Issue本文がエージェントへのプロンプトの一部になります。
+        Phase 1(Design) の場合は、要件・背景・スコープを記述してください。
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: "Acceptance Criteria（任意）"
+      description: "完了条件。Phase 1-3では SDD プロセスで自動生成されます。"
+    validations:
+      required: false

@@ -1,0 +1,30 @@
+# 共通クラス使用判断ログ
+# Step 6 の実装中に AI が各処理について共通クラス使用を検討し、
+# 使用しなかった処理とその理由を記録する。
+# 全処理が共通クラスを使用している場合は exclusions を空にする。
+#
+# evidence_capture.js が本ファイルを読み取り、
+# エビデンス HTML の「共通クラス使用判断」セクションに表示する。
+# 人間は Stage 3 のエビデンスレビューで不使用理由の妥当性を確認する。
+
+common_class_decisions:
+  feature_id: "FEAT-XXX"
+  wi_id: "WI-XXX-001"
+  evaluated_at: ""                    # YYYY-MM-DD（Step 6 実装時に記入）
+  rules_version: "common_class_rules.yaml"
+
+  # 共通クラスを使用した処理一覧
+  usages: []
+  # - processing: ""                  # 処理名（例: ALV 一覧表示）
+  #   rule_id: ""                     # 適用ルール（例: CC-ALV-01）
+  #   class: ""                       # 使用した共通クラス（例: ZCL_CMA_ALV_GENERIC）
+  #   methods: []                     # 使用したメソッド（例: [CONSTRUCTOR, SET_COLUMNS, DISPLAY]）
+
+  # 共通クラスを使用しなかった処理一覧（人間レビュー対象）
+  exclusions: []
+  # - processing: ""                  # 処理名（例: 権限チェック）
+  #   rule_id: ""                     # 本来適用されるルール（例: CC-AUTH-01）
+  #   expected_class: ""              # 使用すべき共通クラス（例: ZCL_CMA_COMMON_CHECK）
+  #   actual_implementation: ""       # 実際の実装方法（例: AUTHORITY-CHECK 直接使用）
+  #   reason: ""                      # 不使用理由（例: S_TCODE チェックのみであり、共通クラスが提供する会社/販売/購買/プラント権限チェックに該当しない）
+  #   risk_assessment: ""             # リスク評価（low / medium / high）

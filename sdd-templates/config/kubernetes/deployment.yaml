@@ -1,0 +1,176 @@
+# =============================================================================
+# Kubernetes Deployment
+# Production-ready application deployment
+# =============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${APP_NAME}
+  namespace: ${NAMESPACE}
+  labels:
+    app: ${APP_NAME}
+    version: ${APP_VERSION}
+    environment: ${ENVIRONMENT}
+spec:
+  replicas: ${REPLICAS:-2}
+  selector:
+    matchLabels:
+      app: ${APP_NAME}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: ${APP_NAME}
+        version: ${APP_VERSION}
+      annotations:
+        # Prometheus scraping
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      # Security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+
+      # Service account
+      serviceAccountName: ${APP_NAME}
+
+      # Anti-affinity for high availability
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: ${APP_NAME}
+                topologyKey: kubernetes.io/hostname
+
+      # Init containers (optional: wait for dependencies)
+      initContainers:
+        - name: wait-for-db
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z ${DB_HOST} ${DB_PORT}; do
+                echo "Waiting for database..."
+                sleep 2
+              done
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+
+      containers:
+        - name: app
+          image: ${DOCKER_REGISTRY}/${APP_NAME}:${APP_VERSION}
+          imagePullPolicy: Always
+
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+
+          # Environment variables
+          env:
+            - name: APP_ENV
+              value: "${ENVIRONMENT}"
+            - name: APP_DEBUG
+              value: "false"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ${APP_NAME}-secrets
+                  key: database-url
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ${APP_NAME}-secrets
+                  key: secret-key
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ${APP_NAME}-secrets
+                  key: redis-url
+            # OpenTelemetry
+            - name: OTEL_ENABLED
+              value: "true"
+            - name: OTEL_SERVICE_NAME
+              value: "${APP_NAME}"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector.observability:4317"
+
+          # Resource limits
+          resources:
+            requests:
+              cpu: ${CPU_REQUEST:-100m}
+              memory: ${MEMORY_REQUEST:-256Mi}
+            limits:
+              cpu: ${CPU_LIMIT:-500m}
+              memory: ${MEMORY_LIMIT:-512Mi}
+
+          # Security context
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+
+          # Probes
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 30
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          # Volume mounts
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: app-data
+              mountPath: /app/data
+
+      # Volumes
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: app-data
+          persistentVolumeClaim:
+            claimName: ${APP_NAME}-data
+
+      # Graceful shutdown
+      terminationGracePeriodSeconds: 30
+
+      # Image pull secrets (if using private registry)
+      imagePullSecrets:
+        - name: docker-registry-secret

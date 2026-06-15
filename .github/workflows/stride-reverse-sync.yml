@@ -1,0 +1,111 @@
+# GitHub Projects → STRIDE 逆方向同期ワークフロー
+# Projects での変更をファイルに反映
+
+name: Sync Projects to STRIDE (Reverse)
+
+# YAML 1.1 で `on:` (unquoted) が boolean True として parse される spec issue を回避するため quote 必須。
+# 旧実装で本 workflow が push event で誤起動 + early failure を起こしていた問題を解消 (2026-05-08 fix)。
+"on":
+  # 手動トリガー（Projects webhook は設定が複雑なため）
+  workflow_dispatch:
+    inputs:
+      feature:
+        description: 'Feature directory (e.g., specs/my_feature/)'
+        required: true
+      wi_id:
+        description: 'Specific WI ID (optional, leave empty for all)'
+        required: false
+      prefer:
+        description: 'Conflict resolution'
+        type: choice
+        options:
+          - auto
+          - file
+          - projects
+        default: 'auto'
+      dry_run:
+        description: 'Dry run (no changes)'
+        type: boolean
+        default: true
+
+  # スケジュール実行（オプション: 定期的に同期）
+  # schedule:
+  #   - cron: '*/30 * * * *'  # 30分ごと
+
+env:
+  GITHUB_PROJECT_NUMBER: ${{ vars.STRIDE_PROJECT_NUMBER }}
+  GITHUB_OWNER: ${{ github.repository_owner }}
+  GITHUB_OWNER_TYPE: organization
+
+jobs:
+  reverse-sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      projects: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.STRIDE_PROJECT_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pyyaml requests
+
+      - name: Sync from Projects
+        env:
+          GH_TOKEN: ${{ secrets.STRIDE_PROJECT_TOKEN }}
+        run: |
+          FLAGS=""
+
+          if [ -n "${{ inputs.feature }}" ]; then
+            FLAGS="--feature ${{ inputs.feature }}"
+          fi
+
+          if [ -n "${{ inputs.wi_id }}" ]; then
+            FLAGS="--wi-id ${{ inputs.wi_id }}"
+          fi
+
+          FLAGS="$FLAGS --prefer ${{ inputs.prefer }}"
+
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            FLAGS="$FLAGS --dry-run"
+          fi
+
+          python scripts/sync_projects_to_stride.py $FLAGS
+
+      - name: Commit changes
+        if: ${{ inputs.dry_run != true }}
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git add -A
+
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore(stride): Sync from GitHub Projects
+
+            Feature: ${{ inputs.feature }}
+            WI ID: ${{ inputs.wi_id || 'all' }}
+            Prefer: ${{ inputs.prefer }}
+
+            Automated by GitHub Actions"
+            git push
+          fi
+
+      - name: Summary
+        run: |
+          echo "## STRIDE Reverse Sync Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Feature:** ${{ inputs.feature }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **WI ID:** ${{ inputs.wi_id || 'all' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Prefer:** ${{ inputs.prefer }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Dry Run:** ${{ inputs.dry_run }}" >> $GITHUB_STEP_SUMMARY

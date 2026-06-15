@@ -1,0 +1,22 @@
+{
+  "name": "@{{WORKSPACE}}/{{SERVICE_NAME}}",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --build",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "// lint-alt": "biome check src/",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:contract": "vitest run tests/contract/"
+  },
+  "devDependencies": {
+    "typescript": "^5",
+    "vitest": "^3",
+    "tsx": "^4"
+  }
+}

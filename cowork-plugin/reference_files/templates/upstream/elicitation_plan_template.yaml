@@ -1,0 +1,40 @@
+---
+# Template: elicitation_plan.yaml
+# Phase: phase_0_3_elicit
+# BABOK Source: KA4 Elicitation and Collaboration / 4.1 Prepare for Elicitation
+# Layered Requirements Modeling Source: n/a
+# Inspired by: n/a
+# Rule-0: 正本は YAML フロントマター + 下記 YAML ブロック
+---
+
+artifact: "elicitation_plan.yaml"
+template_id: "TPL-UP-ELP-001"
+feature_id: "FEAT-XXX"
+upstream_artifact_id: "ELP-XXX"
+title: "Elicitation Plan - <Feature Name>"
+version: "{{TEMPLATE_VERSION}}"
+status: "draft"
+phase: "phase_0_3_elicit"
+profile_applicability: ["enterprise-erp", "saas-integration", "prototype"]
+owners: []
+reviewers: []
+links:
+  upstream_policy_ref: "shared/policies/upstream_policy.yaml"
+  baccm_completeness_ref: "shared/policies/baccm_completeness.yaml"
+  iteration_policy_ref: "shared/policies/upstream_iteration_policy.yaml"
+  constitution_ref: "memory/constitution.md"
+  amendment_ref: "memory/constitution_amendments/XVI_layered_requirement_architecture.md"
+created_at: "YYYY-MM-DD"
+updated_at: "YYYY-MM-DD"
+
+# Elicitation Plan 本体 (KA4 4.1)
+techniques: []                 # 採用する Elicitation 技法 (technique_library.yaml の id を参照)
+target_stakeholders: []        # 対象ステークホルダー (SH-* 参照)
+schedule: ""                   # 実施期間・回数
+resources: []                  # 必要リソース (場所 / ツール / 人手)
+materials: []                  # 事前配布資料 / 質問票
+assumptions: []                # Elicitation 前提
+risks: []                      # Elicitation 固有リスク (情報未開示 / 機密 / 政治力学)
+
+attributions:
+  - { source: "BABOK v3 (IIBA)", role: "framework backbone (KA4.1)", license: "fair-use, names and section refs only" }
