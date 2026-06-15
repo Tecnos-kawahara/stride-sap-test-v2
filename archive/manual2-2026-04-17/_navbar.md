@@ -1,6 +1,0 @@
-* [ホーム](index.md)
-* [クイックスタート](01_quickstart.md)
-* [概念](concepts/02_sdd_fundamentals.md)
-* [実践ガイド](guides/06_pm_guide.md)
-* [CLI リファレンス](reference/13_cli_reference.md)
-* [GitHub](https://github.com/tecnos-japan-cbp/tecnos-sdd-template-enterprise)

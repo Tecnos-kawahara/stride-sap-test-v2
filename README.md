@@ -1,4 +1,4 @@
-# Tecnos-STRIDE: ERP-Ready SDD Methodology
+# Stride Sap Test V2 — SDD Project
 
 **S**tate-Tracked **R**un **I**ntent-**D**riven **E**ngineering
 

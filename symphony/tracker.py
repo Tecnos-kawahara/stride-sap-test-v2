@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 from typing import Optional
+
+import yaml
 
 from symphony.models import Issue
 
@@ -170,6 +173,116 @@ def post_comment(repo: str, issue_number: int, body: str) -> None:
         raise RuntimeError(
             f"Failed to comment on #{issue_number}: {result.stderr.strip()}"
         )
+
+
+# ---------------------------------------------------------------------------
+# GitHub Projects V2 — Status update
+# ---------------------------------------------------------------------------
+
+def _load_project_binding() -> Optional[dict]:
+    """Load memory/github_project.yaml from the repository root."""
+    path = os.path.join("memory", "github_project.yaml")
+    if not os.path.isfile(path):
+        return None
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+        if not data or not data.get("project_number") or not data.get("owner"):
+            return None
+        return data
+    except Exception:
+        return None
+
+
+# Cache for Status field metadata (populated on first use)
+_project_status_cache: dict = {}
+
+
+def _ensure_status_cache(owner: str, project_number: int, project_id: str) -> bool:
+    """Discover and cache the Status field ID and option IDs."""
+    if _project_status_cache.get("field_id"):
+        return True
+
+    result = _run_gh(
+        "project", "field-list", str(project_number),
+        "--owner", owner, "--format", "json",
+    )
+    if result.returncode != 0:
+        return False
+
+    try:
+        fields = json.loads(result.stdout).get("fields", [])
+    except (json.JSONDecodeError, TypeError):
+        return False
+
+    for field in fields:
+        if field.get("name") == "Status" and field.get("options"):
+            _project_status_cache["field_id"] = field["id"]
+            _project_status_cache["options"] = {
+                opt["name"]: opt["id"] for opt in field["options"]
+            }
+            _project_status_cache["project_id"] = project_id
+            return True
+    return False
+
+
+def _find_project_item_id(owner: str, project_number: int, issue_number: int) -> Optional[str]:
+    """Find the Project item ID for a given issue number."""
+    result = _run_gh(
+        "project", "item-list", str(project_number),
+        "--owner", owner, "--format", "json",
+    )
+    if result.returncode != 0:
+        return None
+
+    try:
+        items = json.loads(result.stdout).get("items", [])
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+    for item in items:
+        content = item.get("content", {})
+        if content.get("number") == issue_number:
+            return item.get("id")
+    return None
+
+
+def update_project_status(issue_number: int, status_name: str) -> None:
+    """Update GitHub Projects V2 Status field for an issue.
+
+    Reads project binding from memory/github_project.yaml.
+    Non-blocking: logs warnings on failure but does not raise.
+
+    Args:
+        issue_number: GitHub issue number
+        status_name: Status option name (e.g. "Todo", "In progress", "Done")
+    """
+    binding = _load_project_binding()
+    if not binding:
+        return
+
+    owner = binding["owner"]
+    project_number = binding["project_number"]
+    project_id = binding.get("project_id", "")
+
+    if not _ensure_status_cache(owner, project_number, project_id):
+        return
+
+    option_id = _project_status_cache["options"].get(status_name)
+    if not option_id:
+        return
+
+    item_id = _find_project_item_id(owner, project_number, issue_number)
+    if not item_id:
+        return
+
+    _run_gh(
+        "project", "item-edit",
+        "--project-id", _project_status_cache["project_id"],
+        "--id", item_id,
+        "--field-id", _project_status_cache["field_id"],
+        "--single-select-option-id", option_id,
+    )
 
 
 # ---------------------------------------------------------------------------

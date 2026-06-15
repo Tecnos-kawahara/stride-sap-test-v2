@@ -1,4 +1,5 @@
 {
-  "_comment": "GitHub Issue ラベル → specs/ ディレクトリ名のマッピング。プロジェクトごとにカスタマイズしてください。",
-  "FEAT-SAMPLE": "sample_erp_addon"
+  "_comment": "GitHub Issue ラベル → specs/ ディレクトリ名のマッピング。featuresを追加するたびに更新してください。",
+  "_project": "stride-sap-test-v2",
+  "_epic_prefix": "STRI"
 }
