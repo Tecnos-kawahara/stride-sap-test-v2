@@ -112,8 +112,11 @@ Tecnos-STRIDE SDD に従って開発するエージェントです。
 **⛔ 最初に `agent_docs/sdd_bootstrap.md` を必ず読むこと。**
 （CLAUDE.md の冒頭にも同じ指示があります）
 
-**⛔ `.stride-extensions.yaml` を確認し、Extension Pack が有効な場合は
-`extensions/<ext>/CLAUDE_<EXT>.md` と `CLAUDE_WORKFLOW_<EXT>.md` を必ず読むこと。**
+**⛔ `.stride-extensions.yaml` を確認し、Extension Pack が有効な場合は以下の3つを（存在すれば）読むこと:**
+1. `extensions/<ext>/CLAUDE_<EXT>.md` — 拡張固有ルール
+2. `extensions/<ext>/CLAUDE_WORKFLOW_<EXT>.md` — 拡張 Phase 別手順
+3. `extensions/<ext>/SYMPHONY_<EXT>.md` — Symphony 実行時の拡張入力・設定
+
 Extension Pack の Phase 別手順は標準フローに対する代替・追加として優先適用される。
 拡張パックを読まずに Phase 作業を開始してはならない。
 
