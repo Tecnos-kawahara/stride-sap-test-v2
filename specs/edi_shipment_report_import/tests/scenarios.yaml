@@ -1,0 +1,77 @@
+# SAP Extension Pack v2 — scenarios_template.yaml
+# 参照仕様: 05_テンプレート設計.md §B-7
+#
+# 2種類のシナリオ源泉:
+#   Type A（要件駆動）: basic_design.traceability_rows → spec AC → scenarios.yaml
+#     traceability_ref で参照。test_matrix_ref は null
+#   Type B（テスト仕様駆動）: basic_design.test_matrix → scenarios.yaml に直接展開
+#     test_matrix_ref で参照。traceability_ref は null
+#     spec AC を経由しない（RQ に紐付かない AC はトレーサビリティを壊すため）
+
+version: "1.0.0"
+test_suite:
+  feature_id: ""
+  coverage_policy: "traceability_row"   # v6.0.0 coverage_policy
+
+scenarios:
+  # =====================================================
+  # Type A: 要件駆動シナリオ（traceability_rows から導出）
+  # =====================================================
+  - id: "TS-001"
+    traceability_ref: ""                # traceability_rows[].id への参照
+    test_matrix_ref: null               # Type A では null
+    category: ""                        # normal | abnormal | boundary
+    title: ""
+    preconditions:
+      - description: ""
+        setup_type: ""                  # master_data | transaction_data | config | authorization
+    steps:
+      - step: 1
+        action: ""
+        input: {}
+        expected: ""
+    expected_result:
+      description: ""
+      verification:
+        - type: ""                      # screen_check | db_check | message_check | file_check
+          target: ""
+          condition: ""
+    # --- SAP 固有フィールド（Type A / Type B 共通）---
+    sap_specifics:
+      tcode: ""                         # 使用トランザクション
+      authorization_role: ""            # テスト時の権限ロール
+      test_data:                        # 入力データ（SAPに存在するべきデータ）
+        - table: ""
+          entries: []
+      # Step 6-3 で AI がビジネスロジックを適用して算出する期待出力データ
+      # format: alv（参照レポート）| db_change（更新系）| message_only（エラー系は省略可）
+      expected_output:
+        format: ""                      # alv | db_change | message_only
+        description: ""                 # 例: "ALV Grid 表示データ（2行）"
+        columns: []                     # 出力カラム名リスト
+        rows: []                        # 期待データ行（各行は {column: value} のマップ）
+
+  # =====================================================
+  # Type B: テスト仕様駆動シナリオ（test_matrix から直接展開）
+  # =====================================================
+  # - id は TS-TM- プレフィックス
+  # - test_matrix_ref は test_matrix.test_cases[].id（数値）を参照
+  # - category は test_matrix.test_cases[].verify[] から導出
+  # - title は test_matrix.test_cases[].conditions のサマリから生成
+  # - expected_result.description は test_matrix.test_cases[].expected_result から転記
+  - id: "TS-TM-001"
+    traceability_ref: null              # Type B では null
+    test_matrix_ref: 1                  # test_matrix.test_cases[].id への参照（数値型）
+    category: ""                        # test_matrix.test_cases[].verify[] から導出
+    title: ""                           # test_matrix.test_cases[].conditions のサマリから生成
+    preconditions: []
+    steps: []
+    expected_result:
+      description: ""                   # test_matrix.test_cases[].expected_result から転記
+      verification: []
+    # --- SAP 固有フィールド（Type A / Type B 共通）---
+    sap_specifics:
+      tcode: ""
+      authorization_role: ""
+      test_data: []
+      expected_output: null             # エラー系・0件系など出力データなしの場合は null

@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions
+    xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+    xmlns:modeler="http://camunda.org/schema/modeler/1.0"
+    id="Definitions_1"
+    targetNamespace="http://tecnos.co.jp/sdd/edi_shipment_report_import"
+    exporter="Camunda Modeler" exporterVersion="5.20.0"
+    modeler:executionPlatform="Camunda Cloud"
+    modeler:executionPlatformVersion="8.8.0">
+
+  <bpmn:collaboration id="Collaboration_BPMN-PROC-EDISHIPMENTREPORTIMPORT">
+    <bpmn:participant id="Participant_BPMN-PROC-EDISHIPMENTREPORTIMPORT" name="IF-IN-001 EDI出荷報告データ取込" processRef="BPMN-PROC-EDISHIPMENTREPORTIMPORT" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="BPMN-PROC-EDISHIPMENTREPORTIMPORT" name="EDI出荷報告データ取込" isExecutable="true">
+    <bpmn:documentation>EDI出荷報告データをロットトレース情報テーブル(ZMSDT0004)と出荷報告テーブル(ZMSDT0009)に登録するインターフェース処理。
+開始条件: 実行ボタン押下／夜間バッチによるジョブ起動
+完了条件: 全データの登録／中断完了（MSG-008 完了 or MSG-001/002/003/007 中断）
+正本参照: basic_design.md bpmn_descriptions.process</bpmn:documentation>
+
+    <bpmn:startEvent id="BPMN-EVT-001" name="ジョブ起動">
+      <bpmn:documentation>夜間バッチまたは選択画面実行ボタン押下でジョブを起動する</bpmn:documentation>
+      <bpmn:outgoing>BPMN-FLOW-001</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:serviceTask id="BPMN-TASK-001" name="P1: 取得処理（固定値・送受信先・ファイル）">
+      <bpmn:documentation>目的: 固定値・物流EDIマスタ・APサーバのファイルを取得し受信先(マルコメ)を特定する
+入力: 選択画面パラメータ, TBL-001 物流EDIマスタ, TBL-002 固定値テーブル, FILE-001 EDI出荷報告データ
+出力: ソート済み EDI出荷報告データ（明細）
+チェック: CHK-001（受信先存在）, CHK-002（ファイル存在）
+中断: MSG-001 / MSG-002 / MSG-003
+関連AC: AC-US-EDISHIP-001-01, AC-US-EDISHIP-001-02
+関連Contract: CT-FILE-01</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-001</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-002</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="sap-fetch-edi-shipment-file" retries="3" />
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="BPMN-GW-001" name="取得処理OK?" default="BPMN-FLOW-009">
+      <bpmn:documentation>判定: 受信先特定／ファイル取得の成否（CHK-001, CHK-002, MSG-003）
+正常時は P2 へ進む。NG 時は MSG-001/002/003 を出力して異常終了。
+デフォルト: BPMN-FLOW-009 (取得失敗時の異常終了パス)</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-002</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-003</bpmn:outgoing>
+      <bpmn:outgoing>BPMN-FLOW-009</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="BPMN-TASK-002" name="P2: EDI出荷報告データチェック">
+      <bpmn:documentation>目的: 出荷指示テーブルとの突合、各項目妥当性検証
+入力: ソート済み EDI出荷報告データ, TBL-003 出荷指示テーブル(ZMSDT0008), TBL-004 ロットマスタ
+出力: 正常データ／エラーデータ（エラー明細は出荷報告テーブルに保持）
+チェック: CHK-003〜CHK-006
+中断ではなく「確認後続行」: MSG-004 / MSG-005 / MSG-006
+関連AC: AC-US-EDISHIP-002-01
+関連Contract: CT-DATA-01</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-003</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-004</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="sap-validate-edi-shipment-data" retries="3" />
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="BPMN-GW-002" name="正常データあり?" default="BPMN-FLOW-007">
+      <bpmn:documentation>判定: 正常データ件数が1件以上か
+1件以上なら P3 へ進む。0件（エラーのみ）なら登録スキップして正常終了（MSG-008 出力）。
+デフォルト: BPMN-FLOW-007 (正常データなし → 登録スキップ)</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-004</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-005</bpmn:outgoing>
+      <bpmn:outgoing>BPMN-FLOW-007</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="BPMN-TASK-003" name="P3: テーブル登録（ロットトレース情報・出荷報告）">
+      <bpmn:documentation>目的: 正常データを ZMSDT0004(ロットトレース情報) に登録し、履歴を ZMSDT0009(出荷報告) に保持する
+入力: 正常データ, エラーデータ
+出力: ZMSDT0004 / ZMSDT0009
+処理: 出荷伝票／品目キーで既存確認 → 存在すれば削除後 INSERT → COMMIT
+計算: CALC-001 SEQNO 採番
+登録失敗: ロールバックして MSG-007 で中断
+完了: MSG-008
+関連AC: AC-US-EDISHIP-003-01, AC-US-EDISHIP-003-02
+関連Contract: CT-DATA-02</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-005</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-006</bpmn:outgoing>
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="sap-insert-lot-trace" retries="2" />
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="BPMN-GW-003" name="登録成功?" default="BPMN-FLOW-010">
+      <bpmn:documentation>判定: ZMSDT0004 / ZMSDT0009 への登録（INSERT/COMMIT）成否
+成功: BPMN-EVT-002 正常終了（MSG-008 出力）。
+失敗: ロールバックして BPMN-EVT-003 異常終了（MSG-007 出力）。
+デフォルト: BPMN-FLOW-010 (登録失敗時の異常終了パス)</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-006</bpmn:incoming>
+      <bpmn:outgoing>BPMN-FLOW-008</bpmn:outgoing>
+      <bpmn:outgoing>BPMN-FLOW-010</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:endEvent id="BPMN-EVT-002" name="正常終了 (MSG-008)">
+      <bpmn:documentation>全データ処理完了。RPT-001 実行結果画面に処理件数を表示し、MSG-008 完了メッセージを出力する。
+関連AC: AC-US-EDISHIP-004-01</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-007</bpmn:incoming>
+      <bpmn:incoming>BPMN-FLOW-008</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="BPMN-EVT-003" name="異常終了 (MSG-001/002/003/007)">
+      <bpmn:documentation>前提エラー（受信先未特定 / ファイル不在 / ファイル空）または登録失敗による中断終了。
+取得処理NG: MSG-001 / MSG-002 / MSG-003
+登録失敗: MSG-007（ロールバック）
+RPT-001 実行結果画面に該当メッセージを表示。</bpmn:documentation>
+      <bpmn:incoming>BPMN-FLOW-009</bpmn:incoming>
+      <bpmn:incoming>BPMN-FLOW-010</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="BPMN-FLOW-001" sourceRef="BPMN-EVT-001" targetRef="BPMN-TASK-001" />
+    <bpmn:sequenceFlow id="BPMN-FLOW-002" sourceRef="BPMN-TASK-001" targetRef="BPMN-GW-001" />
+
+    <bpmn:sequenceFlow id="BPMN-FLOW-003" name="OK" sourceRef="BPMN-GW-001" targetRef="BPMN-TASK-002">
+      <bpmn:documentation>取得処理OK（CHK-001/CHK-002 PASS、ファイル0件でない）→ チェック処理へ進む</bpmn:documentation>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=fetchStatus = "ok"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:sequenceFlow id="BPMN-FLOW-004" sourceRef="BPMN-TASK-002" targetRef="BPMN-GW-002" />
+
+    <bpmn:sequenceFlow id="BPMN-FLOW-005" name="正常データあり" sourceRef="BPMN-GW-002" targetRef="BPMN-TASK-003">
+      <bpmn:documentation>正常データ件数が1件以上 → 登録処理へ進む</bpmn:documentation>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=validCount &gt; 0</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:sequenceFlow id="BPMN-FLOW-006" sourceRef="BPMN-TASK-003" targetRef="BPMN-GW-003" />
+
+    <bpmn:sequenceFlow id="BPMN-FLOW-007" name="正常データなし" sourceRef="BPMN-GW-002" targetRef="BPMN-EVT-002">
+      <bpmn:documentation>正常データ0件（エラーのみ）→ 登録スキップして正常終了（MSG-008）</bpmn:documentation>
+    </bpmn:sequenceFlow>
+
+    <bpmn:sequenceFlow id="BPMN-FLOW-008" name="登録成功" sourceRef="BPMN-GW-003" targetRef="BPMN-EVT-002">
+      <bpmn:documentation>ZMSDT0004 / ZMSDT0009 INSERT/COMMIT 成功 → 正常終了（MSG-008）</bpmn:documentation>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=insertStatus = "ok"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:sequenceFlow id="BPMN-FLOW-009" sourceRef="BPMN-GW-001" targetRef="BPMN-EVT-003">
+      <bpmn:documentation>取得処理NG（CHK-001/CHK-002 FAIL or ファイル空）→ MSG-001/002/003 で異常終了</bpmn:documentation>
+    </bpmn:sequenceFlow>
+
+    <bpmn:sequenceFlow id="BPMN-FLOW-010" sourceRef="BPMN-GW-003" targetRef="BPMN-EVT-003">
+      <bpmn:documentation>ZMSDT0004 / ZMSDT0009 INSERT 失敗 → ロールバックして MSG-007 異常終了</bpmn:documentation>
+    </bpmn:sequenceFlow>
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_BPMN-PROC-EDISHIPMENTREPORTIMPORT">
+
+      <bpmndi:BPMNShape id="Participant_di" bpmnElement="Participant_BPMN-PROC-EDISHIPMENTREPORTIMPORT" isHorizontal="false">
+        <dc:Bounds x="80" y="80" width="360" height="1180" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_EVT_001" bpmnElement="BPMN-EVT-001">
+        <dc:Bounds x="232" y="140" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TASK_001" bpmnElement="BPMN-TASK-001">
+        <dc:Bounds x="195" y="230" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_001" bpmnElement="BPMN-GW-001" isMarkerVisible="true">
+        <dc:Bounds x="225" y="360" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TASK_002" bpmnElement="BPMN-TASK-002">
+        <dc:Bounds x="195" y="460" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_002" bpmnElement="BPMN-GW-002" isMarkerVisible="true">
+        <dc:Bounds x="225" y="590" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TASK_003" bpmnElement="BPMN-TASK-003">
+        <dc:Bounds x="195" y="690" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_003" bpmnElement="BPMN-GW-003" isMarkerVisible="true">
+        <dc:Bounds x="225" y="820" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EVT_002" bpmnElement="BPMN-EVT-002">
+        <dc:Bounds x="132" y="970" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EVT_003" bpmnElement="BPMN-EVT-003">
+        <dc:Bounds x="332" y="970" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="Edge_FLOW_001" bpmnElement="BPMN-FLOW-001">
+        <di:waypoint x="250" y="176" />
+        <di:waypoint x="250" y="230" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_FLOW_002" bpmnElement="BPMN-FLOW-002">
+        <di:waypoint x="250" y="310" />
+        <di:waypoint x="250" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_FLOW_003" bpmnElement="BPMN-FLOW-003">
+        <di:waypoint x="250" y="410" />
+        <di:waypoint x="250" y="460" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_FLOW_004" bpmnElement="BPMN-FLOW-004">
+        <di:waypoint x="250" y="540" />
+        <di:waypoint x="250" y="590" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_FLOW_005" bpmnElement="BPMN-FLOW-005">
+        <di:waypoint x="250" y="640" />
+        <di:waypoint x="250" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_FLOW_006" bpmnElement="BPMN-FLOW-006">
+        <di:waypoint x="250" y="770" />
+        <di:waypoint x="250" y="820" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_FLOW_007" bpmnElement="BPMN-FLOW-007">
+        <di:waypoint x="225" y="615" />
+        <di:waypoint x="150" y="615" />
+        <di:waypoint x="150" y="970" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_FLOW_008" bpmnElement="BPMN-FLOW-008">
+        <di:waypoint x="225" y="845" />
+        <di:waypoint x="150" y="845" />
+        <di:waypoint x="150" y="970" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_FLOW_009" bpmnElement="BPMN-FLOW-009">
+        <di:waypoint x="275" y="385" />
+        <di:waypoint x="350" y="385" />
+        <di:waypoint x="350" y="970" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_FLOW_010" bpmnElement="BPMN-FLOW-010">
+        <di:waypoint x="275" y="845" />
+        <di:waypoint x="350" y="845" />
+        <di:waypoint x="350" y="970" />
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

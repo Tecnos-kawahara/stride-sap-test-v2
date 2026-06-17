@@ -1,0 +1,17 @@
+# Transport Manifest - FEAT-XXX
+landscape:
+  systems: []
+  transport_route: ""
+  transport_layer: ""
+
+transport_requests: []
+# - id: "TR-001"
+#   type: "workbench"
+#   description: ""
+#   import_order: 1
+#   objects: []
+#   dependencies: []
+#   release_criteria: []
+#   status: "planned"
+
+notes: ""
