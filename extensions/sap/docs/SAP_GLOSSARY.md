@@ -179,7 +179,7 @@ SAP Extension Pack v2.0.0 固有のワークフロー概念。
 | ステップ ID | グループ | 概要 |
 |-------------|----------|------|
 | **1-A1** | A: 生成 | yaml -> basic_design.md 生成（マッピングテーブルに従い転記） |
-| **1-A2** | A: 生成 | パターン分岐の identify + risk_flags 自動判定 |
+| **1-A2** | A: 生成 | パターン分岐の identify |
 | **1-B1** | B: BPMN | BPMN 生成 |
 | **1-C1** | C: 検証 | yaml 全要素の展開確認（basic_design_completeness_validator） |
 | **1-C2** | C: 検証 | カタログ整合性（catalogs_consistency_validator） |

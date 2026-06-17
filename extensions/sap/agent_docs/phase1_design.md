@@ -32,13 +32,19 @@ AI（`04_ツール個別設計.md §A-1` マッピングテーブルに従い）
 | object_definitions.files | object_definitions.files | |
 | object_definitions.reports | object_definitions.reports | |
 | object_definitions.interfaces | object_definitions.interfaces | |
-| **object_definitions.tables** | **object_definitions.tables** | v1 の `database.data_references` から移行。5分類統一 |
+| object_definitions.tables | object_definitions.tables | |
 | **requirements** | **business_requirements** | yaml 側キー名 `requirements` → BD 側キー名 `business_requirements`（**キー名が異なる。変換必要**） |
 | sap_context | sap_context | |
-| **processes** | **processes** | v1 の `process_definitions` から変更 |
+| processes | processes | |
 | **programDetail** | **sap_context（統合）** | SE38属性等を sap_context 内の対応フィールドに転記 |
 | **header.responseRequirement** | **responseRequirement** | **個別機能の方**をマッピング（群ではなく） |
 | testMatrix | **test_matrix**（matrix 形式: columns + test_cases） | |
+
+**不整合検出時の行動規範:**
+転記中にソース yaml 内の不整合（存在しないカタログ ID の参照、空配列だが文脈上必要と思われるセクション等）を検出した場合:
+- **AI が独自判断で修正・補完してはならない**
+- 不整合の内容と箇所を明示的にエラーとして報告し、人間に修正を依頼する
+- 人間がソース yaml を修正した後、再度転記を実行する
 
 **AI 導出セクション**（yaml からのコピーではない）:
 - `traceability_rows`: Phase 1-A1 で AI が `processes[].body` のパターン分岐検出から生成。Phase 1-A2 で追記
@@ -59,22 +65,13 @@ AI（`04_ツール個別設計.md §A-1` マッピングテーブルに従い）
 
 **このステップが yaml を参照する最後のステップ。** 以降は Rule S1 により basic_design を起点とする。
 
-## Step 1-A2: パターン分岐検出 + risk_flags 判定
-
-### パターン分岐の検出
+## Step 1-A2: パターン分岐検出
 
 `processes[].body` のテキストから分岐パターンを検出する:
 - 国内/海外、法人/個人、単体/連結 等のパターン分岐
 - 検出した分岐を独立した `traceability_rows` エントリとして追記
 
-### risk_flags 自動判定（Rule S7 準拠）
-
-| 条件 | risk_flag |
-|------|-----------|
-| screens[].access_control にロール別制御あり | `authz` |
-| object_definitions.tables に新規テーブル（gate: empty）あり | `db_schema` |
-| CALC カタログに金額計算あり | `accounting_calc` |
-| 個人情報フィールドの存在 | `pii` |
+> **Note**: risk_flags の判定は Phase 3 (Tasking) で WI 作成時に標準フローで行う。Phase 1 では判定しない。
 
 ## Step 1-B1: process.bpmn 生成
 

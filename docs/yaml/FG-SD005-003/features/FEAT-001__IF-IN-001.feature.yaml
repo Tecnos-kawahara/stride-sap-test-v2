@@ -112,8 +112,8 @@ processes:
     output: ZMSDT0004／ZMSDT0009
     body: |
         出荷伝票／品目キーで既存を確認し、存在すれば削除後に登録（CALC-001でSEQNO採番）。
-        登録/削除失敗時はロールバックしMSG-013で終了。
-        完了をMSG-014で出力。
+        登録/削除失敗時はロールバックしMSG-007で終了。
+        完了をMSG-008で出力。
     next:
       - target: 終了
         condition: 正常終了
@@ -565,7 +565,18 @@ object_definitions:
       mainFields: ""
       dataModelOverview: ""
       designDetails: {}
-  interfaces: []
+  interfaces:
+    - id: IF-001
+      name: EDI出荷報告データ受信
+      counterparty_system: "CBP(ACMS)"
+      direction: input
+      timing: "夜間バッチ（日次）"
+      data_names: "EDI出荷報告データ（CSV/固定長ファイル）"
+      condition_policy: "送信元から複数回送信分を CBP(ACMS) でマージし1ファイルでSAPに連携。送信元ごとにファイル連携される。"
+      protocol: file
+      auth_method: cert
+      if_object_name: ""
+      if_object_name_note: "AP-File入力（#4 RICEF パターン）"
 testMatrix:
   status: 作成中
   summary:
