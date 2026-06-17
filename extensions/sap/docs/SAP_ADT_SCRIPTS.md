@@ -45,7 +45,7 @@ cd extensions/sap && npm install
 
 ---
 
-## 1. 調査・取得ツール (Phase 1.5: Design 後)
+## 1. 調査・取得ツール (Phase 2 前準備: Design 後)
 
 ### 1.1 search.js -- オブジェクト検索・パッケージ一覧
 

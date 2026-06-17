@@ -222,7 +222,7 @@ YAML パースのユーティリティ。`extensions/sap/tools/sap_evidence_comm
 ```python
 write_evidence(
     feature_dir: str | Path,   # specs/<feature>/ のパス
-    step_id: str,              # ステップ ID（例: "1.5-B2", "2-D1", "4-B4"）
+    step_id: str,              # ステップ ID（例: "2P-B2", "2-D1", "4-B4"）
     tool_name: str,            # ツール名（例: "sap_context_metadata.py"）
     command: str,              # 実行コマンド全体
     options: list[str] | None = None,  # CLI オプションリスト
@@ -512,7 +512,7 @@ assert len(result.errors) == 0
 
 ```bash
 # Python ユーティリティ
-python3 extensions/sap/tools/my_utility.py specs/test_feature/ --step-id 1.5-B2
+python3 extensions/sap/tools/my_utility.py specs/test_feature/ --step-id 2P-B2
 
 # Node.js SAP 操作ツール（.env に SAP 接続情報を設定済みであること）
 node extensions/sap/tools/my_sap_tool.js <args> --step-id 4-A1 --feature-dir specs/test_feature/
@@ -523,10 +523,10 @@ node extensions/sap/tools/my_sap_tool.js <args> --step-id 4-A1 --feature-dir spe
 ```bash
 # エビデンスファイルが生成されたか確認
 ls specs/test_feature/.tool_evidence/
-# 例: 1.5-B2__my_utility.evidence.yaml が存在すること
+# 例: 2P-B2__my_utility.evidence.yaml が存在すること
 
 # 内容の確認
-cat specs/test_feature/.tool_evidence/1.5-B2__my_utility.evidence.yaml
+cat specs/test_feature/.tool_evidence/2P-B2__my_utility.evidence.yaml
 ```
 
 ### 8.4 MANIFEST.yaml 整合性の確認

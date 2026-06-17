@@ -1,26 +1,26 @@
-# Phase 1.5: SAP Context Acquisition — 詳細手順
+# Phase 2 前準備: SAP Context Acquisition — 詳細手順
 
 > **compaction 後は本ファイルを再読すること。**
 
-Phase 1.5 は **任意** のフェーズ。SAP 実機接続による情報補完が必要な場合にのみ実行する。
+Phase 2 前準備は **任意** のフェーズ。SAP 実機接続による情報補完が必要な場合にのみ実行する。
 
-## Step 1.5-A1: SAP オブジェクト検索
+## Step 2P-A1: SAP オブジェクト検索
 
 - **ツール**: `search.js`（**conversational** — 自律実行可）
 - basic_design.sap_context を参照し、関連 SAP オブジェクトを検索
 
-## Step 1.5-A2: SAP ソース参照
+## Step 2P-A2: SAP ソース参照
 
 - **ツール**: `read.js`（**conversational** — 自律実行可）
 - 検索結果のオブジェクトのソースコード・メタデータを参照
 
-## Step 1.5-A3: SAP ソース取得
+## Step 2P-A3: SAP ソース取得
 
 - **ツール**: `pull.js`（**gated** — 人間承認必須。Rule S3）
 - 取得対象オブジェクトのソースをローカルにプル
 - **pull.js を人間の承認なしに実行することは gated authority 違反**
 
-## Step 1.5-B1: sap_context.md 記録
+## Step 2P-B1: sap_context.md 記録
 
 - **実行主体**: AI
 - `implementation-details/sap_context.md` に以下を記録:
@@ -30,18 +30,18 @@ Phase 1.5 は **任意** のフェーズ。SAP 実機接続による情報補完
   - 既存類似オブジェクトの調査結果
 - basic_design.sap_context を源泉として参照
 
-## Step 1.5-B2: テーブルメタデータ記録
+## Step 2P-B2: テーブルメタデータ記録
 
 - **ツール**: `sap_context_metadata.py --tables`
 - basic_design.database.data_references[].tables のメタデータを sap_context.md に追記
 
-## Step 1.5-C1: T100 メッセージ検証
+## Step 2P-C1: T100 メッセージ検証
 
 - **ツール**: `sap_message_t100_validator.py`
 - basic_design.catalogs.messages[].t100 の class/number が SAP 実機に実在するか検証
 - 未登録の T100 → WARNING（新規登録が必要）
 
-## Step 1.5-C2: DDIC 存在検証
+## Step 2P-C2: DDIC 存在検証
 
 - **ツール**: `sap_ddic_gate_validator.py`
 - basic_design.database.data_references[].tables が DDIC に実在するか検証

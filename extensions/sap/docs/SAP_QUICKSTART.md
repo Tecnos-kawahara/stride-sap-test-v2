@@ -26,7 +26,7 @@ SDD（Spec-Driven Development）では「仕様が契約、コードは生成物
 ```
 Phase 1: Design         --> basic_design.md 作成 + AI 構成 --> Gate 1,2 承認
                               |
-Phase 1.5: SAP Context  --> SAP 実機からコンテキスト取得（任意）
+Phase 2 前準備: SAP Context  --> SAP 実機からコンテキスト取得（任意）
                               |
 Phase 2: Specify         --> spec.md + plan.md + contracts/ 作成 --> Gate 3,4 承認
                               |
@@ -42,7 +42,7 @@ Final                    --> 受入テスト + エビデンス + PR Readiness --
 | フェーズ | 何をするか | 主な検証ツール |
 |---------|-----------|---------------|
 | **Phase 1: Design** | basic_design.md を yaml から転記・作成し、sap_context を構成する。Gate 1,2 で人間が承認。 | `basic_design_completeness_validator`, `catalogs_consistency_validator`, `stride lint` |
-| **Phase 1.5: SAP Context** | SAP 実機から既存ソース・テーブル定義・DDIC 情報を取得し sap_context.md に記録する（任意フェーズ）。 | `sap_message_t100_validator`, `sap_ddic_gate_validator` |
+| **Phase 2 前準備: SAP Context** | SAP 実機から既存ソース・テーブル定義・DDIC 情報を取得し sap_context.md に記録する（任意フェーズ）。 | `sap_message_t100_validator`, `sap_ddic_gate_validator` |
 | **Phase 2: Specify** | 詳細仕様（spec.md）、実行計画（plan.md）、contracts/ を作成する。Gate 3,4 で人間が承認。 | `sap_ac_granularity_validator`, `plan_quality_validator`, `glossary_ref_validator`, `stride lint` |
 | **Phase 3: Tasking** | SAP 開発順序に準拠した実装タスク一覧（tasks.md）を作成する。Gate 5 で人間が承認。 | `stride lint`（tasks_gate_check） |
 | **Phase 4: Execute** | ABAP ソースの実装 -- アクティベーション -- テスト。WI 16-step フローで SAP 固有ステップを統合して実行。 | `sap_quality_score` >= 85pt, `sap_common_class_lint` |
@@ -123,7 +123,7 @@ python3 extensions/sap/tools/basic_design_completeness_validator.py specs/<featu
 python3 extensions/sap/tools/catalogs_consistency_validator.py specs/<feature>/
 ```
 
-### Phase 1.5: SAP Context
+### Phase 2 前準備: SAP Context
 
 ```bash
 # SAP オブジェクト検索
@@ -214,7 +214,7 @@ sdd-templates/bin/stride pr-check <project_root>
 | ドキュメント | 内容 |
 |-------------|------|
 | `agent_docs/phase1_design.md` | Phase 1: Design の詳細手順 |
-| `agent_docs/phase15_sap_context.md` | Phase 1.5: SAP Context Acquisition の詳細手順 |
+| `agent_docs/phase2_pre_sap_context.md` | Phase 2 前準備: SAP Context Acquisition の詳細手順 |
 | `agent_docs/phase2_specify.md` | Phase 2: Specify の詳細手順 |
 | `agent_docs/phase3_tasking.md` | Phase 3: Tasking の詳細手順 |
 | `agent_docs/phase4_execute.md` | Phase 4: Execute の詳細手順 |

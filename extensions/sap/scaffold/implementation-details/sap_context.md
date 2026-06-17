@@ -1,5 +1,5 @@
 # SAP Context - FEAT-XXX
-> Step 1.5-SAP (R1-R4) コンテキスト記録
+> Step 2P-SAP (R1-R4) コンテキスト記録
 > 実施日:
 
 ## R1: 対象オブジェクト確認
@@ -55,7 +55,7 @@
 
 ```yaml
 metadata:
-  # テーブルメタデータ（Phase 1.5 R3 で adt_read_table_ddl + adt_data_preview から生成）
+  # テーブルメタデータ（Phase 2 前準備 R3 で adt_read_table_ddl + adt_data_preview から生成）
   tables: {}
   # 例:
   #   MCHB:
@@ -66,7 +66,7 @@ metadata:
   #       MATNR: { label: "品目コード" }
   #       WERKS: { label: "プラント" }
 
-  # 選択画面メタデータ（Phase 1.5 R2 で既存ソースから、または Phase 2.2 で spec から生成）
+  # 選択画面メタデータ（Phase 2 前準備 R2 で既存ソースから、または Phase 2.2 で spec から生成）
   selection_screen: []
   # 例:
   #   - { name: "S_WERKS", type: "select-options", table_field: "MCHB-WERKS", obligatory: true, label: "プラント" }
