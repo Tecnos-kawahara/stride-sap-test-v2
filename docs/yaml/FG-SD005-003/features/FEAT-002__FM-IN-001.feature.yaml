@@ -1,0 +1,380 @@
+schema: feature-spec/v2
+meta:
+  projectId: STRIDE-PJ-EDI-2026
+  groupId: FG-SD005-003
+  featureId: FEAT-002
+  sapId: FM-IN-001
+  featureName: 出荷伝票の出庫確認(汎用M)
+  author: ""
+  updated: "2026-06-17"
+  status: draft
+header:
+  functionType: ENH
+  executionMode: ""
+  programType: fugr
+  programId:
+    value: ""
+    gate: empty
+  ricefPattern: "#11 FM（汎用モジュール）"
+  triggerCondition: ""
+  responseRequirement:
+    base: (レスポンス時間）  5秒以内
+    differenceFromGroup: なし
+  ipoOverview: []
+inputs:
+  - seq: 1
+    objectRef: TBL-001
+    handling: 参照
+    purpose: ""
+  - seq: 2
+    objectRef: TBL-002
+    handling: 参照
+    purpose: ""
+  - seq: 3
+    objectRef: TBL-003
+    handling: 参照
+    purpose: ""
+  - seq: 4
+    objectRef: TBL-004
+    handling: 参照
+    purpose: ""
+  - seq: 5
+    objectRef: TBL-005
+    handling: 参照
+    purpose: ""
+  - seq: 6
+    objectRef: TBL-006
+    handling: 参照
+    purpose: ""
+outputs:
+  - seq: 1
+    objectRef: ロットトレース情報テーブル
+    handling: ""
+    purpose: ""
+processes:
+  - id: P1
+    name: 対象判定（出庫確認BAdI）
+    trigger: 出庫確認＝入出庫伝票の登録／修正時（BAdI）
+    purpose: 物流EDI対象外拠点・対象伝票・ロット明細のみを処理対象に絞る
+    input: 出荷伝票（LIKP/LIPS）・物流EDIマスタ
+    output: 処理対象の出荷伝票明細
+    body: |
+        出庫確認時にBAdIで起動。
+        出荷ポイントが物流EDIマスタに登録（＝EDI対象）の拠点は対象外（CHK-001）。
+        伝票カテゴリ J/Z100(出荷)=対象、T/Z200(返品)=対象外（CHK-002）。
+        ロット番号が設定された明細のみ対象（CHK-003）。
+        在庫転送の社内使用・廃棄は勘定設定カテゴリで除外（CHK-004）。
+    next:
+      - target: P2
+        condition: 正常終了
+      - target: 終了
+        condition: チェックNG
+    uses:
+      in:
+        - IN-TBL-001
+        - IN-TBL-002
+      out: []
+  - id: P2
+    name: ロットトレース情報の編集
+    trigger: 対象判定OK
+    purpose: 出荷伝票・品目マスタ・購買発注からZMSDT0004の各項目を編集
+    input: 出荷伝票（LIKP/LIPS）・品目マスタ（MARA）・購買発注明細（EKPO）
+    output: ZMSDT0004 レコード（内部テーブル）
+    body: |
+        受注/在庫転送を伝票区分(V/M)で判定し各項目を編集。
+        SEQNOは品目コード毎に01からインクリメント採番（CALC-001）。
+        在庫転送かつ仕入先ブランク時は入庫保管場所/出荷先を購買発注（EKPO/EMLIF）から取得。
+    next:
+      - target: P3
+        condition: 正常終了
+      - target: P3
+        condition: チェックNG
+    uses:
+      in:
+        - IN-TBL-003
+        - IN-TBL-004
+      out: []
+  - id: P3
+    name: 登録（汎用モジュール呼び出し）
+    trigger: 編集完了
+    purpose: 汎用モジュールでロットトレース情報テーブルへ登録
+    input: ZMSDT0004 レコード（IT_DATA）
+    output: ロットトレース情報テーブル（ZMSDT0004）
+    body: |
+        Z_MSD_INSERT_ZMSDT0004（処理タイプ：更新即時開始）に IT_DATA を渡して登録。
+        登録失敗時はMSG-001を出力。
+    next:
+      - target: 終了
+        condition: 正常終了
+      - target: 終了
+        condition: チェックNG
+    uses:
+      in: []
+      out:
+        - TBL-001
+catalogs:
+  calculations:
+    - id: CALC-001
+      name: シーケンスNo.採番
+      inputs: 出荷伝票/品目コード
+      logic: 品目コード毎に01からインクリメント
+      outputs: SEQNO
+      judgment: 同一出荷伝票・品目内で一意
+      references: []
+  checks:
+    - id: CHK-001
+      category: 対象判定
+      condition: 出荷ポイントが物流EDIマスタに登録済（＝EDI対象）の拠点
+      continueProcessing: 確認後続行
+      message: ""
+      priority: 高
+    - id: CHK-002
+      category: 対象判定
+      condition: 伝票カテゴリが対象外（T/Z200 返品 等。対象はJ/Z100 出荷）
+      continueProcessing: 確認後続行
+      message: ""
+      priority: 中
+    - id: CHK-003
+      category: 対象判定
+      condition: 出荷伝票明細にロット番号が設定されていない
+      continueProcessing: 確認後続行
+      message: ""
+      priority: 中
+    - id: CHK-004
+      category: 対象判定
+      condition: 在庫転送の社内使用・廃棄（勘定設定カテゴリで除外）
+      continueProcessing: 確認後続行
+      message: ""
+      priority: 中
+  messages:
+    - id: MSG-001
+      type: E
+      text: "&1 の登録に失敗しました"
+      placeholders:
+        - ロットトレース情報テーブル(ZMSDT0004)
+      references: []
+      t100:
+        class: ZMSD0001
+        number: "004"
+        status: ok
+    - id: MSG-002
+      type: S
+      text: "&1 を完了しました"
+      placeholders:
+        - 出庫確認によるロットトレース情報登録
+      references: []
+      t100:
+        class: ZMZZ0001
+        number: "033"
+        status: ok
+object_definitions:
+  screens: []
+  reports: []
+  files: []
+  tables:
+    - id: TBL-001
+      name: 出荷伝票ヘッダ
+      gate: ok
+      purpose: ""
+      tableNames:
+        - LIKP
+      fields:
+        - 項目ID: VKORG
+          項目名: 販売組織
+          参照: ""
+          型: CHAR
+          桁: "4"
+          備考: 荷主
+        - 項目ID: VSTEL
+          項目名: 出荷ポイント
+          参照: ""
+          型: CHAR
+          桁: "4"
+          備考: EDI対象外判定
+        - 項目ID: LFART
+          項目名: 出荷タイプ
+          参照: ""
+          型: CHAR
+          桁: "4"
+          備考: ""
+        - 項目ID: LFDAT
+          項目名: 納入日付
+          参照: ""
+          型: DATS
+          桁: "8"
+          備考: ""
+      mainFields: ""
+      dataModelOverview: ""
+      designDetails: {}
+    - id: TBL-002
+      name: 出荷伝票明細
+      gate: ok
+      purpose: ""
+      tableNames:
+        - LIPS
+      fields:
+        - 項目ID: VBELN
+          項目名: 出荷伝票
+          参照: ""
+          型: CHAR
+          桁: "10"
+          備考: ""
+        - 項目ID: MATNR
+          項目名: 品目コード
+          参照: ""
+          型: CHAR
+          桁: "40"
+          備考: ""
+        - 項目ID: CHARG
+          項目名: ロット番号
+          参照: ""
+          型: CHAR
+          桁: "10"
+          備考: 設定明細のみ対象
+        - 項目ID: WERKS
+          項目名: プラント
+          参照: ""
+          型: CHAR
+          桁: "4"
+          備考: ""
+      mainFields: ""
+      dataModelOverview: ""
+      designDetails: {}
+    - id: TBL-003
+      name: 品目マスタ
+      gate: ok
+      purpose: ""
+      tableNames:
+        - MARA
+      fields:
+        - 項目ID: MTART
+          項目名: 品目タイプ
+          参照: ""
+          型: CHAR
+          桁: "4"
+          備考: ""
+      mainFields: ""
+      dataModelOverview: ""
+      designDetails: {}
+    - id: TBL-004
+      name: 購買発注明細
+      gate: ok
+      purpose: ""
+      tableNames:
+        - EKPO
+      fields:
+        - 項目ID: LGORT
+          項目名: 保管場所
+          参照: ""
+          型: CHAR
+          桁: "4"
+          備考: 在庫転送の入庫保管場所
+      mainFields: ""
+      dataModelOverview: ""
+      designDetails: {}
+    - id: TBL-005
+      name: 物流EDIマスタ（EDI対象/対象外の判定）
+      gate: ok
+      purpose: ""
+      tableNames: []
+      fields: []
+      mainFields: ""
+      dataModelOverview: ""
+      designDetails: {}
+    - id: TBL-006
+      name: 固定値テーブル（共通部品）
+      gate: ok
+      purpose: ""
+      tableNames: []
+      fields: []
+      mainFields: ""
+      dataModelOverview: ""
+      designDetails: {}
+  interfaces: []
+testMatrix:
+  status: 作成中
+  summary:
+    matrixCount: 1
+    axisCount: 1
+    conditionCount: 4
+  columns:
+    - name: 前提条件
+      values:
+        - 出荷ポイントが物流EDIマスタに登録済（＝EDI対象）の拠点
+        - 伝票カテゴリが対象外（T/Z200 返品 等。対象はJ/Z100 出荷）
+        - 出荷伝票明細にロット番号が設定されていない
+        - 在庫転送の社内使用・廃棄（勘定設定カテゴリで除外）
+  test_cases:
+    - id: 1
+      conditions:
+        前提条件: 出荷ポイントが物流EDIマスタに登録済（＝EDI対象）の拠点
+      expected_result: 確認後続行
+      verify: []
+      tags:
+        - 機能
+      priority: 高
+    - id: 2
+      conditions:
+        前提条件: 伝票カテゴリが対象外（T/Z200 返品 等。対象はJ/Z100 出荷）
+      expected_result: 確認後続行
+      verify: []
+      tags:
+        - 機能
+      priority: 中
+    - id: 3
+      conditions:
+        前提条件: 出荷伝票明細にロット番号が設定されていない
+      expected_result: 確認後続行
+      verify: []
+      tags:
+        - 機能
+      priority: 中
+    - id: 4
+      conditions:
+        前提条件: 在庫転送の社内使用・廃棄（勘定設定カテゴリで除外）
+      expected_result: 確認後続行
+      verify: []
+      tags:
+        - 機能
+      priority: 中
+requirements:
+  integration: "機能間連携方式 6 件 (Ch.2.2 由来): IF-IN-001→REP-IN-001(DB経由)、IF-IN-001→IF-IN-003(DB経由)、FM-IN-001→REP-IN-001(DB経由)、FM-IN-001→IF-IN-003(DB経由)、IF-IN-002→REP-IN-001(DB経由)、IF-IN-002→IF-IN-003(DB経由)"
+  data_governance: ""
+  performance: "レスポンス: (レスポンス時間）  5秒以内 / 規模: 平均=3000明細 予想量=3000明細 (Ch.1 由来)"
+  availability_reliability: ""
+  security_privacy: ""
+  operations: ""
+programDetail:
+  type: 汎用モジュール
+  汎用グループID: ZMSD000001
+  汎用グループ名称: EDI出庫確認 関数群
+  モジュール:
+    - 表示ID: FM-01
+      モジュールID: Z_MSD_INSERT_ZMSDT0004
+      モジュール名称: ロットトレース情報テーブル登録（更新即時開始）
+      パラメータ:
+        - パラメータID: IT_DATA
+          パラメータ名称: ""
+          種別: IMPORTING
+          参照: ""
+          型: ZMSDT0004 の内部テーブル
+          必須: true
+          既定値: ""
+          説明: 登録するロットトレース情報レコード（出庫確認で編集済）
+gateStatus:
+  required:
+    total: 14
+    filled: 11
+  objectNames:
+    total: 6
+    filled: 6
+    pending: []
+  idReferences:
+    chk: pending
+    calc: resolved
+    msg: resolved
+  t100Mapping:
+    total: 2
+    resolved: 2
+    pending: []
+  canSubmitToStride: false

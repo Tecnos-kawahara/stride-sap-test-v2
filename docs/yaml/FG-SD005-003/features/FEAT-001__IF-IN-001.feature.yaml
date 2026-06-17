@@ -1,0 +1,672 @@
+schema: feature-spec/v2
+meta:
+  projectId: STRIDE-PJ-EDI-2026
+  groupId: FG-SD005-003
+  featureId: FEAT-001
+  sapId: IF-IN-001
+  featureName: EDI出荷報告データ取込
+  author: ""
+  updated: "2026-06-17"
+  status: draft
+header:
+  functionType: IF
+  executionMode: 自動トリガー
+  programType: report
+  programId:
+    value: ZMSDP002400
+    gate: ok
+  ricefPattern: "#4 AP-File入力→アドオンDB"
+  triggerCondition: ""
+  responseRequirement:
+    base: (レスポンス時間）  5秒以内
+    differenceFromGroup: なし
+  ipoOverview: []
+inputs:
+  - seq: 1
+    objectRef: SCR-001
+    handling: 取得
+    purpose: ""
+  - seq: 2
+    objectRef: TBL-001
+    handling: 参照
+    purpose: ""
+  - seq: 3
+    objectRef: TBL-002
+    handling: 参照
+    purpose: ""
+  - seq: 4
+    objectRef: TBL-003
+    handling: 参照
+    purpose: ""
+  - seq: 5
+    objectRef: TBL-004
+    handling: 参照
+    purpose: ""
+  - seq: 6
+    objectRef: FILE-001
+    handling: 取得
+    purpose: ""
+outputs:
+  - seq: 1
+    objectRef: RPT-001
+    handling: 表示
+    purpose: ""
+  - seq: 2
+    objectRef: 実行結果画面（処理件数表示）
+    handling: ""
+    purpose: ""
+  - seq: 3
+    objectRef: ロットトレース情報テーブル
+    handling: ""
+    purpose: ""
+  - seq: 4
+    objectRef: 出荷報告テーブル
+    handling: ""
+    purpose: ""
+processes:
+  - id: P1
+    name: 取得処理（固定値・送受信先・ファイル）
+    trigger: 実行ボタン押下／ジョブ起動
+    purpose: 固定値・物流EDIマスタ・ファイルを取得し受信先を特定
+    input: 選択画面（販売組織/ファイルパス/ヘッダ行数）
+    output: EDI出荷報告データ（明細）
+    body: |
+        固定値テーブルを一括取得。
+        物流EDIマスタから販売組織で受信先(マルコメ)を特定（CHK-001）。
+        APサーバのファイルを取得しヘッダ行数分を除外（CHK-002）。0件ならMSG-003で終了。
+        ソート（送信元センター/出荷配送依頼No/商品コード）。
+    next:
+      - target: P2
+        condition: 正常終了
+      - target: 終了
+        condition: チェックNG
+    uses:
+      in:
+        - IN-FILE-001
+      out: []
+  - id: P2
+    name: EDI出荷報告データチェック
+    trigger: 取得処理完了
+    purpose: 出荷指示との突合と各項目の妥当性チェック
+    input: EDI出荷報告データ
+    output: 正常データ／エラーデータ
+    body: |
+        二次店コード(出荷先)が出荷指示と一致（CHK-003）。
+        納入予定日・出荷日が日付として妥当（CHK-004）。
+        出荷配送依頼No.／商品コードが出荷指示に存在（CHK-005）。
+        数量が1〜999999（CHK-006）。
+        エラー明細は出荷報告テーブルにエラーメッセージを保持。
+    next:
+      - target: P3
+        condition: 正常終了
+      - target: P3
+        condition: チェックNG
+    uses:
+      in: []
+      out: []
+  - id: P3
+    name: テーブル登録（ロットトレース情報・出荷報告）
+    trigger: チェック完了
+    purpose: 正常データをロットトレース情報テーブルへ登録、履歴を出荷報告テーブルへ保持
+    input: 正常データ／エラーデータ
+    output: ZMSDT0004／ZMSDT0009
+    body: |
+        出荷伝票／品目キーで既存を確認し、存在すれば削除後に登録（CALC-001でSEQNO採番）。
+        登録/削除失敗時はロールバックしMSG-013で終了。
+        完了をMSG-014で出力。
+    next:
+      - target: 終了
+        condition: 正常終了
+      - target: 終了
+        condition: チェックNG
+    uses:
+      in: []
+      out:
+        - TBL-001
+        - TBL-002
+        - RPT-001
+catalogs:
+  calculations:
+    - id: CALC-001
+      name: シーケンスNo.採番
+      inputs: 出荷報告テーブルの既存最大SEQNO
+      logic: "1からインクリメントして採番"
+      outputs: SEQNO
+      judgment: 処理日付・時刻は1ファイル内で同一値
+      references: []
+  checks:
+    - id: CHK-001
+      category: 処理エラー
+      condition: 受信先(マルコメ)が物流EDIマスタに存在しない
+      continueProcessing: 中断
+      message: MSG-001
+      priority: 高
+    - id: CHK-002
+      category: 処理エラー
+      condition: 入力ファイルがAPサーバに存在しない
+      continueProcessing: 中断
+      message: MSG-002
+      priority: 高
+    - id: CHK-003
+      category: 入力範囲
+      condition: 二次店コード(出荷先)が出荷指示テーブルと一致しない
+      continueProcessing: 確認後続行
+      message: MSG-005
+      priority: 中
+    - id: CHK-004
+      category: 入力範囲
+      condition: 納入予定日・出荷日が日付として正しくない
+      continueProcessing: 確認後続行
+      message: MSG-006
+      priority: 中
+    - id: CHK-005
+      category: 入力範囲
+      condition: 出荷配送依頼No./商品コードが出荷指示に存在しない
+      continueProcessing: 確認後続行
+      message: MSG-004
+      priority: 中
+    - id: CHK-006
+      category: 入力範囲
+      condition: 数量が1〜999999の範囲外
+      continueProcessing: 確認後続行
+      message: MSG-006
+      priority: 中
+  messages:
+    - id: MSG-001
+      type: E
+      text: "&1 が &2 に設定されていません"
+      placeholders:
+        - 送信先(受手)の企業コード
+        - 物流EDIマスタ
+      references:
+        - CHK-001
+      t100:
+        class: ZMSD0001
+        number: "003"
+        status: ok
+    - id: MSG-002
+      type: E
+      text: "&1 &2が存在しません"
+      placeholders:
+        - EDI出荷報告データ
+      references:
+        - CHK-002
+      t100:
+        class: ZMZZ0001
+        number: "003"
+        status: ok
+    - id: MSG-003
+      type: E
+      text: ファイルが空であるか、ヘッダ行しか存在していません
+      placeholders: []
+      references: []
+      t100:
+        class: ZMZZ0001
+        number: "001"
+        status: ok
+    - id: MSG-004
+      type: E
+      text: 出荷配送依頼No.が出荷指示データに存在していません
+      placeholders: []
+      references:
+        - CHK-005
+      t100:
+        class: ZMSD0001
+        number: "091"
+        status: ok
+    - id: MSG-005
+      type: E
+      text: "&1 が &2 と異なります"
+      placeholders:
+        - 出荷先
+        - 出荷指示データ
+      references:
+        - CHK-003
+      t100:
+        class: ZMZZ0001
+        number: "005"
+        status: ok
+    - id: MSG-006
+      type: E
+      text: 納入日または引取日が正しく設定されていません
+      placeholders: []
+      references:
+        - CHK-004
+        - CHK-006
+      t100:
+        class: ZMSD0001
+        number: "094"
+        status: ok
+    - id: MSG-007
+      type: E
+      text: "&1 の登録に失敗しました"
+      placeholders:
+        - ロットトレース情報テーブル(ZMSDT0004)
+      references: []
+      t100:
+        class: ZMSD0001
+        number: "004"
+        status: ok
+    - id: MSG-008
+      type: S
+      text: "&1 を完了しました"
+      placeholders:
+        - EDI出荷報告データ取込
+      references: []
+      t100:
+        class: ZMZZ0001
+        number: "033"
+        status: ok
+object_definitions:
+  screens:
+    - id: SCR-001
+      name: 選択画面
+      gate: empty
+      kind: select
+      summary: ""
+      blocks:
+        - label: 選択条件
+          fields:
+            - id: F01
+              name: 販売組織
+              type: CHAR
+              maxLength: "4"
+              inputMethod: SELECT-OPTIONS
+              io: input
+              required: true
+              defaultValue: null
+              calcRef: null
+            - id: F02
+              name: 入力ファイルパス(APサーバ)
+              type: STRING
+              maxLength: ""
+              inputMethod: PARAMETERS
+              io: input
+              required: true
+              defaultValue: null
+              calcRef: null
+            - id: F03
+              name: ヘッダ行数
+              type: NUMC
+              maxLength: "2"
+              inputMethod: PARAMETERS
+              io: input
+              required: true
+              defaultValue: null
+              calcRef: null
+      visualLayout: ""
+      transitionPolicy: ""
+      events: |
+          〔画面イベント仕様(EDI出荷報告データ取込)〕
+          画面イベント仕様
+          No  項目名  種類  イベント種別  実装種別  入力チェックNo
+          共通仕様
+          初期値イベント
+          1  －
+          2  －
+          3  －
+          チェンジイベント
+          1  －
+          2  －
+          3  －
+          個別仕様
+          初期値イベント
+          1  －
+          2  －
+          3  －
+          チェンジイベント
+          1  －
+          2  －
+          3  －
+      inputChecks: null
+      displayRules: null
+      alvToolbar: null
+      designDetails: {}
+  reports:
+    - id: RPT-001
+      name: 実行結果画面（処理件数表示）
+      gate: empty
+      kind: alv
+      summary: ""
+      columns:
+        - ID: RPT-001
+          帳票名: 実行結果画面（処理件数表示）
+          gate: empty
+          summary: ""
+          項目:
+            - 項目ID: ""
+              項目名: 選択画面パラメータ
+              参照: ""
+              型: CHAR
+              桁: ""
+              整列: ""
+              備考: 販売組織/ファイルパス/ヘッダ行数
+            - 項目ID: ""
+              項目名: 処理件数（正常）
+              参照: ""
+              型: NUMC
+              桁: "7"
+              整列: ""
+              備考: 登録件数
+            - 項目ID: ""
+              項目名: 処理件数（エラー）
+              参照: ""
+              型: NUMC
+              桁: "7"
+              整列: ""
+              備考: エラー件数
+      layout: ""
+      displayRules: null
+      alvToolbar: []
+  files:
+    - id: FILE-001
+      name: EDI出荷報告データ（EDIファイル）
+      gate: ok
+      kind: ""
+      summary: ""
+      fields:
+        - 項目ID: R1_RCDKB
+          項目名: "1_レコード区分"
+          参照: ""
+          型: CHAR
+          桁: "1"
+          備考: 固定値
+        - 項目ID: R1_RKGCD
+          項目名: "1_利用者企業コード（受け手）"
+          参照: ""
+          型: CHAR
+          桁: "12"
+          備考: 企業コード(マルコメ)／受信先チェック
+        - 項目ID: R1_SMTCD
+          項目名: "1_データ送信元センターコード"
+          参照: ""
+          型: CHAR
+          桁: "6"
+          備考: ステーションコード(物流/運送会社)
+        - 項目ID: R1_SSSCD
+          項目名: "1_最終送信先コード"
+          参照: ""
+          型: CHAR
+          桁: "6"
+          備考: ステーションコード(マルコメ)
+        - 項目ID: R2_RCDKB
+          項目名: "2_レコード区分"
+          参照: ""
+          型: CHAR
+          桁: "1"
+          備考: 固定値
+        - 項目ID: R2_SHINO
+          項目名: "2_出荷配送依頼No."
+          参照: ""
+          型: CHAR
+          桁: "8"
+          備考: 出荷伝票と突合（外部書式）
+        - 項目ID: R2_SECCD
+          項目名: "2_二次店コード"
+          参照: ""
+          型: CHAR
+          桁: "12"
+          備考: 出荷先＝出荷指示と一致チェック
+        - 項目ID: R2_NOKDT
+          項目名: "2_納入日または引取日"
+          参照: ""
+          型: CHAR
+          桁: "8"
+          備考: 日付妥当性チェック→LFDAT
+        - 項目ID: R2_SHKDT
+          項目名: "2_出庫日"
+          参照: ""
+          型: CHAR
+          桁: "8"
+          備考: 日付妥当性チェック→MBDAT
+        - 項目ID: R2_DENKB
+          項目名: "2_伝票区分"
+          参照: ""
+          型: CHAR
+          桁: "8"
+          備考: ""
+        - 項目ID: (明細)_MAKER
+          項目名: 明細_商品コード(メーカプライベート)
+          参照: ""
+          型: CHAR
+          桁: "13"
+          備考: 品目コードへ変換し突合
+        - 項目ID: (明細)_FRSH
+          項目名: 明細_商品鮮度日付
+          参照: ""
+          型: CHAR
+          桁: "8"
+          備考: ロット番号を導出（ロットマスタ存在確認）
+        - 項目ID: (明細)_QTY
+          項目名: 明細_数量
+          参照: ""
+          型: NUMC
+          桁: "6"
+          備考: "1〜999999 範囲チェック"
+  tables:
+    - id: TBL-001
+      name: 物流EDIマスタ（受信先特定）
+      gate: ok
+      purpose: ""
+      tableNames: []
+      fields:
+        - 項目ID: KUNRG
+          項目名: 企業コード
+          参照: ""
+          型: CHAR
+          桁: "10"
+          備考: 送信先(受手)の企業コード
+        - 項目ID: SMTCD
+          項目名: ステーションコード
+          参照: ""
+          型: CHAR
+          桁: "6"
+          備考: 最終送信先コード
+        - 項目ID: VKORG
+          項目名: 販売組織
+          参照: ""
+          型: CHAR
+          桁: "4"
+          備考: 選択画面の販売組織で抽出
+        - 項目ID: VSTEL
+          項目名: 出荷ポイント
+          参照: ""
+          型: CHAR
+          桁: "4"
+          備考: ブランク条件
+      mainFields: ""
+      dataModelOverview: ""
+      designDetails: {}
+    - id: TBL-002
+      name: 固定値テーブル（共通部品）
+      gate: ok
+      purpose: ""
+      tableNames: []
+      fields:
+        - 項目ID: —
+          項目名: 本機能で使用する固定値
+          参照: ""
+          型: ""
+          桁: ""
+          備考: 固定値テーブルから一括取得
+      mainFields: ""
+      dataModelOverview: ""
+      designDetails: {}
+    - id: TBL-003
+      name: 出荷指示テーブル
+      gate: ok
+      purpose: ""
+      tableNames:
+        - ZMSDT0008
+      fields:
+        - 項目ID: VBELN
+          項目名: 出荷伝票
+          参照: ""
+          型: CHAR
+          桁: "10"
+          備考: 出荷配送依頼No.で突合
+        - 項目ID: KUNNR
+          項目名: 出荷先
+          参照: ""
+          型: CHAR
+          桁: "10"
+          備考: 二次店コードと一致確認
+        - 項目ID: MATNR
+          項目名: 品目コード
+          参照: ""
+          型: CHAR
+          桁: "40"
+          備考: 商品コードで突合
+        - 項目ID: MBDAT
+          項目名: 品目利用可能日
+          参照: ""
+          型: DATS
+          桁: "8"
+          備考: 出荷日
+        - 項目ID: LFDAT
+          項目名: 納入日付
+          参照: ""
+          型: DATS
+          桁: "8"
+          備考: 納入予定日
+        - 項目ID: VKORG
+          項目名: 販売組織
+          参照: ""
+          型: CHAR
+          桁: "4"
+          備考: 荷主
+        - 項目ID: WERKS
+          項目名: プラント
+          参照: ""
+          型: CHAR
+          桁: "4"
+          備考: ZMSDT0009へ転記
+        - 項目ID: LGORT
+          項目名: 出庫保管場所
+          参照: ""
+          型: CHAR
+          桁: "4"
+          備考: ZMSDT0009へ転記
+      mainFields: ""
+      dataModelOverview: ""
+      designDetails: {}
+    - id: TBL-004
+      name: ロットマスタ（ロット番号存在確認）
+      gate: ok
+      purpose: ""
+      tableNames: []
+      fields:
+        - 項目ID: CHARG
+          項目名: ロット番号
+          参照: ""
+          型: CHAR
+          桁: "10"
+          備考: 商品鮮度日付からのロット番号が存在するか確認
+      mainFields: ""
+      dataModelOverview: ""
+      designDetails: {}
+  interfaces: []
+testMatrix:
+  status: 作成中
+  summary:
+    matrixCount: 1
+    axisCount: 1
+    conditionCount: 6
+  columns:
+    - name: 前提条件
+      values:
+        - 受信先(マルコメ)が物流EDIマスタに存在しない
+        - 入力ファイルがAPサーバに存在しない
+        - 二次店コード(出荷先)が出荷指示テーブルと一致しない
+        - 納入予定日・出荷日が日付として正しくない
+        - 出荷配送依頼No./商品コードが出荷指示に存在しない
+        - 数量が1〜999999の範囲外
+  test_cases:
+    - id: 1
+      conditions:
+        前提条件: 受信先(マルコメ)が物流EDIマスタに存在しない
+      expected_result: 中断 / MSG-001
+      verify: []
+      tags:
+        - 機能
+        - 異常
+      priority: 高
+    - id: 2
+      conditions:
+        前提条件: 入力ファイルがAPサーバに存在しない
+      expected_result: 中断 / MSG-002
+      verify: []
+      tags:
+        - 機能
+        - 異常
+      priority: 高
+    - id: 3
+      conditions:
+        前提条件: 二次店コード(出荷先)が出荷指示テーブルと一致しない
+      expected_result: 確認後続行 / MSG-005
+      verify: []
+      tags:
+        - 機能
+      priority: 中
+    - id: 4
+      conditions:
+        前提条件: 納入予定日・出荷日が日付として正しくない
+      expected_result: 確認後続行 / MSG-006
+      verify: []
+      tags:
+        - 機能
+      priority: 中
+    - id: 5
+      conditions:
+        前提条件: 出荷配送依頼No./商品コードが出荷指示に存在しない
+      expected_result: 確認後続行 / MSG-004
+      verify: []
+      tags:
+        - 機能
+      priority: 中
+    - id: 6
+      conditions:
+        前提条件: 数量が1〜999999の範囲外
+      expected_result: 確認後続行 / MSG-006
+      verify: []
+      tags:
+        - 機能
+      priority: 中
+requirements:
+  integration: "機能間連携方式 6 件 (Ch.2.2 由来): IF-IN-001→REP-IN-001(DB経由)、IF-IN-001→IF-IN-003(DB経由)、FM-IN-001→REP-IN-001(DB経由)、FM-IN-001→IF-IN-003(DB経由)、IF-IN-002→REP-IN-001(DB経由)、IF-IN-002→IF-IN-003(DB経由)"
+  data_governance: ""
+  performance: "レスポンス: (レスポンス時間）  5秒以内 / 規模: 平均=3000明細 予想量=3000明細 (Ch.1 由来)"
+  availability_reliability: ""
+  security_privacy: ""
+  operations: ""
+programDetail:
+  type: レポート
+  se38Attributes:
+    type: "1 実行可能プログラム"
+    status: ""
+    アプリケーション: ""
+    認可グループ: ""
+    package: ""
+    ロジカルDB: ""
+    編集ロック: false
+    fixedPointArithmetic: true
+    unicodeCheck: false
+gateStatus:
+  required:
+    total: 14
+    filled: 12
+  objectNames:
+    total: 7
+    filled: 5
+    pending:
+      - SCR-001
+      - RPT-001
+  idReferences:
+    chk: resolved
+    calc: resolved
+    msg: resolved
+  t100Mapping:
+    total: 8
+    resolved: 8
+    pending: []
+  canSubmitToStride: false

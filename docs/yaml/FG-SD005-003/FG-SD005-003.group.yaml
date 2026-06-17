@@ -1,0 +1,147 @@
+schema: function-group-spec/v2
+meta:
+  projectId: STRIDE-PJ-EDI-2026
+  groupId: FG-SD005-003
+  groupName: EDI入庫/ロットトレース
+  author: ""
+  updated: "2026-06-17"
+  featureCount: 5
+  status: draft
+functionRoster:
+  - featureId: FEAT-001
+    sapId: IF-IN-001
+    name: EDI出荷報告データ取込
+    type: IF
+    programId: ZMSDP002400
+    featureSpecFile: features/FEAT-001__IF-IN-001.feature.yaml
+  - featureId: FEAT-002
+    sapId: FM-IN-001
+    name: 出荷伝票の出庫確認(汎用M)
+    type: ENH
+    programId: null
+    featureSpecFile: features/FEAT-002__FM-IN-001.feature.yaml
+  - featureId: FEAT-003
+    sapId: REP-IN-001
+    name: ロットトレース照会
+    type: REP
+    programId: ZMSDP001200
+    featureSpecFile: features/FEAT-003__REP-IN-001.feature.yaml
+  - featureId: FEAT-004
+    sapId: IF-IN-002
+    name: ロットトレースアップロード
+    type: IF
+    programId: ZMSDP001400
+    featureSpecFile: features/FEAT-004__IF-IN-002.feature.yaml
+  - featureId: FEAT-005
+    sapId: IF-IN-003
+    name: 最終出荷ロット更新
+    type: IF
+    programId: ZMSDP003000
+    featureSpecFile: features/FEAT-005__IF-IN-003.feature.yaml
+businessSpec:
+  context:
+    who: ""
+    what: |
+        ・  
+        各物流拠点(出荷ポイント)からの受信したEDI出荷報告データをロットトレース情報テーブルに登録する。
+        ・  <出荷伝票の出庫確認>
+        EDI対象外の各物流拠点(出荷ポイント)分は出庫確認時にBadiによりロットトレース情報テーブルに登録する。
+        ※出庫取消では機能しない。
+        ・  <ロットトレース照会(DL)>
+        ロットトレース情報テーブルを照会し、データをダウンロードする。
+        ・  <ロットトレースアップロード>
+        メンテしたロットトレースアップロードファイルの内容をもとにロットトレース情報テーブルの更新を行う。
+        ・  <最終出荷ロット更新>
+        確定したロットトレース情報テーブルのデータをもとに最終出荷ロットテーブルに登録する。
+    why:
+      目的: |
+          ・  出荷先／在庫転送先向けに出荷した品目毎の最終出荷ロットの情報を確認する。
+          ・  ロットトレースを行う。
+      背景: |
+          ・  EDI対象の物流拠点の確定した出荷ロット情報は、SAP標準の出荷伝票にはなく、物流拠点からのEDI出荷報告データにある。
+          ・  EDI対象外の物流拠点分のロット情報は、出荷伝票の出庫確認により確定する。
+          ・  確定した出荷ロット情報は物流拠点の形態(EDI対象／EDI対象外)に関わらず一元で確認する必要がある。
+          ・  出荷ロットに齟齬が生じた場合にEDI出荷報告データ及び出庫確認後の出荷伝票によるに出荷ロット情報の変更はできない為、ロットトレース情報をメンテする機能が必要。
+  overview:
+    positionInPjFlow: ""
+    summary: |
+        ・  
+        各物流拠点(出荷ポイント)からの受信したEDI出荷報告データをロットトレース情報テーブルに登録する。
+        ・  <出荷伝票の出庫確認>
+        EDI対象外の各物流拠点(出荷ポイント)分は出庫確認時にBadiによりロットトレース情報テーブルに登録する。
+        ※出庫取消では機能しない。
+        ・  <ロットトレース照会(DL)>
+        ロットトレース情報テーブルを照会し、データをダウンロードする。
+        ・  <ロットトレースアップロード>
+        メンテしたロットトレースアップロードファイルの内容をもとにロットトレース情報テーブルの更新を行う。
+        ・  <最終出荷ロット更新>
+        確定したロットトレース情報テーブルのデータをもとに最終出荷ロットテーブルに登録する。
+    targetData: null
+    systemizationScope: ""
+  executionConditions:
+    executionType:
+      - オンライン
+      - バッチ
+    timingAndFrequency:
+      業務サイクル:
+        - 日次
+      時間帯:
+        - 夜間
+      特記事項: ""
+    scale: "3000明細 / 3000明細"
+    responseRequirement: (レスポンス時間）  5秒以内
+  prerequisites: |
+      ・  本機能における関連マスタが正しく設定されている。
+      -  物流系IFにおける送信元/先のコード(ステーションコード、企業コード)
+      -  処理に必要な固定値テーブルのデータ
+      ・  送信元から複数回送信分をCBP(ACMS)でマージし1ファイルでSAPに連携される。
+      -  マージされる複数ファイルに同一出荷伝票のデータが存在することはない
+      -  CBP(ACMS)のファイルマージ前に送信元から変更(修正)ファイルが送信される場合は、運用により変更前のファイルを削除する
+      ・  EDI出荷報告データ(フォーマット変換後)は、送信元ごとにファイル連携される。
+      ・  EDI出荷報告データ取込とロットトレースアップロードは、同一出荷伝票に対して同時に行われることはない。
+      ・  ロットトレースアップロードの出荷伝票明細毎の数量は正しくデータが作成される。
+      ・  SAPとCBP(ACMS)間のIF仕様に関してはプロジェクト標準に準拠する。
+  users:
+    roles: []
+    language: ""
+    currency: ""
+    timezone: ""
+  recovery:
+    recoveryMethod: ""
+    concurrencyConstraint: ""
+functionStructure:
+  splitRationale: ""
+  interFunctionConnections: []
+  functions:
+    - id: IF-IN-001
+      name: EDI出荷報告データ取込
+      type: IF
+      featureSpecFile: features/FEAT-001__IF-IN-001.feature.yaml
+    - id: FM-IN-001
+      name: 出荷伝票の出庫確認(汎用M)
+      type: ENH
+      featureSpecFile: features/FEAT-002__FM-IN-001.feature.yaml
+    - id: REP-IN-001
+      name: ロットトレース照会
+      type: REP
+      featureSpecFile: features/FEAT-003__REP-IN-001.feature.yaml
+    - id: IF-IN-002
+      name: ロットトレースアップロード
+      type: IF
+      featureSpecFile: features/FEAT-004__IF-IN-002.feature.yaml
+    - id: IF-IN-003
+      name: 最終出荷ロット更新
+      type: IF
+      featureSpecFile: features/FEAT-005__IF-IN-003.feature.yaml
+  diagramExtras: []
+gateStatus:
+  required:
+    total: 6
+    filled: 3
+  objectNames:
+    total: 0
+    filled: 0
+    pending: []
+  idReferences: {}
+  t100Mapping: {}
+  canSubmitToStride: false

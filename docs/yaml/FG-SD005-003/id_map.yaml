@@ -1,0 +1,29 @@
+projectId: STRIDE-PJ-EDI-2026
+groupId: FG-SD005-003
+strideGroupId: FG-SD005-003
+mappings:
+  - featureId: FEAT-001
+    sapId: IF-IN-001
+    featureName: EDI出荷報告データ取込
+    useCaseId: US-FEAT001-001
+    acceptanceId: AC-US-FEAT001-001-01
+  - featureId: FEAT-002
+    sapId: FM-IN-001
+    featureName: 出荷伝票の出庫確認(汎用M)
+    useCaseId: US-FEAT002-001
+    acceptanceId: AC-US-FEAT002-001-01
+  - featureId: FEAT-003
+    sapId: REP-IN-001
+    featureName: ロットトレース照会
+    useCaseId: US-FEAT003-001
+    acceptanceId: AC-US-FEAT003-001-01
+  - featureId: FEAT-004
+    sapId: IF-IN-002
+    featureName: ロットトレースアップロード
+    useCaseId: US-FEAT004-001
+    acceptanceId: AC-US-FEAT004-001-01
+  - featureId: FEAT-005
+    sapId: IF-IN-003
+    featureName: 最終出荷ロット更新
+    useCaseId: US-FEAT005-001
+    acceptanceId: AC-US-FEAT005-001-01

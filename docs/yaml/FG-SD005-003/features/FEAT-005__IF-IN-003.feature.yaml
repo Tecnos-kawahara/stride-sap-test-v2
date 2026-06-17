@@ -1,0 +1,563 @@
+schema: feature-spec/v2
+meta:
+  projectId: STRIDE-PJ-EDI-2026
+  groupId: FG-SD005-003
+  featureId: FEAT-005
+  sapId: IF-IN-003
+  featureName: 最終出荷ロット更新
+  author: ""
+  updated: "2026-06-17"
+  status: draft
+header:
+  functionType: IF
+  executionMode: ユーザー操作
+  programType: report
+  programId:
+    value: ZMSDP003000
+    gate: ok
+  ricefPattern: "#2 バッチ：DB→アドオンDB"
+  triggerCondition: ""
+  responseRequirement:
+    base: (レスポンス時間）  5秒以内
+    differenceFromGroup: なし
+  ipoOverview: []
+inputs:
+  - seq: 1
+    objectRef: SCR-001
+    handling: 取得
+    purpose: ""
+  - seq: 2
+    objectRef: TBL-001
+    handling: 参照
+    purpose: ""
+  - seq: 3
+    objectRef: TBL-002
+    handling: 参照
+    purpose: ""
+outputs:
+  - seq: 1
+    objectRef: 最終出荷ロットテーブル（ZMSDT0006／登録 or 更新）
+    handling: ""
+    purpose: ""
+processes:
+  - id: P1
+    name: 初期処理
+    trigger: INITIALIZATION
+    purpose: グローバル変数初期化
+    input: ""
+    output: ""
+    body: グローバル変数を初期化
+    next:
+      - target: P2
+        condition: 正常終了
+      - target: 終了
+        condition: チェックNG
+    uses:
+      in: []
+      out: []
+  - id: P2
+    name: 入力チェック
+    trigger: AT SELECTION-SCREEN
+    purpose: 必須チェック
+    input: 選択画面
+    output: ""
+    body: |
+        販売組織未入力→標準メッセージで選択画面に戻る(CHK-001)。
+        更新日付未入力→標準メッセージで選択画面に戻る(CHK-002)。
+    next:
+      - target: P3
+        condition: 正常終了
+      - target: P2
+        condition: チェックNG
+    uses:
+      in: []
+      out: []
+  - id: P3
+    name: データ取得
+    trigger: START-OF-SELECTION
+    purpose: 出荷ロット元データ取得＋最新ロット抽出
+    input: "ZMSDT0004⋈KNA1, 選択条件"
+    output: 更新対象データ
+    body: |
+        ZMSDT0004をKNA1(ワンタイム勘定除外)と結合しSELECT。
+        出荷先↑品目↑ロット↓納入日↓でソート(CALC-001)→出荷先×品目で重複削除(CALC-002)→更新対象データ。
+        ZMSDT0006の既存を取得(更新先データ)。
+    next:
+      - target: P4
+        condition: 正常終了
+      - target: P4
+        condition: チェックNG
+    uses:
+      in:
+        - IN-TBL-001
+        - IN-TBL-002
+      out: []
+  - id: P4
+    name: 更新/登録振り分け
+    trigger: 更新対象LOOP
+    purpose: 登録用/更新用データ生成
+    input: 更新対象データ/更新先データ
+    output: 登録用/更新用データ
+    body: |
+        処理日時を設定(CALC-003)。
+        更新先データをVKORG/KUNNR/MATNRでREAD→存在すれば更新用、無ければ登録用に編集(CALC-004)。
+    next:
+      - target: P5
+        condition: 正常終了
+      - target: P5
+        condition: チェックNG
+    uses:
+      in: []
+      out: []
+  - id: P5
+    name: テーブル更新
+    trigger: 振り分け後
+    purpose: ZMSDT0006 登録/更新
+    input: 登録用/更新用データ
+    output: 最終出荷ロットテーブル(ZMSDT0006)
+    body: |
+        INSERT(ACCEPTING DUPLICATE KEYS)→失敗時ROLLBACK＋MSG(No.34)。
+        UPDATE→失敗時ROLLBACK＋MSG(No.35)。
+        処理件数を集計(CALC-005)。COMMIT後 MSG(No.36)。
+    next:
+      - target: P6
+        condition: 正常終了
+      - target: 終了
+        condition: チェックNG
+    uses:
+      in: []
+      out:
+        - TBL-001
+  - id: P6
+    name: 終了処理
+    trigger: 更新後
+    purpose: 結果出力・JOBメッセージ制御
+    input: 処理件数
+    output: ジョブログ/結果画面
+    body: |
+        共通部品 ZCL_MSD_003000(RUN_MAIN_PROC/RUN_END_PROC)を呼出。
+        バッチ→更新件数 MSG-001(ZMZZ0001/015,S)、汎用モジュール Z_MZZ_JOB_MSGTYP_CTRL でJOBメッセージタイプ制御(v1.01)。
+        オンライン→処理件数を結果画面に出力。
+    next:
+      - target: 終了
+        condition: 正常終了
+      - target: 終了
+        condition: チェックNG
+    uses:
+      in: []
+      out: []
+catalogs:
+  calculations:
+    - id: CALC-001
+      name: 最新ロット抽出ソート
+      inputs: ロットトレース情報データ
+      logic: 出荷先↑・品目↑・ロット番号↓・納入日付↓ でソート
+      outputs: ソート済データ
+      judgment: ""
+      references: []
+    - id: CALC-002
+      name: 重複削除
+      inputs: ソート済データ
+      logic: 出荷先×品目コードで先頭1件を残し重複削除
+      outputs: 更新対象データ
+      judgment: 出荷先×品目で最新ロット1件
+      references: []
+    - id: CALC-003
+      name: 処理日時設定
+      inputs: SY-DATUM/SY-UZEIT
+      logic: 処理日付=SY-DATUM、処理時刻=SY-UZEIT
+      outputs: 処理日付/処理時刻
+      judgment: ""
+      references: []
+    - id: CALC-004
+      name: 更新/登録判定
+      inputs: 更新先データ(ZMSDT0006)
+      logic: READ TABLE WITH KEY VKORG/KUNNR/MATNR → SY-SUBRC=0なら更新、≠0なら登録
+      outputs: 更新/登録区分
+      judgment: ""
+      references: []
+    - id: CALC-005
+      name: 処理件数集計
+      inputs: SY-DBCNT
+      logic: INSERT後 件数=SY-DBCNT、UPDATE後 件数+=SY-DBCNT
+      outputs: 処理件数
+      judgment: ""
+      references: []
+  checks:
+    - id: CHK-001
+      category: 入力必須
+      condition: 販売組織が未入力
+      continueProcessing: 標準メッセージ出力し選択画面に戻る
+      message: ""
+      priority: 高
+    - id: CHK-002
+      category: 入力必須
+      condition: 更新日付が未入力
+      continueProcessing: 標準メッセージ出力し選択画面に戻る
+      message: ""
+      priority: 高
+  messages:
+    - id: MSG-001
+      type: S
+      text: "&1: &2"
+      placeholders:
+        - "[固定値]更新件数"
+        - "[変数]処理件数"
+      references: []
+      t100:
+        class: ZMZZ0001
+        number: "015"
+        status: ok
+    - id: MSG-002
+      type: E
+      text: （基本設計書メッセージ一覧 No.34）登録失敗
+      placeholders: []
+      references: []
+      t100:
+        class: ""
+        number: ""
+        status: empty
+    - id: MSG-003
+      type: E
+      text: （基本設計書メッセージ一覧 No.35）更新失敗
+      placeholders: []
+      references: []
+      t100:
+        class: ""
+        number: ""
+        status: empty
+    - id: MSG-004
+      type: S
+      text: （基本設計書メッセージ一覧 No.36）コミット完了
+      placeholders: []
+      references: []
+      t100:
+        class: ""
+        number: ""
+        status: empty
+object_definitions:
+  screens:
+    - id: SCR-001
+      name: 選択画面
+      gate: empty
+      kind: select
+      summary: ""
+      blocks:
+        - label: 選択条件
+          fields:
+            - id: F01
+              name: 販売組織
+              type: ""
+              maxLength: ""
+              inputMethod: SELECT-OPTIONS
+              io: input
+              required: true
+              defaultValue: null
+              calcRef: null
+            - id: F02
+              name: 出荷先
+              type: ""
+              maxLength: ""
+              inputMethod: SELECT-OPTIONS
+              io: input
+              required: false
+              defaultValue: null
+              calcRef: null
+            - id: F03
+              name: 品目
+              type: ""
+              maxLength: ""
+              inputMethod: SELECT-OPTIONS
+              io: input
+              required: false
+              defaultValue: null
+              calcRef: null
+            - id: F04
+              name: 品目タイプ
+              type: ""
+              maxLength: ""
+              inputMethod: SELECT-OPTIONS
+              io: input
+              required: false
+              defaultValue: null
+              calcRef: null
+            - id: F05
+              name: 更新日付
+              type: ""
+              maxLength: ""
+              inputMethod: SELECT-OPTIONS
+              io: input
+              required: true
+              defaultValue: null
+              calcRef: null
+            - id: F06
+              name: APサーバ
+              type: CHAR
+              maxLength: "1"
+              inputMethod: radio
+              io: input
+              required: false
+              defaultValue: X
+              calcRef: null
+            - id: F07
+              name: ローカルPC
+              type: CHAR
+              maxLength: "1"
+              inputMethod: radio
+              io: input
+              required: false
+              defaultValue: null
+              calcRef: null
+            - id: F08
+              name: エラーファイルパス(APサーバ)
+              type: STRING
+              maxLength: ""
+              inputMethod: PARAMETERS
+              io: input
+              required: false
+              defaultValue: null
+              calcRef: null
+            - id: F09
+              name: エラーファイルパス(ローカルPC)
+              type: STRING
+              maxLength: ""
+              inputMethod: PARAMETERS
+              io: input
+              required: false
+              defaultValue: null
+              calcRef: null
+            - id: F10
+              name: エラーファイル名
+              type: STRING
+              maxLength: ""
+              inputMethod: PARAMETERS
+              io: input
+              required: false
+              defaultValue: null
+              calcRef: null
+            - id: F11
+              name: エラーのみ出力
+              type: CHAR
+              maxLength: "1"
+              inputMethod: checkbox
+              io: input
+              required: false
+              defaultValue: null
+              calcRef: null
+            - id: F12
+              name: テスト実行
+              type: CHAR
+              maxLength: "1"
+              inputMethod: checkbox
+              io: input
+              required: false
+              defaultValue: X
+              calcRef: null
+      visualLayout: ""
+      transitionPolicy: ""
+      events: |
+          〔画面イベント仕様(最終出荷ロット更新)〕
+          画面イベント仕様
+          No  項目名  種類  イベント種別  実装種別  入力チェックNo
+          共通仕様
+          初期値イベント
+          1  －
+          2  －
+          3  －
+          チェンジイベント
+          1  －
+          2  －
+          3  －
+          個別仕様
+          初期値イベント
+          1  －
+          2  －
+          3  －
+          チェンジイベント
+          1  －
+          2  －
+          3  －
+      inputChecks: null
+      displayRules: null
+      alvToolbar: null
+      designDetails: {}
+  reports: []
+  files: []
+  tables:
+    - id: TBL-001
+      name: ロットトレース情報テーブル（ZMSDT0004／最終出荷ロットの元データ）＋KNA1結合
+      gate: ok
+      purpose: ""
+      tableNames: []
+      fields:
+        - 項目ID: VBELN
+          項目名: 出荷伝票
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+        - 項目ID: VKORG
+          項目名: 販売組織
+          参照: ""
+          型: ""
+          桁: ""
+          備考: S_VKORG
+        - 項目ID: KUNNR
+          項目名: 出荷先
+          参照: ""
+          型: ""
+          桁: ""
+          備考: S_KUNNR/KNA1-XCPDK=空(ワンタイム除外)
+        - 項目ID: MATNR
+          項目名: 品目コード
+          参照: ""
+          型: ""
+          桁: ""
+          備考: S_MATNR
+        - 項目ID: CHARG
+          項目名: ロット番号
+          参照: ""
+          型: ""
+          桁: ""
+          備考: 最新判定
+        - 項目ID: LFDAT
+          項目名: 納入日付(出荷指示)
+          参照: ""
+          型: ""
+          桁: ""
+          備考: 最新判定
+        - 項目ID: UPDDATE/CREDATE
+          項目名: 更新日/登録日
+          参照: ""
+          型: ""
+          桁: ""
+          備考: S_UPDDATでIN(更新日 OR 登録日)
+      mainFields: ""
+      dataModelOverview: ""
+      designDetails: {}
+    - id: TBL-002
+      name: 最終出荷ロットテーブル（ZMSDT0006／更新先の既存データ）
+      gate: ok
+      purpose: ""
+      tableNames: []
+      fields:
+        - 項目ID: VKORG
+          項目名: 販売組織
+          参照: ""
+          型: ""
+          桁: ""
+          備考: 更新対象とJOIN
+        - 項目ID: KUNNR
+          項目名: 出荷先
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+        - 項目ID: MATNR
+          項目名: 品目コード
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+        - 項目ID: CREDATE
+          項目名: 登録日
+          参照: ""
+          型: ""
+          桁: ""
+          備考: 既存判定で取得
+        - 項目ID: CRETIME
+          項目名: 登録時刻
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+        - 項目ID: CREUSER
+          項目名: 登録ユーザ
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+        - 項目ID: CREPROG
+          項目名: 登録プログラム
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+        - 項目ID: CRETRAN
+          項目名: 登録トランザクション
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+      mainFields: ""
+      dataModelOverview: ""
+      designDetails: {}
+  interfaces: []
+testMatrix:
+  status: 作成中
+  summary:
+    matrixCount: 1
+    axisCount: 1
+    conditionCount: 2
+  columns:
+    - name: 前提条件
+      values:
+        - 販売組織が未入力
+        - 更新日付が未入力
+  test_cases:
+    - id: 1
+      conditions:
+        前提条件: 販売組織が未入力
+      expected_result: 標準メッセージ出力し選択画面に戻る
+      verify: []
+      tags:
+        - 機能
+      priority: 高
+    - id: 2
+      conditions:
+        前提条件: 更新日付が未入力
+      expected_result: 標準メッセージ出力し選択画面に戻る
+      verify: []
+      tags:
+        - 機能
+      priority: 高
+requirements:
+  integration: "機能間連携方式 6 件 (Ch.2.2 由来): IF-IN-001→REP-IN-001(DB経由)、IF-IN-001→IF-IN-003(DB経由)、FM-IN-001→REP-IN-001(DB経由)、FM-IN-001→IF-IN-003(DB経由)、IF-IN-002→REP-IN-001(DB経由)、IF-IN-002→IF-IN-003(DB経由)"
+  data_governance: ""
+  performance: "レスポンス: (レスポンス時間）  5秒以内 / 規模: 平均=3000明細 予想量=3000明細 (Ch.1 由来)"
+  availability_reliability: ""
+  security_privacy: ""
+  operations: ""
+programDetail:
+  type: レポート
+  se38Attributes:
+    type: "1 実行可能プログラム"
+    status: P
+    アプリケーション: ""
+    認可グループ: ""
+    package: ZMSD0001
+    ロジカルDB: ""
+    編集ロック: true
+    fixedPointArithmetic: true
+    unicodeCheck: false
+gateStatus:
+  required:
+    total: 23
+    filled: 21
+  objectNames:
+    total: 3
+    filled: 2
+    pending:
+      - SCR-001
+  idReferences:
+    chk: pending
+    calc: resolved
+    msg: resolved
+  t100Mapping:
+    total: 4
+    resolved: 1
+    pending:
+      - MSG-002
+      - MSG-003
+      - MSG-004
+  canSubmitToStride: false
