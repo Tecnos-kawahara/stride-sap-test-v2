@@ -1,0 +1,884 @@
+schema: feature-spec/v2
+meta:
+  projectId: STRIDE-PJ-EDI-2026
+  groupId: FG-SD005-003
+  featureId: FEAT-003
+  sapId: REP-IN-001
+  featureName: ロットトレース照会
+  author: ""
+  updated: "2026-06-17"
+  status: draft
+header:
+  functionType: REP
+  executionMode: ユーザー操作
+  programType: report
+  programId:
+    value: ZMSDP001200
+    gate: ok
+  ricefPattern: "#1 ALV（単純出力）"
+  triggerCondition: ""
+  responseRequirement:
+    base: (レスポンス時間）  5秒以内
+    differenceFromGroup: なし
+  ipoOverview: []
+inputs:
+  - seq: 1
+    objectRef: SCR-001
+    handling: 取得
+    purpose: ""
+  - seq: 2
+    objectRef: TBL-001
+    handling: 参照
+    purpose: ""
+  - seq: 3
+    objectRef: TBL-002
+    handling: 参照
+    purpose: ""
+outputs:
+  - seq: 1
+    objectRef: RPT-001
+    handling: 表示
+    purpose: ""
+  - seq: 2
+    objectRef: ロットトレース照会（ALV画面／DL）
+    handling: ""
+    purpose: ""
+processes:
+  - id: P1
+    name: 初期処理
+    trigger: INITIALIZATION
+    purpose: グローバル変数初期化
+    input: ""
+    output: ""
+    body: グローバル変数を初期化
+    next:
+      - target: P2
+        condition: 正常終了
+      - target: 終了
+        condition: チェックNG
+    uses:
+      in: []
+      out: []
+  - id: P2
+    name: 入力チェック
+    trigger: AT SELECTION-SCREEN
+    purpose: 選択画面の必須チェック
+    input: 選択画面
+    output: ""
+    body: |
+        販売組織(S_VKORG)必須→無ければ標準メッセージで選択画面に戻る(CHK-001)。
+        MBDAT・LFDATが両方ブランクならMSG(No.45)で選択画面に戻る(CHK-002)。
+    next:
+      - target: P3
+        condition: 正常終了
+      - target: P2
+        condition: チェックNG
+    uses:
+      in: []
+      out: []
+  - id: P3
+    name: レイアウト検索ヘルプ
+    trigger: AT SELECTION-SCREEN ON VALUE-REQUEST FOR P_LAYOUT
+    purpose: ALVバリアント選択
+    input: ""
+    output: ""
+    body: REUSE_ALV_VARIANT_F4を呼出し、正常時 P_LAYOUT=VARIANT-VARIANT。例外時システムメッセージで終了。
+    next:
+      - target: P4
+        condition: 正常終了
+      - target: 終了
+        condition: チェックNG
+    uses:
+      in: []
+      out: []
+  - id: P4
+    name: データ取得
+    trigger: START-OF-SELECTION
+    purpose: 固定値取得＋主データSELECT
+    input: 選択画面の検索条件
+    output: 抽出データ(内部テーブル)
+    body: |
+        ZCL_MSD_001200を生成し固定値一括取得(I_SYREPID=SY-CPROG)。
+        ZMSDT0004を主にVBPA/ADRC/TVSTT/T001L/TPRIT/TVV1Tと結合してSELECT。
+        0件ならMSG(No.15)で選択画面に戻る(CHK-003)。
+    next:
+      - target: P5
+        condition: 正常終了
+      - target: P2
+        condition: チェックNG
+    uses:
+      in:
+        - IN-TBL-001
+        - IN-TBL-002
+      out: []
+  - id: P5
+    name: データ編集
+    trigger: データ取得後
+    purpose: ALV出力データ生成
+    input: 抽出データ
+    output: ALV出力データ
+    body: |
+        28項目を書式編集(CALC-001)。
+        MBDAT/ILGORT/KUNNR/VBELN/MATNR/SEQNOの6キーで昇順ソート。
+    next:
+      - target: P6
+        condition: 正常終了
+      - target: P6
+        condition: チェックNG
+    uses:
+      in: []
+      out: []
+  - id: P6
+    name: 結果出力
+    trigger: 編集完了
+    purpose: ALV表示
+    input: ALV出力データ
+    output: ALV画面
+    body: |
+        ロット属性表示をユーザパラメータで判定(CALC-002)。
+        FIELDCATALOG_MERGE→項目カタログ編集(CALC-003)→REUSE_ALV_GRID_DISPLAYで表示。
+    next:
+      - target: 終了
+        condition: 正常終了
+      - target: 終了
+        condition: チェックNG
+    uses:
+      in: []
+      out:
+        - RPT-001
+catalogs:
+  calculations:
+    - id: CALC-001
+      name: 出力項目書式編集
+      inputs: 抽出データ各項目
+      logic: VBELN/VGBEL/KUNNR/MATNR/RLFIMG等を外部書式、日付6項目をYYYY/MM/DDに変換
+      outputs: ALV出力データ
+      judgment: ""
+      references: []
+    - id: CALC-002
+      name: ロット属性表示判定
+      inputs: 固定値テーブル(UPARA/CHARG_ATT)→GET PARAMETER ID
+      logic: "'X'(オン)ならALV構造=ロット属性有り(賞味期限/製造日付表示)、それ以外は無し"
+      outputs: ALV構造名
+      judgment: "ユーザパラメータ='X'"
+      references: []
+    - id: CALC-003
+      name: ALV項目カタログ編集
+      inputs: REUSE_ALV_FIELDCATALOG_MERGEの項目カタログ
+      logic: "VRKMEをTECH='X'(非表示)、VRKME_O系6項目のテキスト/参照をブランク化、COLWIDTH_OPTIMIZE"
+      outputs: 編集後カタログ
+      judgment: ""
+      references: []
+  checks:
+    - id: CHK-001
+      category: 入力必須
+      condition: 販売組織(S_VKORG)が未入力
+      continueProcessing: 確認後続行
+      message: MSG-001
+      priority: 高
+    - id: CHK-002
+      category: 入力範囲
+      condition: 品目利用可能日(S_MBDAT)・納入日付(S_LFDAT)がいずれも未入力
+      continueProcessing: 確認後続行
+      message: MSG-002
+      priority: 高
+    - id: CHK-003
+      category: 処理エラー
+      condition: 検索結果が0件
+      continueProcessing: 確認後続行
+      message: MSG-001
+      priority: 中
+  messages:
+    - id: MSG-001
+      type: E
+      text: 対象データが存在しません
+      placeholders: []
+      references:
+        - CHK-001
+        - CHK-003
+      t100:
+        class: ""
+        number: ""
+        status: empty
+    - id: MSG-002
+      type: E
+      text: 品目利用可能日・納入日付がいずれも未入力です
+      placeholders: []
+      references:
+        - CHK-002
+      t100:
+        class: ""
+        number: ""
+        status: empty
+object_definitions:
+  screens:
+    - id: SCR-001
+      name: 選択画面
+      gate: empty
+      kind: select
+      summary: ""
+      blocks:
+        - label: 選択条件
+          fields:
+            - id: F01
+              name: 販売組織
+              type: ""
+              maxLength: ""
+              inputMethod: SELECT-OPTIONS
+              io: input
+              required: true
+              defaultValue: null
+              calcRef: null
+            - id: F02
+              name: 出荷伝票番号
+              type: ""
+              maxLength: ""
+              inputMethod: SELECT-OPTIONS
+              io: input
+              required: false
+              defaultValue: null
+              calcRef: null
+            - id: F03
+              name: 品目
+              type: ""
+              maxLength: ""
+              inputMethod: SELECT-OPTIONS
+              io: input
+              required: false
+              defaultValue: null
+              calcRef: null
+            - id: F04
+              name: 参照伝票番号
+              type: ""
+              maxLength: ""
+              inputMethod: SELECT-OPTIONS
+              io: input
+              required: false
+              defaultValue: null
+              calcRef: null
+            - id: F05
+              name: 品目利用可能日(出荷指示)
+              type: ""
+              maxLength: ""
+              inputMethod: SELECT-OPTIONS
+              io: input
+              required: true
+              defaultValue: null
+              calcRef: null
+            - id: F06
+              name: 納入日付(出荷指示)
+              type: ""
+              maxLength: ""
+              inputMethod: SELECT-OPTIONS
+              io: input
+              required: true
+              defaultValue: null
+              calcRef: null
+            - id: F07
+              name: 出荷ポイント
+              type: ""
+              maxLength: ""
+              inputMethod: SELECT-OPTIONS
+              io: input
+              required: false
+              defaultValue: null
+              calcRef: null
+            - id: F08
+              name: 出庫保管場所
+              type: ""
+              maxLength: ""
+              inputMethod: SELECT-OPTIONS
+              io: input
+              required: false
+              defaultValue: null
+              calcRef: null
+            - id: F09
+              name: 入庫保管場所
+              type: ""
+              maxLength: ""
+              inputMethod: SELECT-OPTIONS
+              io: input
+              required: false
+              defaultValue: null
+              calcRef: null
+            - id: F10
+              name: 出荷先
+              type: ""
+              maxLength: ""
+              inputMethod: SELECT-OPTIONS
+              io: input
+              required: false
+              defaultValue: null
+              calcRef: null
+            - id: F11
+              name: ロット番号
+              type: ""
+              maxLength: ""
+              inputMethod: SELECT-OPTIONS
+              io: input
+              required: false
+              defaultValue: null
+              calcRef: null
+            - id: F12
+              name: レイアウト(ALVバリアント)
+              type: ""
+              maxLength: ""
+              inputMethod: PARAMETERS
+              io: input
+              required: false
+              defaultValue: null
+              calcRef: null
+            - id: F13
+              name: APサーバ(DL先)
+              type: CHAR
+              maxLength: "1"
+              inputMethod: radio
+              io: input
+              required: false
+              defaultValue: X
+              calcRef: null
+            - id: F14
+              name: ローカルPC(DL先)
+              type: CHAR
+              maxLength: "1"
+              inputMethod: radio
+              io: input
+              required: false
+              defaultValue: null
+              calcRef: null
+            - id: F15
+              name: 出力ファイルパス(APサーバ)
+              type: STRING
+              maxLength: ""
+              inputMethod: PARAMETERS
+              io: input
+              required: false
+              defaultValue: null
+              calcRef: null
+            - id: F16
+              name: 出力ファイルパス(ローカルPC)
+              type: STRING
+              maxLength: ""
+              inputMethod: PARAMETERS
+              io: input
+              required: false
+              defaultValue: null
+              calcRef: null
+            - id: F17
+              name: 出力ファイル名
+              type: STRING
+              maxLength: ""
+              inputMethod: PARAMETERS
+              io: input
+              required: false
+              defaultValue: null
+              calcRef: null
+      visualLayout: ""
+      transitionPolicy: ""
+      events: |
+          〔画面イベント仕様(ロットトレース照会)〕
+          画面イベント仕様
+          No  項目名  種類  イベント種別  実装種別  入力チェックNo
+          共通仕様
+          初期値イベント
+          1  －
+          2  －
+          3  －
+          チェンジイベント
+          1  －
+          2  －
+          3  －
+          個別仕様
+          初期値イベント
+          1  －
+          2  －
+          3  －
+          チェンジイベント
+          1  －
+          2  －
+          3  －
+      inputChecks: |
+          〔画面入力チェック仕様(ロットトレース照会)〕
+          画面入力チェック仕様
+          No.  複合
+          チェック  項目名/項目ID  チェック種別  チェック内容／メッセージ  メッセージ
+          タイプ  メッセージ
+          No  補足説明
+          共通仕様
+          個別仕様
+          1  X  品目利用可能日(出荷指示)  必須
+          X  納入日付(出荷指示)  必須  品目利用可能日(出荷指示)又は納入日付(出荷指示)の何れもブランクの場合  E  45  選択画面にエラー表示
+      displayRules: null
+      alvToolbar: null
+      designDetails: {}
+  reports:
+    - id: RPT-001
+      name: ロットトレース照会（ALV画面／DL）
+      gate: empty
+      kind: alv
+      summary: ""
+      columns:
+        - ID: RPT-001
+          帳票名: ロットトレース照会（ALV画面／DL）
+          gate: empty
+          summary: ""
+          項目:
+            - 項目ID: ""
+              項目名: 出荷伝票
+              参照: ""
+              型: ""
+              桁: ""
+              整列: ""
+              備考: VBELN(外部書式)
+            - 項目ID: ""
+              項目名: 伝票区分
+              参照: ""
+              型: ""
+              桁: ""
+              整列: ""
+              備考: DENKB
+            - 項目ID: ""
+              項目名: 参照伝票
+              参照: ""
+              型: ""
+              桁: ""
+              整列: ""
+              備考: VGBEL(外部書式)
+            - 項目ID: ""
+              項目名: 品目利用可能日(出荷指示)
+              参照: ""
+              型: ""
+              桁: ""
+              整列: ""
+              備考: MBDAT YYYY/MM/DD
+            - 項目ID: ""
+              項目名: 納入日付(出荷指示)
+              参照: ""
+              型: ""
+              桁: ""
+              整列: ""
+              備考: LFDAT YYYY/MM/DD
+            - 項目ID: ""
+              項目名: 品目利用可能日(出荷報告)
+              参照: ""
+              型: ""
+              桁: ""
+              整列: ""
+              備考: RMBDAT YYYY/MM/DD
+            - 項目ID: ""
+              項目名: 納入日付(出荷報告)
+              参照: ""
+              型: ""
+              桁: ""
+              整列: ""
+              備考: RLFDAT YYYY/MM/DD
+            - 項目ID: ""
+              項目名: 出荷ポイント
+              参照: ""
+              型: ""
+              桁: ""
+              整列: ""
+              備考: VSTEL
+            - 項目ID: ""
+              項目名: 出荷ポイント名称
+              参照: ""
+              型: ""
+              桁: ""
+              整列: ""
+              備考: VTEXT
+            - 項目ID: ""
+              項目名: 出庫保管場所
+              参照: ""
+              型: ""
+              桁: ""
+              整列: ""
+              備考: LGORT
+            - 項目ID: ""
+              項目名: 出庫保管場所名称
+              参照: ""
+              型: ""
+              桁: ""
+              整列: ""
+              備考: LGOBE
+            - 項目ID: ""
+              項目名: 入庫保管場所
+              参照: ""
+              型: ""
+              桁: ""
+              整列: ""
+              備考: ILGORT
+            - 項目ID: ""
+              項目名: 出荷先
+              参照: ""
+              型: ""
+              桁: ""
+              整列: ""
+              備考: KUNNR(外部書式)
+            - 項目ID: ""
+              項目名: 出荷先名称
+              参照: ""
+              型: ""
+              桁: ""
+              整列: ""
+              備考: NAME_WE
+            - 項目ID: ""
+              項目名: 出荷優先順位
+              参照: ""
+              型: ""
+              桁: ""
+              整列: ""
+              備考: LPRIO
+            - 項目ID: ""
+              項目名: 出荷優先順位名称
+              参照: ""
+              型: ""
+              桁: ""
+              整列: ""
+              備考: BEZEI_LP
+            - 項目ID: ""
+              項目名: 得意先グループ1
+              参照: ""
+              型: ""
+              桁: ""
+              整列: ""
+              備考: KVGR1
+            - 項目ID: ""
+              項目名: 得意先グループ1名称
+              参照: ""
+              型: ""
+              桁: ""
+              整列: ""
+              備考: BEZEI_KV
+            - 項目ID: ""
+              項目名: 備考(ヘッダ)
+              参照: ""
+              型: ""
+              桁: ""
+              整列: ""
+              備考: BIKOU
+            - 項目ID: ""
+              項目名: 品目コード
+              参照: ""
+              型: ""
+              桁: ""
+              整列: ""
+              備考: MATNR(外部書式)
+            - 項目ID: ""
+              項目名: 品目名称
+              参照: ""
+              型: ""
+              桁: ""
+              整列: ""
+              備考: ARKTX
+            - 項目ID: ""
+              項目名: シーケンスNo.
+              参照: ""
+              型: ""
+              桁: ""
+              整列: right
+              備考: SEQNO
+            - 項目ID: ""
+              項目名: 数量(ロット)
+              参照: ""
+              型: ""
+              桁: ""
+              整列: right
+              備考: RLFIMG(外部書式)
+            - 項目ID: ""
+              項目名: 数量(ロット)単位
+              参照: ""
+              型: ""
+              桁: ""
+              整列: ""
+              備考: VRKME
+            - 項目ID: ""
+              項目名: ロット番号
+              参照: ""
+              型: ""
+              桁: ""
+              整列: ""
+              備考: CHARG
+            - 項目ID: ""
+              項目名: 賞味期限
+              参照: ""
+              型: ""
+              桁: ""
+              整列: ""
+              備考: BEDAT YYYY/MM/DD
+            - 項目ID: ""
+              項目名: 製造日付
+              参照: ""
+              型: ""
+              桁: ""
+              整列: ""
+              備考: HSDAT YYYY/MM/DD
+      layout: ""
+      displayRules: null
+      alvToolbar: []
+  files: []
+  tables:
+    - id: TBL-001
+      name: ロットトレース情報テーブル（ZMSDT0004／主データソース）
+      gate: ok
+      purpose: ""
+      tableNames: []
+      fields:
+        - 項目ID: VBELN
+          項目名: 出荷伝票
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+        - 項目ID: DENKB
+          項目名: 伝票区分
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+        - 項目ID: VGBEL
+          項目名: 参照伝票番号
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+        - 項目ID: MBDAT
+          項目名: 品目利用可能日(出荷指示)
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+        - 項目ID: LFDAT
+          項目名: 納入日付(出荷指示)
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+        - 項目ID: RMBDAT
+          項目名: 品目利用可能日(出荷報告)
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+        - 項目ID: RLFDAT
+          項目名: 納入日付(出荷報告)
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+        - 項目ID: VSTEL
+          項目名: 出荷ポイント
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+        - 項目ID: LGORT
+          項目名: 出庫保管場所
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+        - 項目ID: ILGORT
+          項目名: 入庫保管場所
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+        - 項目ID: KUNNR
+          項目名: 出荷先
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+        - 項目ID: LPRIO
+          項目名: 出荷優先順位
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+        - 項目ID: KVGR1
+          項目名: 得意先グループ1
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+        - 項目ID: BIKOU
+          項目名: 備考
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+        - 項目ID: MATNR
+          項目名: 品目コード
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+        - 項目ID: ARKTX
+          項目名: 品目名称
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+        - 項目ID: SEQNO
+          項目名: シーケンスNo.
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+        - 項目ID: RLFIMG
+          項目名: 出荷数量(出荷報告)
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+        - 項目ID: VRKME
+          項目名: 販売単位
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+        - 項目ID: CHARG
+          項目名: ロット番号
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+        - 項目ID: BEDAT
+          項目名: 賞味期限
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+        - 項目ID: HSDAT
+          項目名: 製造日付
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ""
+      mainFields: ""
+      dataModelOverview: ""
+      designDetails: {}
+    - id: TBL-002
+      name: 結合テキスト/参照（VBPA/ADRC/TVSTT/T001L/TPRIT/TVV1T）
+      gate: ok
+      purpose: ""
+      tableNames: []
+      fields:
+        - 項目ID: VBPA
+          項目名: 出荷パートナ(WE出荷先/ADRC結合)
+          参照: ""
+          型: ""
+          桁: ""
+          備考: VBELN/PARVW=WE/POSNR=000000
+        - 項目ID: ADRC
+          項目名: アドレス(出荷先名称 NAME_WE)
+          参照: ""
+          型: ""
+          桁: ""
+          備考: ADRNUMBER=VBPA-ADRNR/有効日付/NATION=空
+        - 項目ID: TVSTT
+          項目名: 出荷ポイントテキスト(VTEXT)
+          参照: ""
+          型: ""
+          桁: ""
+          備考: VSTEL/SPRAS=SY-LANGU
+        - 項目ID: T001L
+          項目名: 保管場所テキスト(LGOBE)
+          参照: ""
+          型: ""
+          桁: ""
+          備考: WERKS+LGORT
+        - 項目ID: TPRIT
+          項目名: 納入優先順位テキスト(BEZEI)
+          参照: ""
+          型: ""
+          桁: ""
+          備考: LPRIO/SPRAS
+        - 項目ID: TVV1T
+          項目名: 得意先グループ1テキスト(BEZEI)
+          参照: ""
+          型: ""
+          桁: ""
+          備考: KVGR1/SPRAS
+      mainFields: ""
+      dataModelOverview: ""
+      designDetails: {}
+  interfaces: []
+testMatrix:
+  status: 作成中
+  summary:
+    matrixCount: 1
+    axisCount: 1
+    conditionCount: 3
+  columns:
+    - name: 前提条件
+      values:
+        - 販売組織(S_VKORG)が未入力
+        - 品目利用可能日(S_MBDAT)・納入日付(S_LFDAT)がいずれも未入力
+        - 検索結果が0件
+  test_cases:
+    - id: 1
+      conditions:
+        前提条件: 販売組織(S_VKORG)が未入力
+      expected_result: 確認後続行 / MSG-001
+      verify: []
+      tags:
+        - 機能
+      priority: 高
+    - id: 2
+      conditions:
+        前提条件: 品目利用可能日(S_MBDAT)・納入日付(S_LFDAT)がいずれも未入力
+      expected_result: 確認後続行 / MSG-002
+      verify: []
+      tags:
+        - 機能
+      priority: 高
+    - id: 3
+      conditions:
+        前提条件: 検索結果が0件
+      expected_result: 確認後続行 / MSG-001
+      verify: []
+      tags:
+        - 機能
+        - 異常
+      priority: 中
+requirements:
+  integration: "機能間連携方式 6 件 (Ch.2.2 由来): IF-IN-001→REP-IN-001(DB経由)、IF-IN-001→IF-IN-003(DB経由)、FM-IN-001→REP-IN-001(DB経由)、FM-IN-001→IF-IN-003(DB経由)、IF-IN-002→REP-IN-001(DB経由)、IF-IN-002→IF-IN-003(DB経由)"
+  data_governance: ""
+  performance: "レスポンス: (レスポンス時間）  5秒以内 / 規模: 平均=3000明細 予想量=3000明細 (Ch.1 由来)"
+  availability_reliability: ""
+  security_privacy: ""
+  operations: ""
+programDetail:
+  type: レポート
+  se38Attributes:
+    type: "1 実行可能プログラム"
+    status: P
+    アプリケーション: ""
+    認可グループ: ""
+    package: ZMSD0001
+    ロジカルDB: ""
+    編集ロック: false
+    fixedPointArithmetic: true
+    unicodeCheck: false
+gateStatus:
+  required:
+    total: 23
+    filled: 21
+  objectNames:
+    total: 4
+    filled: 2
+    pending:
+      - SCR-001
+      - RPT-001
+  idReferences:
+    chk: resolved
+    calc: resolved
+    msg: resolved
+  t100Mapping:
+    total: 2
+    resolved: 0
+    pending:
+      - MSG-001
+      - MSG-002
+  canSubmitToStride: false

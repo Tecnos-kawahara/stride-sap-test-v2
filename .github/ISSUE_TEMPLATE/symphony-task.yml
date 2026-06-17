@@ -56,11 +56,20 @@ body:
       required: true
 
   - type: input
-    id: spec_yaml_path
+    id: group_spec_yaml_path
     attributes:
-      label: "Spec YAML Path"
-      description: "仕様書 YAML ファイルのパス（Phase 2 前準備で使用）。ディレクトリ指定可。未指定の場合は無視される。"
-      placeholder: "e.g. docs/yaml/FEAT-EDI-001/"
+      label: "Group Spec YAML Path"
+      description: "機能群仕様書 YAML のパス（Phase 2 前準備で使用）。未指定の場合は無視される。"
+      placeholder: "e.g. docs/yaml/FG-SD005-003/FG-SD005-003.group.yaml"
+    validations:
+      required: false
+
+  - type: input
+    id: feature_spec_yaml_path
+    attributes:
+      label: "Feature Spec YAML Path"
+      description: "個別機能仕様書 YAML のパス（Phase 2 前準備で使用）。未指定の場合は無視される。"
+      placeholder: "e.g. docs/yaml/FG-SD005-003/features/FEAT-001__IF-IN-001.feature.yaml"
     validations:
       required: false
 
