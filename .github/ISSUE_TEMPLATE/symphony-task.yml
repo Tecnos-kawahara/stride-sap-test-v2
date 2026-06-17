@@ -55,6 +55,15 @@ body:
     validations:
       required: true
 
+  - type: input
+    id: spec_yaml_path
+    attributes:
+      label: "Spec YAML Path"
+      description: "仕様書 YAML ファイルのパス（Phase 2 前準備で使用）。ディレクトリ指定可。未指定の場合は無視される。"
+      placeholder: "e.g. docs/yaml/FEAT-EDI-001/"
+    validations:
+      required: false
+
   - type: textarea
     id: acceptance_criteria
     attributes:

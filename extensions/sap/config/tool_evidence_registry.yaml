@@ -8,23 +8,23 @@
 schema_version: "2.0"
 
 phases:
-  phase_1_5:
-    name: "Phase 1.5: SAP コンテキスト取得"
+  phase_2_pre:
+    name: "Phase 2 前準備: SAP コンテキスト取得"
     check_condition: "gate_1_and_2_approved"
     steps:
-      - step_id: "1.5-A1"
+      - step_id: "2P-A1"
         tool: "search.js"
         description: "SAP オブジェクト検索"
         optional: false
-      - step_id: "1.5-A2"
+      - step_id: "2P-A2"
         tool: "read.js"
         description: "SAP ソース参照"
         optional: true  # 参照不要の場合スキップ
-      - step_id: "1.5-A3"
+      - step_id: "2P-A3"
         tool: "pull.js"
         description: "SAP ソース取得（gated authority: 人間承認必須）"
         optional: true  # 新規作成の場合スキップ
-      - step_id: "1.5-B2"
+      - step_id: "2P-B2"
         tool: "sap_context_metadata.py"
         description: "テーブルメタデータ記録（--tables）"
         optional: false

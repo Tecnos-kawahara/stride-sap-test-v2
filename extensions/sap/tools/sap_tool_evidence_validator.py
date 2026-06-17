@@ -86,9 +86,9 @@ def validate_tool_evidence(
     gate_3 = gate_approved(3)
     gate_5 = gate_approved(5)
 
-    # --- Phase 1.5 チェック: Gate 1,2 承認後 ---
+    # --- Phase 2 前準備チェック: Gate 1,2 承認後 ---
     if gate_1_2:
-        _check_phase(fp, evidence_dir, phases.get("phase_1_5", {}), errors, warnings)
+        _check_phase(fp, evidence_dir, phases.get("phase_2_pre", {}), errors, warnings)
 
     # --- Phase 2 チェック: Gate 1,2 承認後 ---
     if gate_1_2:

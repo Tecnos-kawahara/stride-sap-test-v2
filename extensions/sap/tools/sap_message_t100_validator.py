@@ -70,7 +70,7 @@ def validate_sap_message_t100(
                 suggestion="Register message in SE91 and set status to 'ok'",
             ))
 
-        # R5: SAP T100 existence check (Phase 1.5 only)
+        # R5: SAP T100 existence check (Phase 2 前準備 only)
         if context.sap_connection and t100_class and t100.get("number") is not None:
             # SAP online check would go here
             # For offline/mock: graceful skip

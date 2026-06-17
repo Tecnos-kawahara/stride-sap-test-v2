@@ -55,7 +55,7 @@ def validate_sap_ddic_gate(
                 suggestion=f"Remove duplicate references to {table_name}",
             ))
 
-    # R3: SAP DDIC existence check (Phase 1.5 only)
+    # R3: SAP DDIC existence check (Phase 2 前準備 only)
     if context.sap_connection:
         # SAP online check would go here (DD02L lookup)
         pass

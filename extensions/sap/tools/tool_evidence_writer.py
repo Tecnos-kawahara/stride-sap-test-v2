@@ -55,7 +55,7 @@ def write_evidence(
 
     Args:
         feature_dir: specs/<feature>/ のパス
-        step_id: ワークフローステップ ID（例: "1.5-B2", "2-B4", "S1-E1"）
+        step_id: ワークフローステップ ID（例: "2P-B2", "2-B4", "S1-E1"）
         tool_name: ツールのスクリプト名（例: "sap_context_metadata.py"）
         command: 実行されたフルコマンド文字列
         options: コマンドオプションのリスト

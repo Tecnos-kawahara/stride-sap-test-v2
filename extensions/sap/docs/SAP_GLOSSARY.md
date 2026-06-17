@@ -12,7 +12,7 @@ SDD 標準フレームワークの用語のうち、SAP 拡張で特有の意味
 
 | 用語 | 説明 |
 |------|------|
-| **Phase Gate** (Gate 1-5, Final) | 各 Phase 間の承認ポイント。Gate を通過しないと次の Phase に進めない。SAP 拡張では Gate 1,2 承認後に **Phase 1.5** が挿入される。 |
+| **Phase Gate** (Gate 1-5, Final) | 各 Phase 間の承認ポイント。Gate を通過しないと次の Phase に進めない。SAP 拡張では Gate 1,2 承認後に **Phase 2 前準備** が挿入される。 |
 | **AC (Acceptance Criteria)** | 受入条件。**spec.md** で定義し、1 AC = 1 **TS** = 1 テストメソッドの原則で管理する。AC の **SSoT** は spec.md。各 AC には **catalog_refs** を設定する。 |
 | **TS (Test Spec)** | テスト仕様。**AC** と 1:1 で対応する。ID 体系は `TS-UT-xx`（単体）/ `TS-INT-xx`（統合）/ `TS-E2E-xx`（E2E）/ `TS-TM-xx`（**Type B** テストマトリクス駆動）。 |
 | **WI (Work Item)** | 作業項目。GitHub Issues で管理し、1 WI が 1 つ以上の **AC** に紐づく。Phase 4 の実行単位であり、16-step フローで処理する。 |
@@ -27,7 +27,7 @@ SAP Extension Pack v2.0.0 固有のワークフロー概念。
 
 | 用語 | 説明 |
 |------|------|
-| **Phase 1.5** | SAP コンテキスト取得フェーズ（任意）。**Gate 1,2** 承認後、Specify Phase 前に実施する。SAP システムから技術情報を収集し、spec.md の入力とする。ステップ ID は `1.5-A1` -- `1.5-C2`。 |
+| **Phase 2 前準備** | SAP コンテキスト取得フェーズ（任意）。**Gate 1,2** 承認後、Specify Phase 前に実施する。SAP システムから技術情報を収集し、spec.md の入力とする。ステップ ID は `2P-A1` -- `2P-C2`。 |
 | **process_definitions** | basic_design.md の処理定義セクション。各処理定義は `body` にステップのシーケンスを持ち、タグベースの分岐パターン（**tag_branch_rules.yaml** 参照）で展開される。v1 の `processing_steps` を置き換える。 |
 | **catalog_refs** | AC に設定するフィールド。その AC が独立検証するカタログ項目（CHK/CALC/MSG 等）への参照。独立した条件は独立した AC にする。正常系完了やカタログ外の AC は `catalog_refs: []`。 |
 | **Type A パス（要件駆動）** | `traceability_rows` -> spec.md AC -> scenarios.yaml（`traceability_ref` で紐付け）。各要件（RQ）に対応する AC を定義し、AC がシナリオで検証される従来型パス。 |
@@ -170,7 +170,7 @@ SAP Extension Pack v2.0.0 固有のワークフロー概念。
 
 ### 命名規則
 
-- **Phase 部**: 実行フェーズを示す（`1`, `1.5`, `2`, `3`, `4`, `5`）
+- **Phase 部**: 実行フェーズを示す（`1`, `2P`, `2`, `3`, `4`, `5`）
 - **グループ文字**: 同一フェーズ内の作業グループを示す（`A`, `B`, `C`, `D`）
 - **連番**: グループ内の順序を示す（`1`, `2`, `3`, ...）
 
@@ -185,17 +185,17 @@ SAP Extension Pack v2.0.0 固有のワークフロー概念。
 | **1-C2** | C: 検証 | カタログ整合性（catalogs_consistency_validator） |
 | **1-C3** | C: 検証 | STRIDE 標準 lint |
 
-### Phase 1.5（SAP コンテキスト取得 -- 任意）
+### Phase 2 前準備（SAP コンテキスト取得 -- 任意）
 
 | ステップ ID | グループ | 概要 |
 |-------------|----------|------|
-| **1.5-A1** | A: SAP 調査 | SAP オブジェクト検索（search.js） |
-| **1.5-A2** | A: SAP 調査 | SAP ソース参照（read.js） |
-| **1.5-A3** | A: SAP 調査 | SAP ソース取得（pull.js -- gated） |
-| **1.5-B1** | B: 記録 | sap_context.md 記録 |
-| **1.5-B2** | B: 記録 | テーブルメタデータ記録（sap_context_metadata.py） |
-| **1.5-C1** | C: 検証 | T100 メッセージ検証（sap_message_t100_validator） |
-| **1.5-C2** | C: 検証 | DDIC 存在検証（sap_ddic_gate_validator） |
+| **2P-A1** | A: SAP 調査 | SAP オブジェクト検索（search.js） |
+| **2P-A2** | A: SAP 調査 | SAP ソース参照（read.js） |
+| **2P-A3** | A: SAP 調査 | SAP ソース取得（pull.js -- gated） |
+| **2P-B1** | B: 記録 | sap_context.md 記録 |
+| **2P-B2** | B: 記録 | テーブルメタデータ記録（sap_context_metadata.py） |
+| **2P-C1** | C: 検証 | T100 メッセージ検証（sap_message_t100_validator） |
+| **2P-C2** | C: 検証 | DDIC 存在検証（sap_ddic_gate_validator） |
 
 ### Phase 2（Specify）
 

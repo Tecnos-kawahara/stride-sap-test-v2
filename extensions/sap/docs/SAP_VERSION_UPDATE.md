@@ -42,13 +42,13 @@ v2 では Phase 別ドキュメント（`agent_docs/phase*.md`）にワークフ
 
 ### 2.1 ステップ ID の変更
 
-ステップ ID（`1-A1`, `1.5-B1`, `2-D3`, `4-A1`, `5-B2` 等）を変更した場合、以下のすべてを更新する。
+ステップ ID（`1-A1`, `2P-B1`, `2-D3`, `4-A1`, `5-B2` 等）を変更した場合、以下のすべてを更新する。
 
 - [ ] `extensions/sap/MANIFEST.yaml` -- `phase_steps` セクション内の全 `id` フィールド
 - [ ] `extensions/sap/CLAUDE_SAP.md` -- ルール参照、ステップ参照テーブル
 - [ ] `extensions/sap/CLAUDE_WORKFLOW_SAP.md` -- Phase 概要、参照テーブル
 - [ ] `extensions/sap/agent_docs/phase1_design.md` -- Phase 1 手順内のステップ ID
-- [ ] `extensions/sap/agent_docs/phase15_sap_context.md` -- Phase 1.5 手順内のステップ ID
+- [ ] `extensions/sap/agent_docs/phase2_pre_sap_context.md` -- Phase 2 前準備手順内のステップ ID
 - [ ] `extensions/sap/agent_docs/phase2_specify.md` -- Phase 2 手順内のステップ ID
 - [ ] `extensions/sap/agent_docs/phase3_tasking.md` -- Phase 3 手順内のステップ ID
 - [ ] `extensions/sap/agent_docs/phase4_execute.md` -- Phase 4 手順内のステップ ID
@@ -279,10 +279,10 @@ print('Path check complete')
 
 ### 8.3 Level 3: 通しフロー検証
 
-テスト用 feature（`specs/test_*`）で Phase 1 → Phase 1.5 → Phase 2 → Phase 3 → Phase 4 → Final の通しフローを実行し、全ステップがエラーなく完了することを確認。
+テスト用 feature（`specs/test_*`）で Phase 1 → Phase 2 前準備 → Phase 2 → Phase 3 → Phase 4 → Final の通しフローを実行し、全ステップがエラーなく完了することを確認。
 
 - [ ] Phase 1: yaml → basic_design 転記 + validators（C1, C2）が PASS
-- [ ] Phase 1.5: SAP 実機接続 + sap_context 記録 + validators（C4, C5）が PASS
+- [ ] Phase 2 前準備: SAP 実機接続 + sap_context 記録 + validators（C4, C5）が PASS
 - [ ] Phase 2: spec/plan/contracts/scenarios 生成 + validators（C3, C6, C7, C8, D1--D4）が PASS
 - [ ] Phase 3: tasks.md 生成
 - [ ] Phase 4: WI 実装 + 品質チェック（B1--B4）が PASS
