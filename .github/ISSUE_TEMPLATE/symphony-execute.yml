@@ -1,0 +1,57 @@
+name: "Symphony: Execute (Phase 4)"
+description: "Phase 4 (Execute) — Work Item 単位で実装を自動実行"
+labels: ["symphony:ready", "phase:execute"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Symphony Task — Phase 4: Execute
+        Work Item 単位で実装を自動実行します。
+        Phase 3 (Tasking) の Gate 5 が承認済みであることが前提です。
+
+  - type: dropdown
+    id: phase
+    attributes:
+      label: "Phase"
+      description: "このテンプレートでは Execute 固定です"
+      options:
+        - "execute"
+    validations:
+      required: true
+
+  - type: input
+    id: feature_name
+    attributes:
+      label: "Feature Name"
+      description: "specs/<feature_name>/ のディレクトリ名（Phase 1-3 で作成済みのもの）"
+      placeholder: "e.g. edi_shipment_report_import"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: "Priority"
+      options:
+        - "P0-Critical"
+        - "P1-High"
+        - "P2-Medium"
+        - "P3-Low"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Description"
+      description: "実装対象の Work Item ID や追加の指示があれば記述してください。"
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: "Acceptance Criteria（任意）"
+      description: "完了条件。tasks.md の AC が自動参照されるため、通常は空でよい。"
+    validations:
+      required: false

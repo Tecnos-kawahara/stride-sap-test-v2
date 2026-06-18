@@ -1,26 +1,21 @@
-name: "Symphony Task"
-description: "Symphony オーケストレーターで自動処理するタスク"
-labels: ["symphony:ready"]
+name: "Symphony: Design (Phase 1)"
+description: "Phase 1 (Design) — basic_design.md + process.bpmn を自動生成"
+labels: ["symphony:ready", "phase:design"]
 body:
   - type: markdown
     attributes:
       value: |
-        ## Symphony Task
-        このIssueは `symphony:ready` ラベルにより、Symphony オーケストレーターが
-        自動的にエージェント（Claude Code / Codex）を起動して処理します。
-
-        Phase / Feature Name / Priority は本文から自動抽出されます。
+        ## Symphony Task — Phase 1: Design
+        基本設計（basic_design.md + process.bpmn）を自動生成します。
+        仕様書 YAML がある場合は、Group / Feature の YAML パスを指定してください。
 
   - type: dropdown
     id: phase
     attributes:
       label: "Phase"
-      description: "エージェントが実行するSDDフェーズ"
+      description: "このテンプレートでは Design 固定です"
       options:
         - "design"
-        - "specify"
-        - "tasking"
-        - "execute"
     validations:
       required: true
 
@@ -29,7 +24,7 @@ body:
     attributes:
       label: "Feature Name"
       description: "specs/<feature_name>/ のディレクトリ名"
-      placeholder: "e.g. order_import"
+      placeholder: "e.g. edi_shipment_report_import"
     validations:
       required: true
 
@@ -49,9 +44,7 @@ body:
     id: description
     attributes:
       label: "Description"
-      description: |
-        実装内容の詳細。Issue本文がエージェントへのプロンプトの一部になります。
-        Phase 1(Design) の場合は、要件・背景・スコープを記述してください。
+      description: "要件・背景・スコープを記述してください。Issue 本文がエージェントへのプロンプトの一部になります。"
     validations:
       required: true
 
@@ -59,7 +52,7 @@ body:
     id: group_spec_yaml_path
     attributes:
       label: "Group Spec YAML Path"
-      description: "機能群仕様書 YAML のパス（Phase 2 前準備で使用）。未指定の場合は無視される。"
+      description: "機能群仕様書 YAML のパス。未指定の場合は無視される。"
       placeholder: "e.g. docs/yaml/FG-SD005-003/FG-SD005-003.group.yaml"
     validations:
       required: false
@@ -68,7 +61,7 @@ body:
     id: feature_spec_yaml_path
     attributes:
       label: "Feature Spec YAML Path"
-      description: "個別機能仕様書 YAML のパス（Phase 2 前準備で使用）。未指定の場合は無視される。"
+      description: "個別機能仕様書 YAML のパス。未指定の場合は無視される。"
       placeholder: "e.g. docs/yaml/FG-SD005-003/features/FEAT-001__IF-IN-001.feature.yaml"
     validations:
       required: false
@@ -77,6 +70,6 @@ body:
     id: acceptance_criteria
     attributes:
       label: "Acceptance Criteria（任意）"
-      description: "完了条件。Phase 1-3では SDD プロセスで自動生成されます。"
+      description: "完了条件。SDD プロセスで自動生成されるため、通常は空でよい。"
     validations:
       required: false
