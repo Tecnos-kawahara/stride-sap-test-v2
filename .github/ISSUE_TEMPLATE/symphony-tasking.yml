@@ -1,0 +1,57 @@
+name: "Symphony: Tasking (Phase 3)"
+description: "Phase 3 (Tasking) — tasks.md を自動生成"
+labels: ["symphony:ready", "phase:tasking"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Symphony Task — Phase 3: Tasking
+        タスク分解（tasks.md）を自動生成します。
+        Phase 2 (Specify) の Gate 3/4 が承認済みであることが前提です。
+
+  - type: dropdown
+    id: phase
+    attributes:
+      label: "Phase"
+      description: "このテンプレートでは Tasking 固定です"
+      options:
+        - "tasking"
+    validations:
+      required: true
+
+  - type: input
+    id: feature_name
+    attributes:
+      label: "Feature Name"
+      description: "specs/<feature_name>/ のディレクトリ名（Phase 1-2 で作成済みのもの）"
+      placeholder: "e.g. edi_shipment_report_import"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: "Priority"
+      options:
+        - "P0-Critical"
+        - "P1-High"
+        - "P2-Medium"
+        - "P3-Low"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Description"
+      description: "追加の指示や制約があれば記述してください。"
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: "Acceptance Criteria（任意）"
+      description: "完了条件。SDD プロセスで自動生成されるため、通常は空でよい。"
+    validations:
+      required: false
