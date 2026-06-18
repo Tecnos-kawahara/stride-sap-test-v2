@@ -1161,8 +1161,8 @@ basic_design_gate_check:
 
   ready_for_bpmn: true
   process_bpmn_linked: true
-  process_bpmn_approved: false
-  ready_for_specify: false
+  process_bpmn_approved: true
+  ready_for_specify: true
 ```
 
 ---
@@ -1352,7 +1352,7 @@ basic_design_gate_check:
 - [x] Integration critical flow が明確
 - [x] 監査・運用の最低要件が触れられている
 - [x] 例外は reason/mitigation がセット（例外なしは空配列で明示）
-- [ ] process.bpmn は Camunda 8 (Zeebe) 互換・DIありでレビュー可能 ← Gate 2 で承認
+- [x] process.bpmn は Camunda 8 (Zeebe) 互換・DIありでレビュー可能 ← Gate 2 承認済
 - [x] Delivery Model（requirements-driven）が決まっている
 - [x] RACI+ が定義されている
 - [x] AI Policy が明示されている
@@ -1386,8 +1386,8 @@ basic_design_gate_check:
 
   ready_for_bpmn: true
   process_bpmn_linked: true
-  process_bpmn_approved: false
-  ready_for_specify: false
+  process_bpmn_approved: true
+  ready_for_specify: true
 ```
 
 ## 7.3 SAP Extension Gate チェック
