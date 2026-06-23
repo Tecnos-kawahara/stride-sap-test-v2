@@ -1,0 +1,142 @@
+name: "SDD Work Item"
+description: "Spec-Driven Development ワークアイテム（Tecnos-STRIDE）"
+title: "[WI] "
+labels: ["work-item", "status:pending"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## SDD Work Item
+        Tecnos-STRIDE の Work Item を作成します。
+        メタデータは Gate 審査時に `stride wi sync` で `specs/*/work_items/WI-*.md` に同期されます。
+
+  - type: input
+    id: wi_id
+    attributes:
+      label: "WI ID"
+      description: "例: WI-ERP-OMS-001"
+      placeholder: "WI-ERP-XXX-NNN"
+    validations:
+      required: true
+
+  - type: input
+    id: feature_id
+    attributes:
+      label: "Feature ID"
+      description: "specs/ 配下のディレクトリ名"
+      placeholder: "sample_erp_addon"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: complexity
+    attributes:
+      label: "Complexity"
+      options:
+        - low
+        - medium
+        - high
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: "Execution Mode"
+      description: "リスクに応じた実行モード（erp_addon_mode_policy.yaml 参照）"
+      options:
+        - autopilot
+        - confirm
+        - validate
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: "Priority"
+      options:
+        - P0-Critical
+        - P1-High
+        - P2-Medium
+        - P3-Low
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: risk_flags
+    attributes:
+      label: "Risk Flags"
+      description: "該当するリスクにチェック（erp_addon_risk_taxonomy.yaml 参照）"
+      options:
+        - label: "authz / SoD — 認可・職務分離ロジックの変更"
+        - label: "audit_log / pii — 監査ログ・個人情報への影響"
+        - label: "db_schema — DBスキーマ変更"
+        - label: "data_migration — データ移行を伴う"
+        - label: "update_integration — 外部連携の更新"
+        - label: "cross_module — モジュール横断"
+        - label: "accounting_calc / inventory_valuation — 会計計算・在庫評価"
+        - label: "new_api / contract_change — API追加・契約変更"
+        - label: "performance_sensitive — パフォーマンス影響"
+        - label: "ui_only / message_only / test_only / logging_only — 低リスク変更"
+
+  - type: textarea
+    id: spec_refs
+    attributes:
+      label: "Spec References"
+      description: "関連する仕様ファイル（1行1ファイル）"
+      placeholder: |
+        basic_design.md
+        spec.md
+        plan.md
+    validations:
+      required: false
+
+  - type: textarea
+    id: contract_refs
+    attributes:
+      label: "Contract References"
+      description: "Acceptance IDs と Contract IDs"
+      placeholder: |
+        acceptance_ids: AC-US-XXX-001, AC-US-XXX-002
+        contract_ids: CT-API-01
+    validations:
+      required: false
+
+  - type: textarea
+    id: intent
+    attributes:
+      label: "Intent"
+      description: "この WI で達成したいこと（1-2文）"
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: "Scope"
+      description: "変更対象（UI/IO/API/MSG/DB/Authz/Migration/Ops）"
+      placeholder: |
+        - UI: order_entry.tsx（ボタン配置変更）
+        - API: CT-API-01（受注登録API — 変更なし）
+    validations:
+      required: true
+
+  - type: textarea
+    id: plan
+    attributes:
+      label: "Plan"
+      description: "実装計画・ステップ"
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: "Acceptance Criteria"
+      description: "spec.md の AC を参照"
+      placeholder: |
+        - AC-US-XXX-001: 条件を満たすこと
+        - AC-US-XXX-002: テストがパスすること
+    validations:
+      required: true

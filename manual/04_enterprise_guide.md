@@ -162,6 +162,31 @@ shared/
     └── CONTRACT_REGISTRY.yaml   # 共有契約レジストリ
 ```
 
+### Git ブランチモデル（3 階層）
+
+Enterprise Edition では、Epic/Feature の階層構造に対応した 3 階層ブランチモデルを採用します。
+
+```
+main                                                      ← 全体管理者がマージ
+ └── epic/<EPIC-ID>                                       ← Epic リードがマージ
+      ├── feature/<EPIC-ID>/<feature_name>                ← Feature 担当チームがマージ
+      │    ├── symphony/<feature_name>-12  (Phase 1)
+      │    ├── symphony/<feature_name>-13  (Phase 2)
+      │    ├── symphony/<feature_name>-14  (Phase 3)
+      │    └── symphony/<feature_name>-20  (WI-001)       ← Phase 4 は WI 単位
+      └── feature/<EPIC-ID>/<other_feature>
+```
+
+| レベル | 命名規則 | 分岐元 | マージ先 | 管理者 |
+|--------|---------|--------|---------|--------|
+| Epic | `epic/<EPIC-ID>` | main | main | Epic リード |
+| Feature | `feature/<EPIC-ID>/<name>` | epic ブランチ | epic ブランチ | Feature 担当 |
+| Symphony (Phase 1-3) | `symphony/<name>-<issue>` | feature ブランチ | feature ブランチ | Symphony 自動 |
+| Symphony (WI/Phase 4) | `symphony/<name>-<issue>` | feature ブランチ | feature ブランチ | Symphony 自動 |
+
+Symphony を使用する場合、GitHub Issue テンプレートの **Base Branch** フィールドに Feature ブランチ名を指定します。
+これにより、Symphony が作成する worktree ブランチは Feature ブランチから分岐し、PR も Feature ブランチに向けて作成されます。
+
 ### Epic 設計（epic_design.md）
 
 ```yaml

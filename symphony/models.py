@@ -17,6 +17,8 @@ class Issue:
     phase: str
     feature_name: str
     labels: list[str] = field(default_factory=list)
+    base_branch: str = "main"
+    epic_id: str = ""
 
     @property
     def identifier(self) -> str:

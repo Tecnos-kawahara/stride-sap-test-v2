@@ -36,6 +36,7 @@ class WorkspaceConfig:
     root: str = ".symphony/workspaces"
     branch_prefix: str = "symphony/"
     strategy: str = "worktree"  # reserved: "worktree" | "copy" (runtime reads root/branch_prefix only)
+    base_branch: str = "main"
 
 
 @dataclass

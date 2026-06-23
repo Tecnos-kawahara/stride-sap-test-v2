@@ -21,6 +21,7 @@ from symphony.stride_bridge import lint, is_approval_pending, is_all_gates_passe
 from symphony.tracker import (
     add_label,
     create_janitor_issue,
+    ensure_label,
     fetch_ready_issues,
     has_open_janitor_issue,
     has_recent_pr,
@@ -110,6 +111,24 @@ def _process_issue(
                 add_label(config.tracker.repo, issue_id, f"phase:{issue.phase}")
             except RuntimeError as exc:
                 logger.warning("Failed to add phase label: %s", exc)
+        # Add feature label for filtering (e.g. feature:edi_shipment_report)
+        if issue.feature_name and not issue.feature_name.startswith("issue-"):
+            feat_label = f"feature:{issue.feature_name}"
+            try:
+                ensure_label(config.tracker.repo, feat_label, color="c2e0c6",
+                             description=f"Feature: {issue.feature_name}")
+                add_label(config.tracker.repo, issue_id, feat_label)
+            except RuntimeError as exc:
+                logger.warning("Failed to add feature label: %s", exc)
+        # Add epic label for filtering (e.g. epic:EPIC-EDILOT)
+        if issue.epic_id:
+            epic_label = f"epic:{issue.epic_id}"
+            try:
+                ensure_label(config.tracker.repo, epic_label, color="d4c5f9",
+                             description=f"Epic: {issue.epic_id}")
+                add_label(config.tracker.repo, issue_id, epic_label)
+            except RuntimeError as exc:
+                logger.warning("Failed to add epic label: %s", exc)
         # Update GitHub Projects status
         try:
             update_project_status(issue_id, "In progress")
@@ -131,7 +150,9 @@ def _process_issue(
     else:
         try:
             workspace_path = create_workspace(
-                config, issue_id, branch_name, feature_name=issue.feature_name
+                config, issue_id, branch_name,
+                feature_name=issue.feature_name,
+                base_branch=issue.base_branch,
             )
         except RuntimeError as exc:
             logger.error("Workspace creation failed for #%d: %s", issue_id, exc)
@@ -145,6 +166,7 @@ def _process_issue(
         phase=issue.phase,
         feature_name=issue.feature_name,
         attempt=attempt if attempt > 1 else None,
+        base_branch=issue.base_branch,
     )
 
     # Build log path
@@ -180,7 +202,11 @@ def _process_issue(
         )
 
     # Execute agent (with before_run / after_run hooks)
-    hook_env = {"SYMPHONY_FEATURE": issue.feature_name, "SYMPHONY_ISSUE": str(issue_id)}
+    hook_env = {
+        "SYMPHONY_FEATURE": issue.feature_name,
+        "SYMPHONY_ISSUE": str(issue_id),
+        "SYMPHONY_BASE_BRANCH": issue.base_branch,
+    }
     run_hook(config.hooks.before_run, cwd=workspace_path, env=hook_env)
     agent_result = run_agent(engine, config, workspace_path, rendered, log_path)
     run_hook(config.hooks.after_run, cwd=workspace_path, env=hook_env)

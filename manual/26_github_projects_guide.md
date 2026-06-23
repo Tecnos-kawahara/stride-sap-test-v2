@@ -455,6 +455,134 @@ GitHub Project V2 #5              GitHub Project V2 #6
 
 ---
 
+## 10. Symphony + Epic/Feature ラベルによる Project フィルタリング
+
+### 10.1 自動ラベル付与
+
+Symphony が Issue を処理する際、以下のラベルを自動で作成・付与します:
+
+| ラベル | 例 | 色 | 用途 |
+|--------|----|----|------|
+| `feature:<name>` | `feature:edi_shipment_report` | 緑系 (#c2e0c6) | Feature 担当者の絞り込み |
+| `epic:<EPIC-ID>` | `epic:EPIC-EDILOT` | 紫系 (#d4c5f9) | Epic リーダーの絞り込み |
+| `phase:<phase>` | `phase:design` | 黄系 | Phase 別の絞り込み |
+| `symphony:<status>` | `symphony:done` | 各色 | Symphony ステータスの絞り込み |
+
+ラベルは Issue の dispatch 時に自動作成されるため、事前準備は不要です。
+
+### 10.2 推奨ビュー設定
+
+GitHub Projects V2 で以下のビューを作成すると、各ロールで効率的に管理できます。
+
+**ビュー作成手順（共通）:**
+1. Project ボードで「+ New view」をクリック
+2. レイアウト（Table / Board / Roadmap）を選択
+3. タブ名をダブルクリックしてビュー名を変更
+4. フィルタ欄をクリック → 「Label」を選択 → ラベルを選択（または直接入力）
+5. 「Save」をクリックして永続化
+
+#### ビュー 1: Epic Overview（Epic リーダー向け）
+
+| 設定項目 | 値 |
+|---------|---|
+| **レイアウト** | Board |
+| **フィルタ** | `label:epic:EPIC-EDILOT`（自分の Epic ID に置換） |
+| **列** | Status（Todo / In Progress / Done） |
+
+**用途**: 自分の Epic 配下の全 Feature の Issue 一覧。Epic 単位で進捗確認。
+
+#### ビュー 2: Feature Board（Feature 担当者向け）
+
+| 設定項目 | 値 |
+|---------|---|
+| **レイアウト** | Board |
+| **フィルタ** | `label:feature:edi_shipment_report`（自分の Feature 名に置換） |
+| **列** | Status（Todo / In Progress / Done） |
+
+**用途**: 自分の Feature の全 Phase Issue を確認。Phase 1→2→3→4 の進捗を追跡。
+
+#### ビュー 3: Active Issues（全体管理者向け）
+
+| 設定項目 | 値 |
+|---------|---|
+| **レイアウト** | Table |
+| **フィルタ** | `label:symphony:running,symphony:blocked`（カンマ区切りで OR 条件） |
+
+**用途**: 現在実行中・ブロック中の全 Issue。問題の早期検出。
+
+> **注意**: Projects V2 のフィルタで複数ラベルの OR 条件を指定するには、`OR` キーワードではなくカンマ区切り（`label:val1,val2`）を使用します。
+
+#### ビュー 4: Completed（トレーサビリティ向け）
+
+| 設定項目 | 値 |
+|---------|---|
+| **レイアウト** | Table |
+| **フィルタ** | `label:symphony:done` |
+
+**用途**: 完了した全 Issue の記録。Epic 単位でグループ化してレビュー。
+
+### 10.3 Issue テンプレートフィールド
+
+Symphony Issue テンプレートには以下のフィールドがあります:
+
+| フィールド | 必須 | 説明 |
+|-----------|------|------|
+| Phase | はい | SDD Phase（design/specify/tasking/execute） |
+| Feature Name | はい | `specs/<feature>/` のディレクトリ名 |
+| Base Branch | はい | マージ先ブランチ（Feature ブランチ名） |
+| Epic ID | いいえ | 所属する Epic（例: EPIC-EDILOT） |
+| Priority | はい | P0-Critical 〜 P3-Low |
+| Description | はい | 要件・背景 |
+
+Epic ID が指定されると `epic:EPIC-XXX` ラベルが自動付与されます。
+Feature Name からは `feature:<name>` ラベルが自動付与されます。
+
+### 10.4 Issue → Project 自動追加の前提条件
+
+Issue を作成するだけで Project ボードに自動追加されるには、以下の設定が必要です:
+
+| 設定項目 | 設定場所 | 内容 |
+|---------|---------|------|
+| **ワークフローファイル** | `.github/workflows/auto-add-to-project.yml` | テンプレートからコピー |
+| **シークレット** | リポジトリ Settings → Secrets → `STRIDE_PROJECT_TOKEN` | `projects:write` スコープの PAT |
+| **変数** | リポジトリ Settings → Variables → `STRIDE_PROJECT_NUMBER` | Project 番号 |
+
+```bash
+# 設定コマンド
+gh secret set STRIDE_PROJECT_TOKEN --repo OWNER/REPO
+gh variable set STRIDE_PROJECT_NUMBER --repo OWNER/REPO --body "4"
+```
+
+**動作フロー**:
+1. Issue 作成（または SDD ラベル付与）
+2. GitHub Actions `auto-add-to-project.yml` が発火
+3. SDD ラベル（`symphony:ready`, `epic:*`, `feature:*` 等）を検出
+4. `gh project item-add` で Project に自動追加
+5. `scripts/auto_set_project_fields.py` でカスタムフィールドを自動設定
+
+### 10.5 トラブルシューティング
+
+#### Issue が Project ボードに表示されない
+
+1. **ワークフローが実行されているか確認**: リポジトリの Actions タブで `Auto-add Issues to Project` の実行履歴を確認
+2. **シークレット `STRIDE_PROJECT_TOKEN` が設定されているか**: Settings → Secrets → Actions で確認。PAT のスコープに `project` が含まれているか
+3. **変数 `STRIDE_PROJECT_NUMBER` が正しいか**: `gh project list --owner OWNER` で番号を確認
+4. **SDD ラベルが付与されているか**: Issue に `symphony:ready`, `epic`, `work-item` 等のラベルがあるか確認。ラベルなしの Issue はスキップされる
+
+#### Symphony のステータスが Project に反映されない
+
+- `symphony/tracker.py` の `update_project_status()` は、**既に Project に追加済みの Issue のみ**ステータスを更新する
+- Issue が Project に追加されていなければ、ステータス更新は空振りする
+- 上記の「Issue が Project ボードに表示されない」を先に解決すること
+
+#### ラベルの色がおかしい / 重複している
+
+- `feature:` / `epic:` ラベルは Symphony が初回 dispatch 時に自動作成する
+- 手動で同名ラベルを別の色で作成していた場合、`ensure_label --force` で上書きされる
+- ラベル一覧: Settings → Labels で確認
+
+---
+
 ## 関連ドキュメント
 
 - [Tecnos-STRIDE メソッド](27_erp_addon_playbook.md)

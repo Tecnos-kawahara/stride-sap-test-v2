@@ -29,7 +29,7 @@ Step 7: 動作検証
 - [ ] `gh` CLI（`gh --version` で確認、`gh auth status` でログイン済み）
 - [ ] Python 3.11+（`python --version` で確認）
 - [ ] テンプレートソースの入手（以下のいずれか）
-  - GitHub リポジトリ（`Tecnos-Japan-NGB/s4_environment`）へのアクセス権がある場合: clone
+  - 配布用リポジトリへのアクセス権がある場合: clone
   - アクセス権がない場合: 管理者から特定バージョンの zip を受領
 
 ---
@@ -40,11 +40,11 @@ Step 7: 動作検証
 
 テンプレートの入手方法に応じて、ローカルにファイルがある状態にする。
 
-**パターン A: GitHub にアクセスできる場合**
+**パターン A: 配布用リポジトリから clone する場合**
 
 ```bash
-git clone https://github.com/Tecnos-Japan-NGB/s4_environment.git
-cd s4_environment/tecnos_stride_sap
+git clone <配布用リポジトリURL>
+cd <リポジトリ名>/tecnos_stride_sap
 ```
 
 **パターン B: zip ファイルから展開する場合**

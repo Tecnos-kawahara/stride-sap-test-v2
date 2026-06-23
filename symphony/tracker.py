@@ -113,6 +113,16 @@ def fetch_ready_issues(repo: str, trigger_label: str) -> list[Issue]:
         except ValueError:
             priority = "P3"
 
+        try:
+            base_branch = extract_field(body, "Base Branch")
+        except ValueError:
+            base_branch = "main"
+
+        try:
+            epic_id = extract_field(body, "Epic ID")
+        except ValueError:
+            epic_id = ""
+
         issues.append(Issue(
             number=number,
             title=item.get("title", ""),
@@ -122,6 +132,8 @@ def fetch_ready_issues(repo: str, trigger_label: str) -> list[Issue]:
             phase=phase,
             feature_name=feature_name,
             labels=label_names,
+            base_branch=base_branch,
+            epic_id=epic_id,
         ))
 
     issues.sort(key=_priority_key)
@@ -131,6 +143,20 @@ def fetch_ready_issues(repo: str, trigger_label: str) -> list[Issue]:
 # ---------------------------------------------------------------------------
 # Label management
 # ---------------------------------------------------------------------------
+
+def ensure_label(repo: str, label: str, color: str = "", description: str = "") -> None:
+    """Create a label if it does not already exist (idempotent)."""
+    result = _run_gh(
+        "label", "create", label,
+        "--repo", repo,
+        "--color", color or "ededed",
+        "--description", description,
+        "--force",
+    )
+    # --force makes it idempotent (updates if exists)
+    if result.returncode != 0 and "already exists" not in result.stderr:
+        pass  # Non-critical: label may already exist with different casing
+
 
 def add_label(repo: str, issue_number: int, label: str) -> None:
     """Add a label to an issue."""
