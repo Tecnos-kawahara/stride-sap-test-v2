@@ -18,10 +18,29 @@
 **`stride init` を実行せずに yaml → basic_design 転記を開始してはならない。**
 scaffold が存在しない状態で成果物を作成すると、ディレクトリ構造・テンプレート・APPROVAL.md が欠落し、以降の stride lint や Phase Gate が正常に動作しない。
 
+## Epic 転写ワークフロー（Feature SDD の前段階）
+
+機能群仕様書 YAML が指定された場合、Feature SDD（Phase 1〜4）の前に Epic 構造への転写を実施する。
+
+> ⛔ MANDATORY: `agent_docs/epic_transfer_rules.md` を読んでから作業を開始すること。
+
+| ステップ | 内容 | ツール |
+|---------|------|--------|
+| E-1 | Epic ID を人間と決定 + `stride epic init <EPIC_ID>` | `bin/stride` |
+| E-2 | 機能群 YAML → Epic 構造への転写 | `extensions/sap/tools/epic_transfer.py` |
+| E-3 | 手動補完項目（sponsor, value_stream 等）の入力 | AI + 人間 |
+| E-4 | `stride epic validate <EPIC_ID>` | `sdd-templates/tools/epic_validator.py` |
+| E-5 | E1 Gate 承認依頼 | 人間（EPIC_APPROVAL.md） |
+
+**Epic ID の注意**: STRIDE 標準では `EPIC-[A-Z]{3,}$`（英大文字のみ）。SAP の機能群 ID（`FG-SD005-003`）は数字を含むため、意味のある英字略称に変換する必要がある。**Epic ID は必ず人間の承認を得ること。**
+
+---
+
 ## Phase 別ワークフロー
 
 | Phase | Detail Doc | 概要 |
 |-------|-----------|------|
+| Epic Transfer | `agent_docs/epic_transfer_rules.md` | 機能群 YAML → Epic 構造への転写（Feature SDD の前段階） |
 | Phase 1: Design | `agent_docs/phase1_design.md` | yaml→basic_design 転記 + AI 構成 + 検証 |
 | Phase 2 前準備: SAP Context | `agent_docs/phase2_pre_sap_context.md` | SAP 実機接続による情報補完（任意） |
 | Phase 2: Specify | `agent_docs/phase2_specify.md` | spec/plan/contracts 生成 + AC 品質保証 |

@@ -20,6 +20,7 @@ def render_prompt(
     phase: str,
     feature_name: str,
     attempt: Optional[int] = None,
+    base_branch: str = "main",
 ) -> str:
     """Render a Jinja2 prompt template with the given context.
 
@@ -28,6 +29,7 @@ def render_prompt(
         - phase: the SDD phase name (e.g. "Design", "Specify")
         - feature_name: the feature identifier
         - attempt: retry attempt number (None on first try)
+        - base_branch: the target branch for PRs (default "main")
 
     Uses StrictUndefined so that missing variables raise immediately
     rather than silently producing empty strings.
@@ -39,5 +41,6 @@ def render_prompt(
         phase=phase,
         feature_name=feature_name,
         attempt=attempt,
+        base_branch=base_branch,
     )
     return rendered

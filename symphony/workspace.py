@@ -54,6 +54,7 @@ def create_workspace(
     issue_id: int,
     branch_name: str,
     feature_name: str = "",
+    base_branch: str = "",
 ) -> str:
     """Create a git worktree for the given issue.
 
@@ -84,8 +85,10 @@ def create_workspace(
         logger.info("Reusing existing workspace at %s (branch: %s)", ws_path, full_branch)
         return ws_path
 
+    effective_base = base_branch or config.workspace.base_branch or "main"
+
     result = subprocess.run(
-        ["git", "worktree", "add", ws_path, "-b", full_branch],
+        ["git", "worktree", "add", ws_path, "-b", full_branch, effective_base],
         capture_output=True,
         text=True,
         encoding="utf-8",

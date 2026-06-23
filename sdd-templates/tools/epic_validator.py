@@ -46,7 +46,7 @@ ID_PATTERNS = {
     "milestone_id": r"^EM-[0-9]{2}$",
     "integration_point_id": r"^IP-[0-9]{3}$",
     "dependency_id": r"^DEP-[0-9]{3}$",
-    "shared_contract_id": r"^SC-(API|EVT|FILE)-[A-Z0-9]{3,}$",
+    "shared_contract_id": r"^SC-(API|EVT|FILE|SCHEMA)-[A-Z0-9]{3,}$",
 }
 
 

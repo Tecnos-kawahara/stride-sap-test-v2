@@ -10,6 +10,22 @@ SDD (Spec-Driven Development) のワークフローを GitHub Projects V2 で管
 ## Quick Start（5分セットアップ）
 
 ```bash
+# 0. GitHub Actions ワークフロー配置（Issue → Project 自動追加に必須）
+mkdir -p .github/workflows
+cp sdd-templates/templates/github-projects/workflows/auto-add-to-project.yml .github/workflows/  # 必須
+# 以下は任意（Forward/Reverse Sync, CI lint）
+# cp sdd-templates/templates/github-projects/workflows/stride-sync.yml .github/workflows/
+# cp sdd-templates/templates/github-projects/workflows/stride-lint.yml .github/workflows/
+# auto_set_project_fields.py もコピー（auto-add ワークフローから参照）
+mkdir -p scripts
+cp sdd-templates/templates/github-projects/scripts/auto_set_project_fields.py scripts/
+
+# 0b. GitHub リポジトリのシークレット・変数を設定（Web UI または gh CLI）
+#   シークレット: STRIDE_PROJECT_TOKEN — projects:write スコープの Personal Access Token
+#   変数:         STRIDE_PROJECT_NUMBER — Project 番号（stride project create で確認）
+gh secret set STRIDE_PROJECT_TOKEN --repo OWNER/REPO    # プロンプトで PAT を入力
+gh variable set STRIDE_PROJECT_NUMBER --repo OWNER/REPO --body "4"
+
 # 1a. Labels 一括登録（GitHub Projects ラベル — labels.json から 43件）
 cat sdd-templates/templates/github-projects/labels.json | jq -c '.[]' | while read label; do
   name=$(echo "$label" | jq -r '.name')
@@ -27,9 +43,14 @@ for gate in "Gate 1: Design Review" "Gate 2: BPMN Review" "Gate 3: Spec Review" 
   gh api repos/{owner}/{repo}/milestones -f title="$gate"
 done
 
-# 3. Issue Templates コピー
+# 3. Issue Templates コピー（.md = SDD標準、.yml = Symphony テンプレート）
+mkdir -p .github/ISSUE_TEMPLATE
 cp sdd-templates/templates/github-projects/ISSUE_TEMPLATE/*.md .github/ISSUE_TEMPLATE/
+cp sdd-templates/templates/github-projects/ISSUE_TEMPLATE/*.yml .github/ISSUE_TEMPLATE/  # Symphony用
 ```
+
+> **重要**: Step 0 を省略すると、Issue を作成しても Project ボードに自動追加されません。
+> Symphony で Issue を処理しても Projects のステータスが更新されない原因の多くは、この設定漏れです。
 
 ---
 
@@ -557,6 +578,29 @@ PMが日常的に確認すべき項目:
 
 ## 10. Automation
 
+### auto-add-to-project.yml（Issue → Project 自動追加）⚠️ 必須
+
+SDD ラベル付き Issue を自動で Project ボードに追加し、カスタムフィールドを設定:
+
+```yaml
+# .github/workflows/auto-add-to-project.yml
+on:
+  issues:
+    types: [opened, labeled]
+```
+
+**トリガー条件**: 以下のラベルが付いた Issue が作成/ラベル付与されたとき:
+- `epic`, `work-item`, `risk`, `blocker`, `dependency`, `symphony:ready`
+- `epic:EPIC-XXX`（動的 Epic ラベル）, `feature:xxx`（動的 Feature ラベル）
+
+**動作**:
+1. `gh project item-add` で Issue を Project に追加
+2. `scripts/auto_set_project_fields.py` でカスタムフィールドを自動設定
+
+**必要な設定**:
+- シークレット `STRIDE_PROJECT_TOKEN`: `projects:write` スコープの PAT
+- 変数 `STRIDE_PROJECT_NUMBER`: Project 番号（`stride project status` で確認）
+
 ### stride-sync.yml（Forward Sync）
 
 `state.yaml` の変更を GitHub Projects に自動反映:
@@ -590,4 +634,26 @@ PR作成時に SDD 準拠チェック:
 on:
   pull_request:
     paths: ['specs/**']
+```
+
+### ワークフロー全体像
+
+```
+Issue 作成/ラベル付与
+    ↓ [auto-add-to-project.yml]
+    ├── SDD ラベル検出 → Project に自動追加
+    └── カスタムフィールド自動設定
+    
+Symphony dispatch
+    ↓ [symphony/cli.py]
+    ├── epic:EPIC-XXX / feature:xxx ラベル自動付与（→ 再度 auto-add 発火）
+    └── update_project_status("In progress" / "Done")
+
+state.yaml 変更
+    ↓ [stride-sync.yml]
+    └── Forward Sync → Projects フィールド更新
+
+PR 作成
+    ↓ [stride-lint.yml]
+    └── SDD 準拠チェック
 ```

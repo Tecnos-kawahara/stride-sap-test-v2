@@ -65,10 +65,10 @@ check_enterprise_enabled() {
     local PY
     PY=$(_resolve_python)
     local ENABLED
-    ENABLED=$("$PY" -c "
+    ENABLED=$(cat "$ENTERPRISE_CONFIG" | "$PY" -c "
 import yaml, sys
 try:
-    data = yaml.safe_load(open('$ENTERPRISE_CONFIG'))
+    data = yaml.safe_load(sys.stdin)
     print('true' if data and data.get('enterprise', {}).get('enabled') is True else 'false')
 except Exception:
     print('false')
