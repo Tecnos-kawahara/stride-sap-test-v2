@@ -26,6 +26,19 @@ cp sdd-templates/templates/github-projects/scripts/auto_set_project_fields.py sc
 gh secret set STRIDE_PROJECT_TOKEN --repo OWNER/REPO    # プロンプトで PAT を入力
 gh variable set STRIDE_PROJECT_NUMBER --repo OWNER/REPO --body "4"
 
+# 0c. Project をリポジトリにリンク（リポジトリの Projects タブに表示するために必須）
+#   Projects V2 はユーザー/Org レベルのリソースのため、明示的にリンクしないと
+#   リポジトリの Projects タブ (https://github.com/OWNER/REPO/projects) に表示されない
+REPO_NODE_ID=$(gh api repos/OWNER/REPO --jq '.node_id')
+PROJECT_NODE_ID=$(gh project view PROJECT_NUMBER --owner OWNER --format json --jq '.id')
+gh api graphql -f query="
+  mutation {
+    linkProjectV2ToRepository(input: {
+      projectId: \"$PROJECT_NODE_ID\"
+      repositoryId: \"$REPO_NODE_ID\"
+    }) { repository { name } }
+  }"
+
 # 1a. Labels 一括登録（GitHub Projects ラベル — labels.json から 43件）
 cat sdd-templates/templates/github-projects/labels.json | jq -c '.[]' | while read label; do
   name=$(echo "$label" | jq -r '.name')
@@ -51,6 +64,9 @@ cp sdd-templates/templates/github-projects/ISSUE_TEMPLATE/*.yml .github/ISSUE_TE
 
 > **重要**: Step 0 を省略すると、Issue を作成しても Project ボードに自動追加されません。
 > Symphony で Issue を処理しても Projects のステータスが更新されない原因の多くは、この設定漏れです。
+
+> **重要**: Step 0c を省略すると、Project は存在するがリポジトリの Projects タブに表示されません。
+> Projects V2 はユーザー/Org レベルで作成されるため、`linkProjectV2ToRepository` で明示的にリンクする必要があります。
 
 ---
 
